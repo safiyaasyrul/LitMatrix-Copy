@@ -133,6 +133,25 @@ export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIPr
   }
 }
 
+async function readAIResponseJson(res: Response, providerName: string): Promise<any> {
+  const responseText = await res.text();
+
+  if (!responseText.trim()) {
+    throw new Error(
+      `${providerName} returned an empty response (HTTP ${res.status}). Check the API key, model name, endpoint URL, and provider quota.`
+    );
+  }
+
+  try {
+    return JSON.parse(responseText);
+  } catch {
+    const contentType = res.headers.get("content-type") || "unknown content type";
+    throw new Error(
+      `${providerName} returned an invalid response (HTTP ${res.status}, ${contentType}). Check the endpoint URL and provider availability.`
+    );
+  }
+}
+
 export async function callAI(
   prompt: string,
   systemInstruction?: string,
@@ -162,7 +181,7 @@ export async function callAI(
         temperature: 0.3,
       }),
     });
-    const data = await res.json();
+    const data = await readAIResponseJson(res, "Server Gemini");
     if (!res.ok || data.error) {
       throw new Error(data.error || `Server error (${res.status})`);
     }
@@ -192,7 +211,7 @@ export async function callAI(
         messages: [{ role: "user", content: prompt }],
       }),
     });
-    const data = await res.json();
+    const data = await readAIResponseJson(res, "Anthropic Claude");
     if (data.error) throw new Error(data.error.message || "Claude API error");
     return (data.content || []).map((b: any) => b.text || "").join("\n");
   }
@@ -212,7 +231,7 @@ export async function callAI(
         }),
       }
     );
-    const data = await res.json();
+    const data = await readAIResponseJson(res, "Google Gemini");
     if (data.error) throw new Error(data.error.message || `Gemini API error: ${JSON.stringify(data.error)}`);
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "";
   }
@@ -269,7 +288,7 @@ export async function callAI(
         temperature: 0.3,
       }),
     });
-    const data = await res.json();
+    const data = await readAIResponseJson(res, `${provider} AI`);
     if (data.error) throw new Error(data.error.message || `API error (${res.status}): ${JSON.stringify(data.error)}`);
     return data.choices?.[0]?.message?.content || "";
   }
