@@ -78,14 +78,47 @@ export const DEFAULT_AI_KEYS_CONFIG: UserAIKeysConfig = {
   },
 };
 
+export const OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1";
+const OPENROUTER_KEY_PREFIX = "sk-or-v1-";
 const DIRECT_AI_PROVIDERS = ["other", "openai", "claude", "gemini", "emergent", "replit"] as const;
+
+export function isOpenRouterApiKey(value?: string): boolean {
+  return value?.trim().startsWith(OPENROUTER_KEY_PREFIX) ?? false;
+}
 
 function getConfiguredDirectProvider(keys: Partial<UserAIKeysConfig>): (typeof DIRECT_AI_PROVIDERS)[number] | undefined {
   return DIRECT_AI_PROVIDERS.find((provider) => Boolean(keys[provider]?.apiKey?.trim()));
 }
 
+function getOpenRouterKeySource(
+  keys: Partial<UserAIKeysConfig>
+): { apiKey: string; model: string } | undefined {
+  const sourceProvider = DIRECT_AI_PROVIDERS.find((provider) =>
+    isOpenRouterApiKey(keys[provider]?.apiKey)
+  );
+  if (!sourceProvider) return undefined;
+
+  const source = keys[sourceProvider];
+  return {
+    apiKey: source?.apiKey?.trim() || "",
+    model: source?.model?.trim() || "openai/gpt-4o-mini",
+  };
+}
+
 export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIProviderConfig {
   if (!keys) return { provider: "server-gemini", model: "gemini-3.7-flash" };
+
+  // OpenRouter keys are unambiguous. Honor them even if an older saved
+  // configuration still says Google Gemini or Server Gemini is active.
+  const openRouterKey = getOpenRouterKeySource(keys);
+  if (openRouterKey) {
+    return {
+      provider: "other",
+      apiKey: openRouterKey.apiKey,
+      model: openRouterKey.model,
+      customBase: OPENROUTER_DEFAULT_BASE,
+    };
+  }
 
   // Older saved sessions may still say server-gemini even though a direct
   // provider key was entered. Never route those saved keys to Gemini.
@@ -133,7 +166,7 @@ export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIPr
         provider: "other",
         apiKey: keys.other?.apiKey?.trim() || "",
         model: keys.other?.model || "gpt-4o-mini",
-        customBase: keys.other?.customBase?.trim() || "https://openrouter.ai/api/v1",
+        customBase: keys.other?.customBase?.trim() || OPENROUTER_DEFAULT_BASE,
       };
     case "server-gemini":
     default:

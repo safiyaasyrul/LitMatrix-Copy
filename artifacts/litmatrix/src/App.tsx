@@ -48,6 +48,8 @@ import {
   DEFAULT_AI_KEYS_CONFIG,
   getActiveAIConfig,
   SupportedAIProvider,
+  isOpenRouterApiKey,
+  OPENROUTER_DEFAULT_BASE,
 } from "./utils/aiClient";
 
 import {
@@ -156,9 +158,24 @@ export default function App() {
         };
 
         // Migrate configurations saved before direct-provider keys auto-selected
-        // themselves. This prevents a stored OpenRouter key from being ignored
-        // while the old server-Gemini default remains active.
-        if (merged.activeProvider === "server-gemini") {
+        // themselves. An OpenRouter key is always authoritative, even if it
+        // was previously pasted into another provider card.
+        const openRouterSource = (
+          ["other", "openai", "claude", "gemini", "emergent", "replit"] as const
+        ).find((provider) => isOpenRouterApiKey(merged[provider].apiKey));
+        if (openRouterSource) {
+          merged.other = {
+            ...merged.other,
+            apiKey: merged[openRouterSource].apiKey,
+            model: merged.other.model?.includes("/")
+              ? merged.other.model
+              : merged[openRouterSource].model?.includes("/")
+              ? merged[openRouterSource].model
+              : "openai/gpt-4o-mini",
+            customBase: OPENROUTER_DEFAULT_BASE,
+          };
+          merged.activeProvider = "other";
+        } else if (merged.activeProvider === "server-gemini") {
           const configuredProvider = (
             ["other", "openai", "claude", "gemini", "emergent", "replit"] as const
           ).find((provider) => Boolean(merged[provider].apiKey?.trim()));
