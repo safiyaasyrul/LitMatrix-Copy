@@ -164,6 +164,16 @@ export default function App() {
           other: { ...DEFAULT_AI_KEYS_CONFIG.other, ...(parsed.other || {}) },
         };
 
+        // One-time migration for browsers that previously auto-selected a saved
+        // OpenRouter or direct-provider key. Preserve optional keys, but restore
+        // the built-in managed provider as the default.
+        const managedDefaultMigrationKey = "slr_managed_ai_default_v1";
+        if (!localStorage.getItem(managedDefaultMigrationKey)) {
+          merged.activeProvider = "replit-managed";
+          localStorage.setItem(managedDefaultMigrationKey, "complete");
+          return merged;
+        }
+
         // Migrate configurations saved before direct-provider keys auto-selected
         // themselves. An OpenRouter key is always authoritative, even if it
         // was previously pasted into another provider card.

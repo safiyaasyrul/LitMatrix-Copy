@@ -129,10 +129,16 @@ function enqueueOpenRouterRequest<T>(request: () => Promise<T>): Promise<T> {
 export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIProviderConfig {
   if (!keys) return { provider: "replit-managed", model: "gpt-5.6-terra" };
 
-  // OpenRouter keys are unambiguous. Honor them even if an older saved
-  // configuration still says Google Gemini or Server Gemini is active.
-  const openRouterKey = getOpenRouterKeySource(keys);
-  if (openRouterKey) {
+  // The managed provider is the application default and must not be overridden
+  // merely because an optional provider key remains saved in the browser.
+  if (keys.activeProvider === "replit-managed") {
+    return { provider: "replit-managed", model: "gpt-5.6-terra" };
+  }
+
+  // Use a saved OpenRouter key only when the user has explicitly selected an
+  // optional provider instead of Managed AI.
+  const openRouterKey = keys.activeProvider !== "server-gemini" ? getOpenRouterKeySource(keys) : undefined;
+  if (openRouterKey && keys.activeProvider === "other") {
     return {
       provider: "other",
       apiKey: openRouterKey.apiKey,
