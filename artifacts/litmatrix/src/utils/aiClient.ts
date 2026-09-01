@@ -170,7 +170,7 @@ export async function callAI(
 
   // 1. Server-side Gemini endpoint (built-in default)
   if (provider === "server-gemini" || (!apiKey && provider === "gemini")) {
-    const res = await fetch("/api/gemini/generate", {
+    const res = await fetch("/prisma-api/gemini/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

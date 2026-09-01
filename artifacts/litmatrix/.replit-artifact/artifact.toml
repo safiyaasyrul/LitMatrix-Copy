@@ -8,7 +8,7 @@ router = "path"
 
 [[services]]
 name = "web"
-paths = [ "/" ]
+paths = [ "/", "/prisma-api" ]
 localPort = 22863
 
 [services.development]

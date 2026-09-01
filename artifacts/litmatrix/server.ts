@@ -26,13 +26,13 @@ const getGeminiClient = () => {
 };
 
 // API health endpoint
-app.get("/api/health", (_req, res) => {
+app.get("/prisma-api/health", (_req, res) => {
   const hasKey = Boolean(process.env.GEMINI_API_KEY);
   res.json({ status: "ok", geminiAvailable: hasKey });
 });
 
 // Server-side Gemini generate endpoint with automatic model fallback
-app.post("/api/gemini/generate", async (req, res) => {
+app.post("/prisma-api/gemini/generate", async (req, res) => {
   try {
     const { prompt, systemInstruction, model = "gemini-3.7-flash", maxOutputTokens = 4000, temperature = 0.3 } = req.body;
     const ai = getGeminiClient();

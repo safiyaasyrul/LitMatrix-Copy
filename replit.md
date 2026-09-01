@@ -30,7 +30,7 @@ PRISMA 2020 Workbench is a systematic literature review workspace for auditing r
 
 - The frontend and API run in one Express process so relative `/api` calls work in preview and the bundled server.
 - Review content is persisted in browser localStorage and can be reset to either the included diabetes demo or a blank review.
-- The server Gemini endpoint reports availability through `/api/health` and fails explicitly when no key is configured.
+- The server Gemini endpoint reports availability through `/prisma-api/health` and fails explicitly when no key is configured.
 
 ## Product
 
