@@ -38,27 +38,27 @@ export default function FullReviewReport({
   const [copied, setCopied] = useState(false);
 
   const questions = protocol.primaryResearchQuestions || [
-    "RQ1: What is the cumulative diagnostic, predictive, or architectural performance across included primary studies?",
-    "RQ2: How do contemporary technological approaches perform relative to baseline benchmarks?",
-    "RQ3: What methodological factors, dataset scale variations, or validity threats influence generalizability?",
+    "RQ1: What evidence directly addresses the review topic?",
+    "RQ2: What methods, settings, and outcomes are reported?",
+    "RQ3: What evidence gaps remain?",
   ];
 
   const objectives = protocol.secondaryObjectives || [
-    "Synthesize comparative performance variations across architectural and methodological categories",
-    "Systematically appraise the methodological quality and experimental reproducibility of primary investigations",
+    "Describe the evidence by themes grounded in the included records",
+    "Appraise methodological quality using criteria appropriate to the study designs",
   ];
 
   // Helper for generating PICOC narrative paragraph in Methods
   const getFrameworkNarrative = () => {
     const fw = protocol.formulationFramework || "PICOC";
     if (fw === "PICOC") {
-      const p = protocol.objectivesPICOC?.population || protocol.objectivesPICO.population || "targeted software and computational systems";
-      const i = protocol.objectivesPICOC?.intervention || protocol.objectivesPICO.intervention || "investigated algorithmic and architectural frameworks";
-      const c = protocol.objectivesPICOC?.comparison || protocol.objectivesPICO.comparator || "standard baseline algorithms and legacy benchmarks";
-      const o = protocol.objectivesPICOC?.outcomes || protocol.objectivesPICO.outcomes || "quantitative performance, latency, accuracy, and scalability metrics";
-      const ctx = protocol.objectivesPICOC?.context || "operational runtime environments and deployment constraints";
-      const s = protocol.objectivesPICOC?.studyDesigns || protocol.objectivesPICO.studyDesigns || "empirical benchmarks, controlled experiments, and comparative evaluations";
-      return `The methodological scope of this systematic review was formalized in accordance with the PICOC formulation framework. The target population (P) encompasses ${p}. The investigated interventions and technological architectures (I) comprise ${i}. The baseline comparators and reference standards (C) evaluate ${c}. The evaluated outcomes and quantitative performance metrics (O) measure ${o}. The operational context and deployment constraints (C) reflect ${ctx}, with eligible study designs (S) restricted to ${s}.`;
+      const p = protocol.objectivesPICOC?.population || protocol.objectivesPICO.population || "the defined population or unit of analysis";
+      const i = protocol.objectivesPICOC?.intervention || protocol.objectivesPICO.intervention || "the intervention, method, policy, technology, or exposure of interest";
+      const c = protocol.objectivesPICOC?.comparison || protocol.objectivesPICO.comparator || "any explicitly defined comparator";
+      const o = protocol.objectivesPICOC?.outcomes || protocol.objectivesPICO.outcomes || "the prespecified outcomes or phenomena";
+      const ctx = protocol.objectivesPICOC?.context || "the defined operational or geographical context";
+      const s = protocol.objectivesPICOC?.studyDesigns || protocol.objectivesPICO.studyDesigns || "eligible empirical study designs";
+      return `The review scope was structured using PICOC: population or unit of analysis, ${p}; intervention or focus, ${i}; comparison, ${c}; outcomes, ${o}; context, ${ctx}; and study designs, ${s}.`;
     }
     if (fw === "PEO") {
       const p = protocol.objectivesPEO?.population || protocol.objectivesPICO.population;
@@ -88,7 +88,7 @@ export default function FullReviewReport({
   // Group characteristics by category
   const categoriesMap = new Map<string, StudyCharacteristic[]>();
   characteristics.forEach((c) => {
-    const cat = c.category || "Empirical & Architectural Implementations";
+    const cat = c.category || "Uncategorized evidence";
     if (!categoriesMap.has(cat)) {
       categoriesMap.set(cat, []);
     }
@@ -101,25 +101,25 @@ export default function FullReviewReport({
 
   // Structured Abstract generator
   const getAbstractContent = () => {
-    const bg = protocol.introductionRationale || "The proliferation of novel technological architectures and divergent empirical performance claims underscores the necessity for a rigorous, consolidated systematic review evaluating comparative efficacy across standardized benchmarks.";
+    const bg = protocol.introductionRationale || `This review examines the evidence relevant to ${protocol.title || "the defined topic"}.`;
     const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
     const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
-    const meth = `Electronic databases (${searchDbs}) were systematically searched. Studies meeting predefined eligibility criteria (${protocol.eligibilityCriteria.inclusion.join(", ")}) were independently screened by ${protocol.selectionProcess.numReviewers} reviewers with consensus resolution. Methodological quality and experimental rigor were evaluated across study design, benchmark data adequacy, baseline validation, and repeatability.`;
+    const meth = `The workspace contains records from ${searchDbs}. Title and abstract screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, duplicate independent review, and adjudication are reported only when separately documented.`;
     
     // Generate synthesized category summary
     const catSummaries: string[] = [];
     categoriesMap.forEach((studies, cat) => {
       const authors = studies.map((s) => s.authorYear).join(" and ");
-      catSummaries.push(`Within ${cat}, investigations by ${authors} demonstrated complementary advances with consistent improvements in ${studies[0]?.primaryOutcome || "evaluated metrics"}`);
+      catSummaries.push(`The ${cat} theme includes ${authors}`);
     });
 
-    const res = `From ${counts.screened || includedRecords.length * 4} screened records, ${includedRecords.length} primary studies met all inclusion criteria. ${catSummaries.join(". Furthermore, ")}. Pooled quantitative synthesis confirmed positive outcome directionality with a summary estimate of ${synthesis.pooledEffectEstimate?.effectSize || 0.88} (${synthesis.pooledEffectEstimate?.effectMeasure || "pooled performance metric"}). Methodological appraisal revealed robust experimental configurations with low to moderate risk of bias across primary benchmarks.`;
-    const concl = `The synthesized evidence establishes that modern architectural frameworks achieve superior discriminatory precision and operational reliability over baseline comparators. Practical adoption requires standardized reporting and cross-domain validation, guiding future empirical investigations.`;
+    const res = `${counts.screened || 0} records have recorded title and abstract screening decisions; ${includedRecords.length} are marked for inclusion at that stage. ${catSummaries.join(". ")}. No pooled quantitative analysis was performed.`;
+    const concl = `The available evidence is summarized narratively. Eligibility, extracted characteristics, and methodological judgments should be verified against full texts before drawing definitive conclusions.`;
     const keywords = [
       protocol.reviewType || "Systematic Literature Review",
       "Evidence Synthesis",
-      "Empirical Benchmarks",
-      "Comparative Evaluation",
+       "Narrative Synthesis",
+       "Study Characteristics",
       "Methodological Quality",
       ...Array.from(categoriesMap.keys()).slice(0, 3),
     ].filter(Boolean);
@@ -174,14 +174,14 @@ export default function FullReviewReport({
     md += `Comprehensive systematic search strategies were executed across major academic databases, including ${searchDatabases}. Queries combined Boolean operators, controlled vocabulary terms, and truncation tailored to each database search syntax.\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `Title, abstract, and full-text eligibility evaluations were independently conducted by ${protocol.selectionProcess.numReviewers} reviewers with structured consensus moderation. Non-primary literature (including review articles, survey papers, and meta-analyses) were explicitly excluded in compliance with systematic review protocols requiring original primary empirical data. In addition, records outside the defined research scope or lacking keyword alignment with the target research questions were excluded with documented rationales.\n\n`;
+    md += `The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not recorded and are not claimed here.\n\n`;
 
     md += `### 2.5 Methodological Quality and Systematic Assessment Methodology\n`;
     md += `Methodological rigor and potential threats to validity were systematically assessed using ${protocol.riskOfBiasMethods.toolName || "a domain-tailored engineering quality checklist"}. The appraisal systematically evaluated study design formulation, benchmark data adequacy, measurement precision, baseline comparability, and experimental repeatability.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `Database searching identified ${counts.identifiedDb || 0} records across electronic databases and ${counts.identifiedOther || 0} additional records from supplementary registers. Following deduplication (${counts.duplicatesRemoved || 0} duplicates removed), ${counts.screened || 0} unique records were screened, resulting in ${counts.screenedExcluded || 0} title and abstract exclusions (primarily due to secondary review formats and scope/keyword divergence). Full-text evaluation of ${counts.assessed || 0} retrieved reports resulted in ${counts.assessedExcluded || 0} exclusions with documented justifications. A final synthesis cohort of ${includedRecords.length} primary studies satisfied all inclusion requirements.\n\n`;
+    md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
 
     md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
     if (hasCountryData || hasSampleData) {
@@ -211,10 +211,6 @@ export default function FullReviewReport({
     synthesis.subtopics.forEach((sub) => {
       md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
-
-    if (synthesis.pooledEffectEstimate) {
-      md += `Quantitative synthesis demonstrated consistent outcome directionality with a pooled summary estimate of ${synthesis.pooledEffectEstimate.effectSize} (${synthesis.pooledEffectEstimate.effectMeasure}, 95% CI ${synthesis.pooledEffectEstimate.ciLower} to ${synthesis.pooledEffectEstimate.ciUpper}, Heterogeneity I² = ${synthesis.pooledEffectEstimate.heterogeneityI2}).\n\n`;
-    }
 
     if (synthesis.heterogeneityDiscussion) {
       md += `Regarding between-study variance and heterogeneity exploration, ${synthesis.heterogeneityDiscussion}\n\n`;
@@ -330,8 +326,8 @@ export default function FullReviewReport({
   <h3>2.3 Information Sources and Search Strategy</h3>
   <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
 
-  <h3>2.4 Selection Process and Reviewer Moderation</h3>
-  <p>Title, abstract, and full-text eligibility assessments were independently conducted by ${protocol.selectionProcess.numReviewers} reviewers with dispute resolution achieved through consensus moderation. Secondary literature and review papers were excluded to prioritize primary empirical studies.</p>
+  <h3>2.4 Selection Process</h3>
+  <p>The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.</p>
 
   <h3>2.5 Methodological Quality and Risk of Bias Assessment Methods</h3>
   <p>Methodological quality and potential validity threats were systematically assessed using ${protocol.riskOfBiasMethods.toolName || "a domain-tailored engineering quality checklist"} evaluating study design, benchmark data adequacy, measurement methodology, baseline comparability, and experimental repeatability.</p>
@@ -339,7 +335,7 @@ export default function FullReviewReport({
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>Electronic queries identified ${counts.identifiedDb || 0} records from databases and ${counts.identifiedOther || 0} from registers. Following deduplication (${counts.duplicatesRemoved || 0} duplicates removed), ${counts.screened || 0} records underwent title and abstract screening, resulting in ${counts.screenedExcluded || 0} exclusions. Full-text evaluation of ${counts.assessed || 0} retrieved reports resulted in ${counts.assessedExcluded || 0} exclusions with documented justifications, yielding a final synthesis cohort of ${includedRecords.length} primary studies.</p>
+  <p>${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded.</p>
 
   <h3>3.2 Characteristics of Included Studies (Table 1)</h3>
   <div class="table-caption">Table 1: Characteristics of Included Studies Grouped by Category</div>
@@ -552,7 +548,7 @@ export default function FullReviewReport({
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-sm font-mono">1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-              {protocol.introductionRationale || "The necessity of undertaking this systematic literature review arises from the rapid expansion of technological architectures, divergent empirical performance claims in prior studies, and the absence of a consolidated synthesis evaluating comparative efficacy under standardized benchmarks."}
+              {protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}
             </p>
             {protocol.backgroundContext && (
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
@@ -595,9 +591,9 @@ export default function FullReviewReport({
               Systematic search strings were executed across major academic databases ({protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strategies combined controlled vocabulary terms, Boolean logic, and field constraints.
             </p>
 
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process, Reviewer Moderation, and Exclusion Protocol</h3>
+            <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              Study selection was conducted by {protocol.selectionProcess.numReviewers} independent reviewers with dispute resolution achieved via structured consensus moderation. Non-primary literature (such as secondary review articles, surveys, and meta-analyses) were excluded to focus exclusively on original primary empirical evidence. Studies were additionally excluded if their thematic scope or keywords diverged from the defined research questions.
+              The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Quality and Rigor Assessment Methods</h3>
@@ -616,7 +612,7 @@ export default function FullReviewReport({
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              Database querying retrieved {counts.identifiedDb || 0} records from electronic databases and ${counts.identifiedOther || 0} from registers. Following deduplication (${counts.duplicatesRemoved || 0} duplicates removed), ${counts.screened || 0} records underwent title and abstract screening, resulting in ${counts.screenedExcluded || 0} exclusions with documented justifications (including review papers and out-of-scope records). Full-text assessment resulted in ${counts.assessedExcluded || 0} exclusions, yielding a final synthesis cohort of ${includedRecords.length} primary studies satisfying all protocol criteria.
+              The evidence database represents {counts.identifiedDb || 0} records, including {counts.duplicatesRemoved || 0} duplicates recorded as removed. {counts.screened || 0} records have title and abstract screening decisions, {counts.screenedExcluded || 0} are excluded, and {includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
             </p>
 
             {/* Illustrated Flow Diagram */}

@@ -1,1 +1,2 @@
 - [Artifact API routing](artifact-api-routing.md) — use a unique app API prefix when shared api-server owns `/api`; otherwise requests can bypass the artifact server.
+- [Evidence-grounded review outputs](evidence-grounded-review-outputs.md) — never infer screening, full-text, reviewer, appraisal, or quantitative results from citation metadata.

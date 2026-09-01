@@ -30,15 +30,15 @@ export default function SynthesisSection({
     const map = new Map<string, StudyCharacteristic[]>();
 
     characteristics.forEach((c) => {
-      let groupKey = "General Primary Cohort";
+      let groupKey = "Uncategorized evidence";
       if (groupingMode === "category") {
-        groupKey = c.category || "Empirical Architectures & Methods";
+        groupKey = c.category || "Uncategorized evidence";
       } else if (groupingMode === "design") {
-        groupKey = c.studyDesign || "Experimental Benchmark Evaluation";
+        groupKey = c.studyDesign || "Study design not reported";
       } else if (groupingMode === "intervention") {
-        groupKey = c.interventionOrFocus ? c.interventionOrFocus.split(",")[0].trim() : "Primary Proposed Architecture";
+        groupKey = c.interventionOrFocus ? c.interventionOrFocus.split(",")[0].trim() : "Focus not reported";
       } else if (groupingMode === "outcome") {
-        groupKey = c.primaryOutcome ? c.primaryOutcome.split("(")[0].trim() : "Primary Empirical Outcome";
+        groupKey = c.primaryOutcome ? c.primaryOutcome.split("(")[0].trim() : "Outcome not reported";
       }
 
       if (!map.has(groupKey)) {
@@ -53,7 +53,7 @@ export default function SynthesisSection({
     }));
   };
 
-  // Deterministic Biostatistical Meta-Analysis Synthesis Fallback
+  // Conservative narrative fallback. It never manufactures quantitative results.
   const runHeuristicSynthesis = () => {
     if (includedRecords.length === 0 && characteristics.length === 0) return;
 
@@ -62,87 +62,35 @@ export default function SynthesisSection({
       : includedRecords.map((r) => ({
           recordId: r.id,
           authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
-          country: "Multi-center",
-          sampleSize: "EHR Cohort (N > 1,000)",
-          population: "Target study population",
+          country: "Not reported",
+          sampleSize: "Not reported",
+          population: "Not reported",
           interventionOrFocus: r.title.slice(0, 50),
-          comparator: "Standard baseline model",
-          primaryOutcome: "Reported outcome discrimination",
-          studyDesign: "Retrospective validation cohort",
-          keyFinding: r.abstract?.slice(0, 180) || r.title,
+          comparator: "Not reported",
+          primaryOutcome: "Not reported",
+          studyDesign: "Not established from citation metadata",
+          keyFinding: r.abstract?.slice(0, 240) || "No abstract available.",
         }));
-
-    // Generate forest plot items with calculated inverse variance weights
-    const forestPlotEstimates = studies.map((s, idx) => {
-      const baseAuc = 0.84 + ((idx % 7) * 0.015);
-      const roundedAuc = Math.round(baseAuc * 1000) / 1000;
-      const ciLower = Math.round((roundedAuc - 0.035) * 1000) / 1000;
-      const ciUpper = Math.round((roundedAuc + 0.035) * 1000) / 1000;
-      const weight = Math.round((100 / Math.max(1, studies.length)) * 10) / 10;
-
-      return {
-        study: s.authorYear,
-        effectMeasure: "AUC-ROC",
-        effectSize: roundedAuc,
-        ciLower,
-        ciUpper,
-        weight,
-      };
+    const categoryMap = new Map<string, typeof studies>();
+    studies.forEach((study) => {
+      const category = study.category || "Uncategorized evidence";
+      categoryMap.set(category, [...(categoryMap.get(category) || []), study]);
     });
 
-    const sumWeightedAuc = forestPlotEstimates.reduce((acc, f) => acc + f.effectSize * f.weight, 0);
-    const sumWeights = forestPlotEstimates.reduce((acc, f) => acc + f.weight, 0) || 1;
-    const pooledAuc = Math.round((sumWeightedAuc / sumWeights) * 1000) / 1000;
-
-    // Build characteristic-grounded subtopics
-    const studyCitationsList = studies.map((s) => `${s.authorYear} (${s.country}, ${s.sampleSize}, ${s.interventionOrFocus})`);
-    const part1Cites = studyCitationsList.slice(0, Math.ceil(studies.length / 2)).join("; ");
-    const part2Cites = studyCitationsList.slice(Math.ceil(studies.length / 2)).join("; ");
-
     const generated: SynthesisResult = {
-      subtopics: [
-        {
-          title: "1. Primary Performance and Methodological Architectures",
-          prose: `Quantitative evaluation across the included studies (${part1Cites || "primary investigations"}) confirms substantial predictive performance and discriminatory precision. Specifically, ${studies[0]?.authorYear || "the leading study"} documented ${studies[0]?.keyFinding || "elevated outcome discrimination"}, establishing strong baseline stability across evaluated validation cohorts. Across all analyzed architectures, non-linear predictive algorithms consistently demonstrated superior calibration relative to traditional statistical benchmarks.`,
-        },
-        {
-          title: "2. Multi-Cohort Generalizability and Setting Characteristics",
-          prose: `Evaluation of geographic settings and cohort sample sizes (${part2Cites || "secondary validation cohorts"}) revealed robust cross-site generalizability. Studies implementing multi-center validation protocols preserved discriminatory capacity across heterogeneous patient populations and recording environments.`,
-        },
-        {
-          title: "3. Heterogeneity Factors and Methodological Variance",
-          prose: `Statistical synthesis demonstrated moderate between-study variance (I² = 54.2%), driven primarily by differences in sample size scale, feature collection protocols, and baseline prevalence rates across trial locations. Sensitivity analyses indicated that outcome directionality remained positive and statistically significant regardless of individual study exclusion.`,
-        },
-      ],
-      keyFindingsTable: [
-        {
-          topic: "Pooled Primary Performance",
-          summary: `Consistent outcome directionality across studies (Pooled Effect Estimate = ${pooledAuc})`,
-          consistency: "Confirmed across 85%+ of cohorts",
-          evidenceBase: `${studies.length} included primary studies`,
-        },
-        {
-          topic: "Model Architecture and Feature Utility",
-          summary: "Machine learning algorithms and structured feature sets outperformed standard linear baselines",
-          consistency: "Observed across all comparative evaluations",
-          evidenceBase: `${studies.length} primary investigation cohorts`,
-        },
-        {
-          topic: "Cross-Setting Generalizability",
-          summary: "External validation cohorts maintained robust performance with minor calibration adjustments",
-          consistency: "Moderate to high across multi-center datasets",
-          evidenceBase: "Subgroup validation cohorts",
-        },
-      ],
-      forestPlotEstimates,
-      pooledEffectEstimate: {
-        effectMeasure: "DerSimonian-Laird Pooled Random-Effects Estimate",
-        effectSize: pooledAuc,
-        ciLower: Math.round((pooledAuc - 0.025) * 1000) / 1000,
-        ciUpper: Math.round((pooledAuc + 0.025) * 1000) / 1000,
-        heterogeneityI2: "54.2% (p = 0.028)",
-      },
-      heterogeneityDiscussion: `Statistical analysis of variance across included studies identified moderate heterogeneity (I² = 54.2%, p = 0.028), attributable to differences in sample size scales, feature definitions, and local institutional protocols. Random-effects modeling accounts for this between-study diversity without compromising pooled summary stability.`,
+      subtopics: Array.from(categoryMap.entries()).map(([category, categoryStudies], index) => ({
+        title: `${index + 1}. ${category}`,
+        prose: categoryStudies.map((study) => `${study.authorYear}: ${study.keyFinding}`).join(" "),
+      })),
+      keyFindingsTable: Array.from(categoryMap.entries()).map(([category, categoryStudies]) => ({
+        topic: category,
+        summary: categoryStudies.map((study) => `${study.authorYear}: ${study.keyFinding}`).join(" "),
+        consistency: "Not assessed quantitatively",
+        evidenceBase: `${categoryStudies.length} screened-in record${categoryStudies.length === 1 ? "" : "s"}`,
+      })),
+      forestPlotEstimates: [],
+      pooledEffectEstimate: undefined,
+      heterogeneityDiscussion: "Study differences are described narratively. No pooled effect, confidence interval, heterogeneity statistic, or significance test was calculated.",
     };
 
     onUpdateSynthesis(generated);
@@ -159,19 +107,19 @@ export default function SynthesisSection({
       : includedRecords.map((r) => ({
           recordId: r.id,
           authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
-          country: "Multi-center",
-          sampleSize: "EHR Cohort",
-          population: "Target population",
+          country: "Not reported",
+          sampleSize: "Not reported",
+          population: "Not reported",
           interventionOrFocus: r.title,
-          comparator: "Standard baseline",
-          primaryOutcome: "Reported model performance",
-          studyDesign: "Retrospective cohort",
+          comparator: "Not reported",
+          primaryOutcome: "Not reported",
+          studyDesign: "Not established from citation metadata",
           keyFinding: (r.abstract || "").slice(0, 260),
         }));
 
-    const prompt = `Act as an expert biostatistician and systematic review synthesis methodologist. Synthesize the findings of the ${studiesData.length} included studies.
+    const prompt = `Act as a systematic review synthesis methodologist. Produce a narrative and thematic synthesis of the ${studiesData.length} screened-in records.
 
-Group the studies based on their characteristics (e.g. by Methodological Architecture, by Target Population and Cohort Characteristics, or by Primary Outcome Performance).
+Group studies using themes that emerge from the supplied records.
 Within each category or thematic group, explicitly identify authors who share similarities in their methods, designs, or outcomes, and compare/contrast their empirical results.
 
 Included Studies and Detailed Characteristics:
@@ -183,41 +131,26 @@ STRICT WRITING RULES:
 3. DO NOT mention "PRISMA Item", "PRISMA", "Item 20", etc.
 4. CITE EVERY INCLUDED STUDY EXPLICITLY in the narrative text (e.g. Chen et al., 2023) and present its key characteristics and findings. Compare authors who share methodological or paradigm similarities within each category.
 5. Group the findings into 3-4 structured subtopics with descriptive academic titles.
+6. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
+7. Do not calculate or report pooled effects, confidence intervals, p-values, I², weights, meta-analysis, or statistical significance.
+8. Treat "Not reported" as missing information, not as evidence of absence.
 
 Generate a JSON object conforming strictly to:
 {
   "subtopics": [
     {
-      "title": "Descriptive Subtopic Title (e.g. 1. Machine Learning Architectures and Comparative Discrimination)",
-      "prose": "2-3 comprehensive academic paragraphs summarizing findings, explicitly citing each study (e.g. Author et al., 2023), stating sample sizes, populations, interventions, and comparing results..."
+      "title": "Descriptive subtopic grounded in the supplied records",
+      "prose": "Evidence-grounded narrative citing the relevant supplied studies"
     }
   ],
   "keyFindingsTable": [
     {
       "topic": "Synthesis Domain",
       "summary": "Concise summary citing findings",
-      "consistency": "High / Moderate consistency",
-      "evidenceBase": "X studies (N = Y)"
+      "consistency": "Describe cautiously or state not assessable",
+      "evidenceBase": "Number of records contributing to this theme"
     }
-  ],
-  "forestPlotEstimates": [
-    {
-      "study": "Author (Year)",
-      "effectMeasure": "AUC-ROC",
-      "effectSize": 0.885,
-      "ciLower": 0.852,
-      "ciUpper": 0.918,
-      "weight": 16.5
-    }
-  ],
-  "pooledEffectEstimate": {
-    "effectMeasure": "Pooled Random-Effects AUC-ROC",
-    "effectSize": 0.876,
-    "ciLower": 0.852,
-    "ciUpper": 0.900,
-    "heterogeneityI2": "54.2%"
-  },
-  "heterogeneityDiscussion": "2 academic paragraphs examining sources of heterogeneity across studies..."
+  ]
 }`;
 
     try {
@@ -227,14 +160,14 @@ Generate a JSON object conforming strictly to:
         aiConfig
       );
       const parsed = parseJSONLoose(text);
-      if (parsed && (parsed.subtopics || parsed.forestPlotEstimates)) {
+      if (parsed && parsed.subtopics) {
         onUpdateSynthesis({
           ...synthesis,
           subtopics: parsed.subtopics || synthesis.subtopics,
           keyFindingsTable: parsed.keyFindingsTable || synthesis.keyFindingsTable,
-          forestPlotEstimates: parsed.forestPlotEstimates || synthesis.forestPlotEstimates,
-          pooledEffectEstimate: parsed.pooledEffectEstimate || synthesis.pooledEffectEstimate,
-          heterogeneityDiscussion: parsed.heterogeneityDiscussion || synthesis.heterogeneityDiscussion,
+          forestPlotEstimates: [],
+          pooledEffectEstimate: undefined,
+          heterogeneityDiscussion: "Study differences are described narratively; no statistical heterogeneity analysis was performed.",
         });
       } else {
         throw new Error("Could not parse AI response as valid synthesis object.");
@@ -248,15 +181,8 @@ Generate a JSON object conforming strictly to:
     }
   };
 
-  // Forest Plot SVG scaling helpers
-  const minVal = 0.65;
-  const maxVal = 1.0;
-  const scaleX = (v: number) => {
-    const clamped = Math.max(minVal, Math.min(maxVal, v));
-    return 240 + ((clamped - minVal) / (maxVal - minVal)) * 360;
-  };
-
   const groupedData = getGroupedCharacteristics();
+  const scaleX = (value: number) => 240 + ((Math.max(0.65, Math.min(1, value)) - 0.65) / 0.35) * 360;
 
   return (
     <div id="synthesis-section-container" className="space-y-6">
@@ -281,10 +207,10 @@ Generate a JSON object conforming strictly to:
               Results & Evidence Synthesis
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Synthesis of Results & Quantitative Meta-Analysis
+              Narrative & Thematic Synthesis
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Summarize and discuss findings from included records, cite primary studies with their extracted characteristics, and analyze effect distributions.
+              Group and summarize only findings supported by the supplied records and extracted characteristics.
             </p>
           </div>
 
@@ -303,7 +229,7 @@ Generate a JSON object conforming strictly to:
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-indigo-600" />
-              Instant Statistical Synthesis
+              Instant Narrative Synthesis
             </button>
           </div>
         </div>
@@ -313,7 +239,6 @@ Generate a JSON object conforming strictly to:
           {[
             { key: "prose", label: "Narrative Synthesis by Subtopics" },
             { key: "groups", label: "Findings Grouped by Study Characteristics" },
-            { key: "forest", label: "Forest Plot & Heterogeneity" },
             { key: "table", label: "Summary of Findings Matrix" },
           ].map((t) => (
             <button

@@ -112,7 +112,7 @@ export default function StudyCharacteristicsTable({
     setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Heuristic rule-based fallback extractor adapted for engineering & diverse domains
+  // Conservative fallback: extract only what is explicitly present in the citation metadata.
   const runHeuristicExtraction = () => {
     if (includedRecords.length === 0) return;
     const generated: StudyCharacteristic[] = includedRecords.map((r, idx) => {
@@ -121,42 +121,37 @@ export default function StudyCharacteristicsTable({
       const abstract = r.abstract || "";
       const title = r.title || "";
 
-      // Derive category/paradigm from title/abstract
-      let cat = "Machine Learning & Architectural Design";
-      if (/edge|iot|embedded|hardware|fpga|sensor/i.test(title + abstract)) {
-        cat = "Edge & Embedded Computing Systems";
-      } else if (/cloud|distributed|microservice|cluster|kubernetes/i.test(title + abstract)) {
-        cat = "Cloud & Distributed Architectures";
-      } else if (/deep learning|neural|transformer|llm|vision|bert/i.test(title + abstract)) {
-        cat = "Deep Learning & Generative Models";
-      } else if (/security|privacy|blockchain|cryptograph|vulnerability/i.test(title + abstract)) {
-        cat = "Security, Privacy & Blockchain";
-      } else if (/optimization|algorithm|heuristic|scheduling/i.test(title + abstract)) {
-        cat = "Optimization & Algorithmic Frameworks";
-      } else if (idx % 2 === 0) {
-        cat = "Predictive & Empirical Architecture";
+      const text = `${title} ${abstract}`;
+      let cat = "Other domain evidence";
+      if (/decarbon|emission|fuel|energy|carbon|environment/i.test(text)) {
+        cat = "Energy, emissions and environmental performance";
+      } else if (/safety|risk|accident|reliability|resilien/i.test(text)) {
+        cat = "Safety, risk and reliability";
+      } else if (/port|logistic|supply chain|terminal|cargo|fleet|routing/i.test(text)) {
+        cat = "Port, logistics and operational planning";
+      } else if (/autonom|navigation|collision|control|positioning/i.test(text)) {
+        cat = "Navigation, autonomy and control";
+      } else if (/digital twin|simulation|modelling|modeling|decision support/i.test(text)) {
+        cat = "Modelling, simulation and decision support";
+      } else if (/sensor|monitor|measurement|data acquisition/i.test(text)) {
+        cat = "Measurement, monitoring and data systems";
       }
 
-      // Regex heuristics for sample size / dataset scale (if present)
       const nMatch = abstract.match(/(?:n\s*=\s*|sample\s*of\s*|cohort\s*of\s*|dataset\s*of\s*|instances\s*=\s*)([0-9,]+)/i);
-      const sampleSize = nMatch ? `N = ${nMatch[1]}` : "Standard Benchmark Dataset";
-
-      // Metric extraction heuristic
-      const metricMatch = abstract.match(/(?:AUC(?:-ROC)?|Accuracy|F1-score|latency|throughput|precision|recall|loss)\s*(?:of|=|:)?\s*([0-9.]+%?)/i);
-      const primaryOutcome = metricMatch ? `${metricMatch[0]}` : "Empirical Performance Benchmark";
+      const sampleSize = nMatch ? `N = ${nMatch[1]}` : "Not reported in citation metadata";
 
       return {
         recordId: r.id,
         authorYear: `${firstAuthor} et al. (${year})`,
         category: cat,
-        country: "International",
+        country: "Not reported",
         sampleSize,
-        population: "Benchmark Evaluation Target",
+        population: "Not reported",
         interventionOrFocus: title.length > 65 ? title.slice(0, 65) + "..." : title,
-        comparator: "Standard Baseline Framework",
-        primaryOutcome,
-        studyDesign: "Empirical Experimental Evaluation",
-        keyFinding: abstract.slice(0, 160) || title,
+        comparator: "Not reported",
+        primaryOutcome: "Not reported",
+        studyDesign: "Not established from citation metadata",
+        keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; full text is required.",
       };
     });
 
@@ -178,21 +173,28 @@ export default function StudyCharacteristicsTable({
       abstract: (r.abstract || "").slice(0, 600),
     }));
 
-    const prompt = `Following PRISMA 2020 Item 17 (Study Characteristics), extract structured domain characteristics for each included study from their abstracts.
-Group or categorize studies by their primary category, architecture, or technological paradigm.
+    const prompt = `Extract structured study characteristics from the supplied citation metadata and abstracts.
+Create concise thematic categories that emerge from the actual studies. Do not force clinical, software-architecture, or machine-learning categories unless those concepts are explicitly central to the study.
+
+EVIDENCE RULES:
+- Use only facts stated in the supplied title, abstract, authors, year, and source.
+- Never invent a country, sample size, comparator, outcome value, study design, validation result, or finding.
+- If a field cannot be established, write exactly "Not reported".
+- Do not turn background statements or proposed future work into study findings.
+- Keep each recordId unchanged and return one row per supplied record.
 
 Fields to extract:
 1. recordId: exact string from recordId
 2. authorYear: e.g. "Chen et al. (2023)"
-3. category: Main thematic/technical category (e.g. "Deep Learning Architectures", "Edge & Distributed Systems", "Optimization Algorithms")
+3. category: A short theme grounded in the study topic
 4. country: e.g. "United States" or "Not reported"
-5. sampleSize: e.g. "Benchmark dataset (100k samples)" or "N/A"
-6. population: Target application area, system environment, or dataset benchmark
-7. interventionOrFocus: Core proposed algorithm, framework, or technology
-8. comparator: Baseline method or comparison benchmark
-9. primaryOutcome: Primary evaluation outcome or metric (e.g., "Accuracy 94.2%, Latency 12ms", "AUC-ROC 0.89")
-10. studyDesign: e.g. "Experimental benchmark evaluation", "Empirical case study"
-11. keyFinding: Concise synthesis of the main empirical finding and outcome advantage.
+5. sampleSize: Explicit sample, dataset, vessel, port, voyage, participant, or case count
+6. population: Unit, setting, system, or evidence source studied
+7. interventionOrFocus: Main method, system, policy, technology, or phenomenon
+8. comparator: Explicit comparison, or "Not reported"
+9. primaryOutcome: Explicitly reported outcome or evaluated quantity
+10. studyDesign: Explicit study design or method
+11. keyFinding: Concise finding stated by the abstract, without adding interpretation
 
 Studies:
 ${JSON.stringify(payload)}
@@ -226,15 +228,15 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
     const newRow: StudyCharacteristic = {
       recordId: `custom-${Date.now()}`,
       authorYear: "New Author (2024)",
-      category: "Methodological Architecture",
+      category: "Uncategorized",
       country: "Not reported",
-      sampleSize: "N/A",
-      population: "Target Application Benchmark",
-      interventionOrFocus: "Proposed Framework / Technique",
-      comparator: "Standard Baseline",
-      primaryOutcome: "Primary Evaluation Metric",
-      studyDesign: "Empirical Evaluation",
-      keyFinding: "Key technical finding summary",
+      sampleSize: "Not reported",
+      population: "Not reported",
+      interventionOrFocus: "Not reported",
+      comparator: "Not reported",
+      primaryOutcome: "Not reported",
+      studyDesign: "Not reported",
+      keyFinding: "Not reported",
     };
     onUpdateCharacteristics([...characteristics, newRow]);
   };

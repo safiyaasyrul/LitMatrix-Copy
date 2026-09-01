@@ -80,45 +80,51 @@ export default function App() {
   const [activeStage, setActiveStage] = useState<number>(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Application Data States (Initialized with sample systematic review on Machine Learning for Type 2 Diabetes)
+  // Application data states. New workspaces start blank; demonstration content is opt-in.
   const [protocol, setProtocol] = useState<SLRProtocol>(() => {
     const saved = localStorage.getItem("slr_protocol_v1");
-    return saved ? JSON.parse(saved) : sampleProtocol;
+    return saved ? JSON.parse(saved) : BLANK_PROTOCOL;
   });
 
   const [records, setRecords] = useState<SLRRecord[]>(() => {
     const saved = localStorage.getItem("slr_records_v1");
-    return saved ? JSON.parse(saved) : sampleRecords;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [dupesRemoved, setDupesRemoved] = useState<number>(() => {
     const saved = localStorage.getItem("slr_dupes_v1");
-    return saved ? JSON.parse(saved) : 284;
+    return saved ? JSON.parse(saved) : 0;
   });
 
   const [screening, setScreening] = useState<Record<string, ScreeningDecision>>(() => {
     const saved = localStorage.getItem("slr_screening_v1");
-    return saved ? JSON.parse(saved) : sampleScreening;
+    return saved ? JSON.parse(saved) : {};
   });
 
   const [characteristics, setCharacteristics] = useState<StudyCharacteristic[]>(() => {
     const saved = localStorage.getItem("slr_chars_v1");
-    return saved ? JSON.parse(saved) : sampleCharacteristics;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [riskOfBias, setRiskOfBias] = useState<RiskOfBiasItem[]>(() => {
     const saved = localStorage.getItem("slr_rob_v1");
-    return saved ? JSON.parse(saved) : sampleRiskOfBias;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [synthesis, setSynthesis] = useState<SynthesisResult>(() => {
     const saved = localStorage.getItem("slr_synthesis_v1");
-    return saved ? JSON.parse(saved) : sampleSynthesis;
+    const parsed = saved ? JSON.parse(saved) : {};
+    return {
+      ...parsed,
+      forestPlotEstimates: [],
+      pooledEffectEstimate: undefined,
+      heterogeneityDiscussion: parsed.heterogeneityDiscussion?.replace(/I²|p\s*=|pooled/gi, "") || "",
+    };
   });
 
   const [gradeItems, setGradeItems] = useState<GradeCertaintyItem[]>(() => {
     const saved = localStorage.getItem("slr_grade_v1");
-    return saved ? JSON.parse(saved) : sampleGradeItems;
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
@@ -269,52 +275,29 @@ export default function App() {
     return acc;
   }, [excludedRecords, screening]);
 
-  const isSample = useMemo(() => {
-    return records.some(
-      (r) =>
-        r.id.startsWith("chen-2023") ||
-        r.id.startsWith("rodriguez-2024") ||
-        r.id.startsWith("zhao-2023")
-    );
-  }, [records]);
-
-  // PRISMA Flow Diagram Dynamic Counts
+  // PRISMA flow counts are derived only from records and recorded screening decisions.
+  // Full-text retrieval/assessment is not tracked by this application.
   const prismaCounts = useMemo(() => {
-    if (isSample) {
-      return {
-        identifiedDb: 1248,
-        identifiedOther: 48,
-        duplicatesRemoved: dupesRemoved || 284,
-        screened: 1012,
-        screenedExcluded: 964,
-        soughtRetrieval: 48,
-        notRetrieved: 0,
-        assessed: 48,
-        assessedExcluded: 38,
-        exclusionReasonsBreakdown,
-        included: includedRecords.length > 0 ? includedRecords.length : 10,
-      };
-    }
-
     const totalIdentified = records.length + (dupesRemoved || 0);
-    const screenedCount = records.length;
+    const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
 
     return {
-      identifiedDb: totalIdentified > 0 ? totalIdentified : 0,
+      identifiedDb: totalIdentified,
       identifiedOther: 0,
       duplicatesRemoved: dupesRemoved || 0,
       screened: screenedCount,
       screenedExcluded: screenedExcludedCount,
-      soughtRetrieval: includedCount,
+      soughtRetrieval: 0,
       notRetrieved: 0,
-      assessed: includedCount,
+      assessed: 0,
       assessedExcluded: 0,
       exclusionReasonsBreakdown,
       included: includedCount,
+      fullTextAssessmentRecorded: false,
     };
-  }, [isSample, records, dupesRemoved, includedRecords, excludedRecords, exclusionReasonsBreakdown]);
+  }, [records, screening, dupesRemoved, includedRecords, excludedRecords, exclusionReasonsBreakdown]);
 
   // Checklist item update helpers
   const handleUpdateChecklistItem = (itemNumber: string, updates: Partial<PrismaChecklistItem>) => {
@@ -370,13 +353,7 @@ export default function App() {
         characteristicsTable: [],
         metaAnalysisCategories: [],
         forestPlotEstimates: [],
-        pooledEffectEstimate: {
-          effectMeasure: "Effect Size",
-          effectSize: 0,
-          ciLower: 0,
-          ciUpper: 0,
-          heterogeneityI2: "0%",
-        },
+        pooledEffectEstimate: undefined,
         heterogeneityDiscussion: "",
       });
       setGradeItems([]);
@@ -392,7 +369,7 @@ export default function App() {
     }
   };
 
-  // Synchronize all review pipeline stages with currently uploaded records
+  // Keep downstream stages aligned without manufacturing screening or analysis results.
   const handleAutoSyncAllStagesFromRecords = (customRecordsList?: SLRRecord[]) => {
     const targetRecords = customRecordsList || records;
     if (targetRecords.length === 0) {
@@ -400,182 +377,27 @@ export default function App() {
       return;
     }
 
-    // 1. Initialize screening decisions: mark all as included if unassigned
-    const updatedScreening: Record<string, ScreeningDecision> = { ...screening };
-    targetRecords.forEach((r) => {
-      if (!updatedScreening[r.id]) {
-        updatedScreening[r.id] = {
-          score: 92,
-          reason: "Auto-included for evidence synthesis",
-          decision: "include",
-          agreed: true,
-        };
-      }
-    });
-    setScreening(updatedScreening);
-
-    // 2. Generate Characteristics Table 1
-    const newCharacteristics: StudyCharacteristic[] = targetRecords.map((r) => {
-      const firstAuthor = r.authors[0] ? r.authors[0].split(",")[0].trim() : "Author";
-      const year = r.year || "2024";
-      const abstract = r.abstract || "";
-      const nMatch = abstract.match(/(?:n\s*=\s*|sample\s*of\s*|cohort\s*of\s*|participants\s*=\s*)([0-9,]+)/i);
-      const sampleSize = nMatch ? `N = ${nMatch[1]}` : "Cohort / Primary dataset";
-      const countries = ["United States", "China", "UK", "Germany", "Canada", "Australia", "Japan", "Malaysia", "India", "France", "Singapore", "Netherlands", "Sweden"];
-      const foundCountry = countries.find((c) => abstract.includes(c) || r.source?.includes(c)) || "Multi-center";
-      const aucMatch = abstract.match(/(?:AUC(?:-ROC)?|C-statistic|AUROC|R²|accuracy|sensitivity|F1)\s*(?:of|=|:)?\s*([0-9]\.[0-9]{2,3}|[0-9]{2,3}%)/i);
-      const primaryOutcome = aucMatch ? `Reported outcome (${aucMatch[0]})` : "Evaluated primary metric / performance";
-
-      return {
-        recordId: r.id,
-        authorYear: `${firstAuthor} et al. (${year})`,
-        country: foundCountry,
-        sampleSize,
-        population: "Target study cohort / experimental context",
-        interventionOrFocus: r.title.slice(0, 80),
-        comparator: "Baseline / standard comparator",
-        primaryOutcome,
-        studyDesign: "Empirical validation cohort",
-        keyFinding: abstract.slice(0, 160) || r.title,
-      };
-    });
-    setCharacteristics(newCharacteristics);
-
-    // 3. Generate Risk of Bias Table 2
-    const newRiskOfBias: RiskOfBiasItem[] = targetRecords.map((r, idx) => {
-      const firstAuthor = r.authors[0] ? r.authors[0].split(",")[0].trim() : "Author";
-      const year = r.year || "2024";
-      return {
-        recordId: r.id,
-        authorYear: `${firstAuthor} et al. (${year})`,
-        d1Selection: "Low",
-        d2Performance: idx % 5 === 0 ? "Some concerns" : "Low",
-        d3Attrition: "Low",
-        d4Detection: "Low",
-        d5Reporting: "Low",
-        overall: idx % 5 === 0 ? "Some concerns" : "Low",
-        justification: "Methodological appraisal based on study design, validated instrumentation, and complete outcome reporting.",
-      };
-    });
-    setRiskOfBias(newRiskOfBias);
-
-    // 4. Generate Synthesis with Forest Plot
-    const forestPlotEstimates = newCharacteristics.map((s, idx) => {
-      const baseEff = 0.82 + ((idx % 8) * 0.018);
-      const roundedEff = Math.round(baseEff * 1000) / 1000;
-      return {
-        study: s.authorYear,
-        effectMeasure: "Effect Size",
-        effectSize: roundedEff,
-        ciLower: Math.round((roundedEff - 0.038) * 1000) / 1000,
-        ciUpper: Math.round((roundedEff + 0.038) * 1000) / 1000,
-        weight: Math.round((100 / Math.max(1, targetRecords.length)) * 10) / 10,
-      };
-    });
-
-    const sumWeightedEff = forestPlotEstimates.reduce((acc, f) => acc + f.effectSize * f.weight, 0);
-    const sumWeights = forestPlotEstimates.reduce((acc, f) => acc + f.weight, 0) || 1;
-    const pooledEff = Math.round((sumWeightedEff / sumWeights) * 1000) / 1000;
-
-    const inferredTopic = targetRecords[0]?.title ? targetRecords[0].title.slice(0, 90) : "Investigated Research Field";
-
+    const recordIds = new Set(targetRecords.map((record) => record.id));
+    setScreening((current) =>
+      Object.fromEntries(Object.entries(current).filter(([recordId]) => recordIds.has(recordId)))
+    );
+    setCharacteristics((current) => current.filter((item) => recordIds.has(item.recordId)));
+    setRiskOfBias((current) => current.filter((item) => recordIds.has(item.recordId)));
     setSynthesis({
-      subtopics: [
-        {
-          title: "1. Primary Performance & Synthesis of Effects",
-          prose: `Quantitative and qualitative synthesis of the ${targetRecords.length} included studies demonstrated consistent outcome directionality across evaluated frameworks. The pooled effect estimate was ${pooledEff} (95% CI ${Math.round((pooledEff - 0.03)*1000)/1000} to ${Math.round((pooledEff + 0.03)*1000)/1000}), confirming robust performance across primary study settings.`,
-        },
-        {
-          title: "2. Comparative Methodologies & Architectural Variations",
-          prose: `Comparative appraisal revealed that contemporary approaches consistently outperformed conventional baseline models across the analyzed records, with improved sensitivity and contextual robustness.`,
-        },
-        {
-          title: "3. Heterogeneity & Subgroup Differences",
-          prose: `Moderate heterogeneity (I² = 48.6%) was identified, driven by variations in sample size distributions, geographic study settings, and operational parameters across the included literature.`,
-        },
-      ],
-      keyFindingsTable: [
-        {
-          topic: "Pooled Effect",
-          summary: `High overall consistency across ${targetRecords.length} included studies (Pooled Estimate = ${pooledEff})`,
-          consistency: "High (consistent across 85%+ of cohorts)",
-          evidenceBase: `${targetRecords.length} primary studies`,
-        },
-        {
-          topic: "Methodological Quality",
-          summary: "Low risk of bias across primary selection and detection domains",
-          consistency: "High",
-          evidenceBase: "Appraised via PROBAST / RoB 2 criteria",
-        },
-      ],
-      forestPlotEstimates,
-      pooledEffectEstimate: {
-        effectMeasure: "Effect Size (Pooled)",
-        effectSize: pooledEff,
-        ciLower: Math.round((pooledEff - 0.03) * 1000) / 1000,
-        ciUpper: Math.round((pooledEff + 0.03) * 1000) / 1000,
-        heterogeneityI2: "48.6%",
-        tau2: "0.012",
-      },
-      heterogeneityDiscussion: "Subgroup analysis and sensitivity exploration indicated stable findings across study designs and sample sizes.",
+      subtopics: [],
+      keyFindingsTable: [],
+      forestPlotEstimates: [],
+      pooledEffectEstimate: undefined,
+      heterogeneityDiscussion: "",
     });
-
-    // 5. Generate GRADE items
-    setGradeItems([
-      {
-        outcome: "Primary Systematic Outcome & Impact",
-        numStudies: `${targetRecords.length} studies`,
-        riskOfBias: "Not serious",
-        inconsistency: "Not serious",
-        indirectness: "Not serious",
-        imprecision: "Not serious",
-        publicationBias: "Undetected",
-        overallCertainty: "High",
-        importance: "Critical",
-        explanation: "Consistent outcomes across validation cohorts with narrow 95% confidence intervals.",
-      },
-      {
-        outcome: "Subgroup Robustness & Generalizability",
-        numStudies: `${targetRecords.length} studies`,
-        riskOfBias: "Not serious",
-        inconsistency: "Serious",
-        indirectness: "Not serious",
-        imprecision: "Not serious",
-        publicationBias: "Undetected",
-        overallCertainty: "Moderate",
-        importance: "Important",
-        explanation: "Downgraded 1 level due to variance in baseline characteristics and geographic settings across cohorts.",
-      },
-    ]);
-
-    // 6. Generate Discussion tailored to uploaded records
+    setGradeItems([]);
     setDiscussion({
-      item23aGeneralInterpretation: `This systematic review synthesizes evidence from ${targetRecords.length} primary studies investigating ${inferredTopic}. The consolidated findings indicate robust empirical performance (pooled estimate ${pooledEff}), confirming the validity and practical utility of contemporary methodologies across diverse experimental settings.`,
-      item23bLimitationsOfEvidence: `Limitations across the included evidence base include moderate between-study heterogeneity, variations in reporting standards, and differential sample size distributions across primary publications.`,
-      item23cLimitationsOfReviewProcess: `The review methodology followed PRISMA 2020, PRISMA-S, and ROSES reporting guidelines. Potential process limitations include restriction to major electronic databases and English-language peer-reviewed literature.`,
-      item23dImplications: `These findings offer clear recommendations for practice and future research agendas, emphasizing the need for standardized reporting metrics, open replication protocols, and multi-cohort validation studies.`,
+      item23aGeneralInterpretation: "",
+      item23bLimitationsOfEvidence: "",
+      item23cLimitationsOfReviewProcess: "",
+      item23dImplications: "",
     });
-
-    // 7. Update Protocol Title and Rationale if it was still the diabetes template
-    if (protocol.title.includes("Diabetes") || protocol.title.includes("Untitled")) {
-      const newTitle = `Systematic Literature Review of ${inferredTopic}: A PRISMA 2020 Compliant Evidence Synthesis`;
-      setProtocol((prev) => ({
-        ...prev,
-        title: newTitle,
-        introductionRationale: `This systematic review synthesizes the current body of literature on ${inferredTopic}. By following the PRISMA 2020 guidelines, this review consolidates empirical evidence, evaluates methodological quality across primary studies, and identifies key implications for research and practice.`,
-        backgroundContext: `Recent developments in ${inferredTopic} have led to a rapid growth in published studies with diverse methodologies and findings. Synthesizing this literature is essential for establishing evidence-based conclusions.`,
-        knowledgeGap: `Existing literature exhibits methodological variations and inconsistent reporting of effect sizes, requiring a comprehensive systematic review to evaluate pooled performance and certainty of evidence.`,
-        primaryResearchQuestions: [
-          `RQ1: What is the cumulative performance and empirical findings of ${inferredTopic} across included studies?`,
-          `RQ2: How do comparative approaches and sub-methodologies perform across diverse settings?`,
-          `RQ3: What methodological risks of bias influence findings across the literature?`,
-        ],
-        objectivesPICO: {
-          ...prev.objectivesPICO,
-          intervention: inferredTopic,
-        },
-      }));
-    }
+    alert("Records synchronized. Unscreened records remain pending; no inclusion, appraisal, or synthesis results were generated.");
   };
 
   // Navigation Stages Definition mapped directly to PRISMA 2020, PRISMA-S, and ROSES Checklists

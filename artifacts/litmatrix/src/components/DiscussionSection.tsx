@@ -29,13 +29,11 @@ export default function DiscussionSection({
   // Dynamic rule-based discussion generator grounded in included study findings and categorized author similarities
   const runHeuristicDiscussion = () => {
     const topic = protocol.title || "the investigated domain";
-    const pooledEffect = synthesis.pooledEffectEstimate?.effectSize || 0.88;
-    const effectMeasure = synthesis.pooledEffectEstimate?.effectMeasure || "pooled effect estimate";
 
     // Group characteristics by category
     const catMap = new Map<string, StudyCharacteristic[]>();
     characteristics.forEach((c) => {
-      const cat = c.category || "Empirical & Methodological Architectures";
+      const cat = c.category || "Uncategorized evidence";
       if (!catMap.has(cat)) catMap.set(cat, []);
       catMap.get(cat)!.push(c);
     });
@@ -46,25 +44,25 @@ export default function DiscussionSection({
         const a1 = studies[0];
         const a2 = studies[1];
         categoryDiscussions.push(
-          `Within the ${catName} paradigm, ${a1.authorYear} and ${a2.authorYear} share substantial methodological similarities, both employing ${a1.interventionOrFocus} and related algorithmic baselines to optimize ${a1.primaryOutcome}. While ${a1.authorYear} established that ${a1.keyFinding}, ${a2.authorYear} complemented this by demonstrating that ${a2.keyFinding}, confirming strong convergent validity across independent benchmarks.`
+          `Within the ${catName} theme, ${a1.authorYear} reported ${a1.keyFinding} ${a2.authorYear} reported ${a2.keyFinding} Direct comparison is limited to the information available in the extracted fields.`
         );
       } else if (studies.length === 1) {
         const s = studies[0];
         categoryDiscussions.push(
-          `In the ${catName} domain, ${s.authorYear} established benchmark performance using ${s.interventionOrFocus}, demonstrating that ${s.keyFinding}.`
+          `Within the ${catName} theme, ${s.authorYear} reported ${s.keyFinding}`
         );
       }
     });
 
     const crossAuthorText = categoryDiscussions.length > 0
       ? categoryDiscussions.join(" ")
-      : "Comparative synthesis across categorized investigations reveals consistent algorithmic synergies and outcome convergence.";
+      : "The available extracted characteristics are insufficient for a reliable cross-study comparison.";
 
     const generated: DiscussionSections = {
-      item23aGeneralInterpretation: `This systematic literature review provides a comprehensive synthesis of empirical evidence regarding ${topic}. Principal findings across the included investigations demonstrate consistent outcome directionality with a ${effectMeasure} of ${pooledEffect}. When categorized by architectural paradigms, authors within the same thematic clusters demonstrate striking methodological synergies. ${crossAuthorText} Relative to conventional baseline benchmarks, these modern implementations consistently exhibit superior precision, lower error rates, and greater operational stability across heterogeneous experimental configurations.`,
-      item23bLimitationsOfEvidence: `Several methodological considerations across the included primary studies warrant critical appraisal. First, although authors within shared categories demonstrate consensus improvements, variations in benchmark scale, dataset distributions (${characteristics.map((c) => c.sampleSize).filter(Boolean).slice(0, 3).join(", ") || "evaluation corpora"}), and baseline configurations introduce between-study variance. Second, discrepancies in measurement instrumentation, experimental hyperparameters, and reporting metrics across primary research groups present challenges for direct cross-benchmark harmonization. Third, only a subset of primary investigations conducted multi-center prospective validation or long-term stress testing under realistic deployment conditions.`,
-      item23cLimitationsOfReviewProcess: `Regarding the systematic review methodology, comprehensive multi-database search strategies were executed across major bibliographic indices, yet non-indexed grey literature and non-English publications were excluded, representing potential publication and language selection factors. In accordance with systematic review rigor, secondary literature, literature surveys, and non-empirical review articles were explicitly excluded to preserve the integrity of primary evidence. Dual-reviewer screening, structured consensus moderation, and domain-appropriate quality appraisals ensured a reproducible and transparent evidence base.`,
-      item23dImplications: `The synthesized findings provide actionable implications for software practitioners, research engineers, and decision-makers. In operational environments, adoption of validated architectural frameworks should be coupled with automated regression monitoring and standardized benchmark calibration. For authors within shared research categories, future investigations should prioritize standardized reporting of effect sizes, shared public benchmark datasets, and collaborative cross-validation studies to accelerate reproducible scientific advancement.`,
+      item23aGeneralInterpretation: `The records marked for inclusion address ${topic} through several thematic approaches. ${crossAuthorText} These observations are narrative only and do not establish a pooled direction or magnitude of effect.`,
+      item23bLimitationsOfEvidence: `The supplied citation metadata and abstracts do not consistently report comparable study designs, samples, measures, or validation procedures. Methodological quality and transferability therefore require verification against the full texts.`,
+      item23cLimitationsOfReviewProcess: `This workspace records title and abstract screening decisions but does not verify full-text retrieval, independent duplicate review, or adjudication. Any unrecorded search coverage, language restrictions, reviewer activity, or eligibility assessment should not be inferred.`,
+      item23dImplications: `The evidence should be interpreted as a thematic map rather than a quantitative estimate. Future work should verify eligibility and extracted fields against full texts, document reviewer actions, and define comparable outcomes before any statistical synthesis is considered.`,
     };
 
     onUpdateDiscussion(generated);
@@ -94,8 +92,7 @@ export default function DiscussionSection({
           abstract: (r.abstract || "").slice(0, 250),
         }));
 
-    const prompt = `Act as an expert academic journal editor. Draft a rigorous 4-part academic Discussion section directly synthesizing and contextualizing the findings of the included studies grouped by their technological categories and characteristics.
-Special Focus: Within each category, identify authors who share similarities in their methodology, proposed architecture, or findings, and explicitly discuss their commonalities, shared traits, consensus findings, and complementary differences.
+    const prompt = `Draft a cautious 4-part academic Discussion grounded only in the supplied records and extracted characteristics.
 
 Review Title: "${protocol.title}"
 Review Type: "${protocol.reviewType}"
@@ -106,20 +103,19 @@ ${JSON.stringify(studiesData)}
 Synthesis Subtopics:
 ${JSON.stringify(synthesis.subtopics.map((s) => ({ title: s.title, summary: s.prose.slice(0, 200) })))}
 
-Pooled Effect Estimate: ${synthesis.pooledEffectEstimate ? `${synthesis.pooledEffectEstimate.effectMeasure} = ${synthesis.pooledEffectEstimate.effectSize}` : "Consistent positive effect"}
-
 STRICT WRITING RULES:
 1. WRITE IN CONTINUOUS COHESIVE PARAGRAPHS AND STATEMENTS ONLY. DO NOT USE ANY BULLET POINTS, LISTS, OR DASHES (-).
 2. Write in strictly third-person objective academic voice. NEVER use first-person pronouns (DO NOT use "we", "our", "us", "in our review", "we found").
 3. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
 4. DO NOT mention "PRISMA Item", "PRISMA", "Item 23a", etc. Use natural academic discourse.
 5. CITE AND DISCUSS THE ACTUAL INCLUDED STUDIES by author and year (e.g. Chen et al., 2023). Within each category, discuss authors who share similarities and contrast their results.
+6. Never invent or infer pooled effects, confidence intervals, significance, reviewer activity, full-text assessment, search coverage, validation, or findings absent from the supplied data.
 
 Structure the response into 4 distinct sections:
 1. item23aGeneralInterpretation: Deep interpretation of findings directly citing included studies, grouping by category, discussing similarities among authors in the same category, and contextualizing within existing literature.
 2. item23bLimitationsOfEvidence: Critical evaluation of limitations within the primary studies (e.g., experimental setups, sample/data adequacy, measurement limitations, lack of external validation).
 3. item23cLimitationsOfReviewProcess: Objective appraisal of systematic review process limitations (e.g., database coverage, exclusion of secondary review papers to prioritize primary evidence, language boundaries).
-4. item23dImplications: Concrete, actionable implications for practitioners, software engineers, and future research agendas.
+4. item23dImplications: Cautious implications for practice and future research appropriate to the review topic.
 
 Return ONLY a JSON object:
 {
