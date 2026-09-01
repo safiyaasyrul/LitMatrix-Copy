@@ -51,7 +51,6 @@ app.post("/prisma-api/openai/generate", async (req, res) => {
       systemInstruction,
       model = "gpt-5.6-terra",
       maxOutputTokens = 3500,
-      temperature = 0.3,
     } = req.body;
     const messages: Array<{ role: "system" | "user"; content: string }> = [];
     if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
@@ -67,7 +66,6 @@ app.post("/prisma-api/openai/generate", async (req, res) => {
         model,
         messages,
         max_completion_tokens: maxOutputTokens,
-        temperature,
       }),
     });
     const data: any = await response.json().catch(() => ({}));

@@ -148,6 +148,14 @@ export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIPr
       ? getConfiguredDirectProvider(keys) || "replit-managed"
       : keys.activeProvider || "server-gemini";
 
+  if (
+    active !== "replit-managed" &&
+    active !== "server-gemini" &&
+    !keys[active]?.apiKey?.trim()
+  ) {
+    return { provider: "replit-managed", model: "gpt-5.6-terra" };
+  }
+
   switch (active) {
     case "openai":
       return {

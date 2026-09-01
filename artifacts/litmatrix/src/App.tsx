@@ -191,6 +191,11 @@ export default function App() {
           } else {
             merged.activeProvider = "replit-managed";
           }
+        } else if (
+          merged.activeProvider !== "replit-managed" &&
+          !merged[merged.activeProvider]?.apiKey?.trim()
+        ) {
+          merged.activeProvider = "replit-managed";
         }
 
         return merged;

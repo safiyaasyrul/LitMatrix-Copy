@@ -50,6 +50,14 @@ export default function ApiKeySection({
   };
 
   const handleSetActive = (provider: SupportedAIProvider) => {
+    if (
+      provider !== "replit-managed" &&
+      provider !== "server-gemini" &&
+      !keysConfig[provider]?.apiKey?.trim()
+    ) {
+      onUpdateKeysConfig({ ...keysConfig, activeProvider: "replit-managed" });
+      return;
+    }
     const updated: UserAIKeysConfig = {
       ...DEFAULT_AI_KEYS_CONFIG,
       ...keysConfig,
