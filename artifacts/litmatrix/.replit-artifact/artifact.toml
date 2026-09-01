@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "LitMatrix"
+description = "A literature review workspace for discovering, organizing, and synthesizing scholarly research with an efficient, focused interface."
+version = "1.0.0"
+id = "artifacts/litmatrix"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 22863
+
+[services.development]
+run = "pnpm --filter @workspace/litmatrix run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/litmatrix", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/litmatrix/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "22863"
+BASE_PATH = "/"

@@ -1,6 +1,6 @@
-# [Project name]
+# LitMatrix
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+LitMatrix is a systematic literature review workspace for organizing research, screening papers, tracking PRISMA flow, extracting evidence, and drafting traceable manuscripts.
 
 ## Run & Operate
 
@@ -22,7 +22,10 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/litmatrix/src/app/page.tsx` — main SLR workflow and local project state
+- `artifacts/litmatrix/src/components/` — workflow views, navigation, and modals
+- `artifacts/litmatrix/src/services/` — parsing, deduplication, screening, synthesis, and exports
+- `artifacts/litmatrix/src/types/` — literature review domain types
 
 ## Architecture decisions
 
@@ -30,7 +33,10 @@ _Populate as you build — non-obvious choices a reader couldn't infer from the 
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Ten-stage PRISMA 2020 workflow from topic decomposition through manuscript claims
+- Browser-local project persistence with seeded example reviews
+- RIS, CSV, BibTeX, and NBIB import; deterministic deduplication and abstract screening
+- Evidence matrix, thematic synthesis, PRISMA flow, manuscript generation, and Markdown/LaTeX/BibTeX exports
 
 ## User preferences
 
