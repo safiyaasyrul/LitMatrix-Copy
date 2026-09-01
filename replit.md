@@ -1,42 +1,44 @@
-# LitMatrix
+# ScholarPen
 
-LitMatrix is a systematic literature review workspace for organizing research, screening papers, tracking PRISMA flow, extracting evidence, and drafting traceable manuscripts.
+ScholarPen is a full-stack systematic literature review workspace for organizing research, screening papers, synthesizing evidence, and drafting a review paper.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/litmatrix run dev` — run the ScholarPen Express/Vite server
+- `pnpm --filter @workspace/litmatrix run lint` — typecheck the frontend and API
+- `pnpm --filter @workspace/litmatrix run build` — build the frontend and bundled server
+- `pnpm --filter @workspace/litmatrix run db:push` — push the Drizzle SQLite schema when schema changes are made
+- Optional env: `GEMINI_API_KEY` — enable Gemini-powered decomposition, taxonomy, search, and screening routes
 
 ## Stack
 
 - pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- API: Express 5 with Vite middleware
+- DB: SQLite via `@libsql/client` and Drizzle ORM
+- UI: React, React Router, Tailwind CSS, TipTap, Recharts, and Lucide
+- AI: optional Google Gemini through `@google/genai`
+- Build: Vite plus esbuild server bundle
 
 ## Where things live
 
-- `artifacts/litmatrix/src/app/page.tsx` — main SLR workflow and local project state
-- `artifacts/litmatrix/src/components/` — workflow views, navigation, and modals
-- `artifacts/litmatrix/src/services/` — parsing, deduplication, screening, synthesis, and exports
-- `artifacts/litmatrix/src/types/` — literature review domain types
+- `artifacts/litmatrix/src/App.tsx` — router and ScholarPen shell
+- `artifacts/litmatrix/src/pages/` — nine-step review workflow screens
+- `artifacts/litmatrix/server/routes.ts` — project, import, deduplication, screening, and AI API routes
+- `artifacts/litmatrix/src/db/` — SQLite schema and Drizzle client
+- `artifacts/litmatrix/sqlite.db` — local SQLite database file
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The frontend and API run in one Express process so relative `/api` calls work in both preview and production bundles.
+- The SQLite file and upload directory are resolved from the artifact directory rather than the workspace process working directory.
+- Gemini routes fail explicitly with a setup message when `GEMINI_API_KEY` is not configured.
 
 ## Product
 
-- Ten-stage PRISMA 2020 workflow from topic decomposition through manuscript claims
-- Browser-local project persistence with seeded example reviews
-- RIS, CSV, BibTeX, and NBIB import; deterministic deduplication and abstract screening
-- Evidence matrix, thematic synthesis, PRISMA flow, manuscript generation, and Markdown/LaTeX/BibTeX exports
+- Nine-step workflow from paper title through final manuscript
+- Server-backed project and paper persistence in SQLite
+- RIS literature import, source statistics, deduplication, human screening, and AI screening
+- AI-assisted topic decomposition, taxonomy, database search strings, theme generation, and paper drafting
 
 ## User preferences
 

@@ -1,7 +1,7 @@
 kind = "web"
 previewPath = "/"
-title = "LitMatrix"
-description = "A literature review workspace for discovering, organizing, and synthesizing scholarly research with an efficient, focused interface."
+title = "ScholarPen"
+description = "A full-stack systematic literature review workspace for organizing, screening, synthesizing, and drafting scholarly research."
 version = "1.0.0"
 id = "artifacts/litmatrix"
 router = "path"
@@ -17,7 +17,7 @@ run = "pnpm --filter @workspace/litmatrix run dev"
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/litmatrix", "run", "build" ]
 serve = "static"
-publicDir = "artifacts/litmatrix/dist/public"
+publicDir = "artifacts/litmatrix/dist"
 
 [[services.production.rewrites]]
 from = "/*"

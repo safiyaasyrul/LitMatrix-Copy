@@ -1,0 +1,6 @@
+{
+  "name": "ScholarPen",
+  "description": "From Literature Search to Review Paper. Your AI Research Assistant for Systematic Literature Reviews.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
