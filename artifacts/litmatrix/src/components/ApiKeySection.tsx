@@ -88,7 +88,9 @@ export default function ApiKeySection({
     setTestResults((prev) => ({ ...prev, [provider]: null }));
 
     let testConfig: AIProviderConfig;
-    if (provider === "server-gemini") {
+    if (provider === "replit-managed") {
+      testConfig = { provider: "replit-managed", model: "gpt-5.6-terra" };
+    } else if (provider === "server-gemini") {
       testConfig = { provider: "server-gemini", model: "gemini-3.7-flash" };
     } else if (provider === "openai") {
       testConfig = {
@@ -143,8 +145,8 @@ export default function ApiKeySection({
         "Are you sure you want to remove all saved API keys? This will reset all key inputs."
       )
     ) {
-      onUpdateKeysConfig({
-        activeProvider: "server-gemini",
+       onUpdateKeysConfig({
+         activeProvider: "replit-managed",
         openai: { apiKey: "", model: "gpt-4o-mini", customBase: "https://api.openai.com/v1" },
         claude: { apiKey: "", model: "claude-3-7-sonnet-20250219" },
         gemini: { apiKey: "", model: "gemini-3.7-flash" },
@@ -212,8 +214,10 @@ export default function ApiKeySection({
               <div className="text-[11px] font-mono text-slate-400">Currently Active Provider:</div>
               <div className="font-mono text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2">
                 <span>
-                  {keysConfig.activeProvider === "server-gemini"
-                    ? "Built-in Gemini (server key required)"
+                 {keysConfig.activeProvider === "replit-managed"
+                     ? "Replit-managed AI (server connection)"
+                     : keysConfig.activeProvider === "server-gemini"
+                     ? "Built-in Gemini (optional server key)"
                     : keysConfig.activeProvider === "openai"
                     ? `OpenAI (${keysConfig.openai.model || "gpt-4o-mini"})`
                     : keysConfig.activeProvider === "claude"
@@ -244,9 +248,9 @@ export default function ApiKeySection({
             </button>
           </div>
         </div>
-        {keysConfig.activeProvider === "server-gemini" && (
+        {keysConfig.activeProvider === "replit-managed" && (
           <p className="text-[11px] text-amber-200/90 font-mono">
-            Built-in Gemini is unavailable until GEMINI_API_KEY is configured on the server. Enter a provider key below to select it automatically.
+            This is the shared default. The managed credential stays on the server; users do not need to enter an API key.
           </p>
         )}
       </div>
@@ -254,6 +258,13 @@ export default function ApiKeySection({
       {/* Provider Selector Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
         {[
+          {
+            id: "replit-managed" as SupportedAIProvider,
+            label: "Managed AI (Default)",
+            desc: "Shared server-side AI connection",
+            hasKey: true,
+            icon: Server,
+          },
           {
             id: "openai" as SupportedAIProvider,
             label: "OpenAI",

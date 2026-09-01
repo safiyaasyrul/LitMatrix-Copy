@@ -28,10 +28,62 @@ const getGeminiClient = () => {
 // API health endpoint
 app.get("/prisma-api/health", (_req, res) => {
   const hasKey = Boolean(process.env.GEMINI_API_KEY);
-  res.json({ status: "ok", geminiAvailable: hasKey });
+  res.json({
+    status: "ok",
+    managedAIAvailable: Boolean(
+      process.env.AI_INTEGRATIONS_OPENAI_BASE_URL && process.env.AI_INTEGRATIONS_OPENAI_API_KEY
+    ),
+    geminiAvailable: hasKey,
+  });
 });
 
-// Server-side Gemini generate endpoint with automatic model fallback
+// Replit-managed OpenAI-compatible endpoint. The credential is never sent to browsers.
+app.post("/prisma-api/openai/generate", async (req, res) => {
+  const baseUrl = process.env.AI_INTEGRATIONS_OPENAI_BASE_URL;
+  const apiKey = process.env.AI_INTEGRATIONS_OPENAI_API_KEY;
+  if (!baseUrl || !apiKey) {
+    return res.status(503).json({ error: "Managed AI is not configured on the server." });
+  }
+
+  try {
+    const {
+      prompt,
+      systemInstruction,
+      model = "gpt-5.6-terra",
+      maxOutputTokens = 3500,
+      temperature = 0.3,
+    } = req.body;
+    const messages: Array<{ role: "system" | "user"; content: string }> = [];
+    if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
+    messages.push({ role: "user", content: String(prompt || "") });
+
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_completion_tokens: maxOutputTokens,
+        temperature,
+      }),
+    });
+    const data: any = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) {
+      return res.status(response.status || 502).json({
+        error: data.error?.message || `Managed AI request failed (${response.status}).`,
+      });
+    }
+    return res.json({ text: data.choices?.[0]?.message?.content || "" });
+  } catch (error: any) {
+    console.error("Managed AI API error:", error);
+    return res.status(500).json({ error: error.message || "Managed AI request failed." });
+  }
+});
+
+// Server-side Gemini generate endpoint (optional provider) with automatic model fallback
 app.post("/prisma-api/gemini/generate", async (req, res) => {
   try {
     const { prompt, systemInstruction, model = "gemini-3.7-flash", maxOutputTokens = 4000, temperature = 0.3 } = req.body;

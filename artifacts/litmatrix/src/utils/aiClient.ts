@@ -1,4 +1,5 @@
 export type SupportedAIProvider =
+  | "replit-managed"
   | "server-gemini"
   | "openai"
   | "claude"
@@ -47,7 +48,7 @@ export interface UserAIKeysConfig {
 }
 
 export const DEFAULT_AI_KEYS_CONFIG: UserAIKeysConfig = {
-  activeProvider: "server-gemini",
+  activeProvider: "replit-managed",
   openai: {
     apiKey: "",
     model: "gpt-4o-mini",
@@ -126,7 +127,7 @@ function enqueueOpenRouterRequest<T>(request: () => Promise<T>): Promise<T> {
 }
 
 export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIProviderConfig {
-  if (!keys) return { provider: "server-gemini", model: "gemini-3.7-flash" };
+  if (!keys) return { provider: "replit-managed", model: "gpt-5.6-terra" };
 
   // OpenRouter keys are unambiguous. Honor them even if an older saved
   // configuration still says Google Gemini or Server Gemini is active.
@@ -144,7 +145,7 @@ export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIPr
   // provider key was entered. Never route those saved keys to Gemini.
   const active =
     keys.activeProvider === "server-gemini"
-      ? getConfiguredDirectProvider(keys) || "server-gemini"
+      ? getConfiguredDirectProvider(keys) || "replit-managed"
       : keys.activeProvider || "server-gemini";
 
   switch (active) {
@@ -191,8 +192,8 @@ export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIPr
     case "server-gemini":
     default:
       return {
-        provider: "server-gemini",
-        model: "gemini-3.7-flash",
+        provider: "replit-managed",
+        model: "gpt-5.6-terra",
       };
   }
 }
@@ -222,7 +223,7 @@ export async function callAI(
   config?: AIProviderConfig,
   maxTokens: number = 3500
 ): Promise<string> {
-  const provider = config?.provider || "server-gemini";
+  const provider = config?.provider || "replit-managed";
   const apiKey = config?.apiKey?.trim() || "";
   const customBase = config?.customBase?.trim() || "";
   let model = config?.model || "";
@@ -232,7 +233,25 @@ export async function callAI(
     model = "gemini-3.7-flash";
   }
 
-  // 1. Server-side Gemini endpoint (built-in default)
+  // 1. Replit-managed OpenAI integration. The key stays server-side.
+  if (provider === "replit-managed") {
+    const res = await fetch("/prisma-api/openai/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt,
+        systemInstruction,
+        model: model || "gpt-5.6-terra",
+        maxOutputTokens: maxTokens,
+        temperature: 0.3,
+      }),
+    });
+    const data = await readAIResponseJson(res, "Replit-managed AI");
+    if (!res.ok || data.error) throw new Error(data.error || `Server error (${res.status})`);
+    return data.text || "";
+  }
+
+  // 2. Server-side Gemini endpoint (optional legacy provider)
   if (provider === "server-gemini" || (!apiKey && provider === "gemini")) {
     const res = await fetch("/prisma-api/gemini/generate", {
       method: "POST",

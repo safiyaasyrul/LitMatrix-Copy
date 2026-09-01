@@ -181,12 +181,14 @@ export default function App() {
             customBase: OPENROUTER_DEFAULT_BASE,
           };
           merged.activeProvider = "other";
-        } else if (merged.activeProvider === "server-gemini") {
+        } else if (merged.activeProvider === "server-gemini" || !merged.activeProvider) {
           const configuredProvider = (
             ["other", "openai", "claude", "gemini", "emergent", "replit"] as const
           ).find((provider) => Boolean(merged[provider].apiKey?.trim()));
           if (configuredProvider) {
             merged.activeProvider = configuredProvider as SupportedAIProvider;
+          } else {
+            merged.activeProvider = "replit-managed";
           }
         }
 
