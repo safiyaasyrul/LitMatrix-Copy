@@ -418,7 +418,7 @@ export default function App() {
     alert("Records synchronized. Unscreened records remain pending; no inclusion, appraisal, or synthesis results were generated.");
   };
 
-  // Navigation Stages Definition mapped directly to PRISMA 2020, PRISMA-S, and ROSES Checklists
+  // Navigation stages mapped to the PRISMA 2020 checklist.
   const stages = [
     {
       id: "ai-keys",
@@ -428,8 +428,8 @@ export default function App() {
     },
     {
       id: "checklist",
-      label: "Reporting Checklists (PRISMA, PRISMA-S, ROSES)",
-      badge: "3 Standards",
+      label: "PRISMA 2020 Checklist",
+      badge: "27 Items",
       icon: ClipboardCheck,
     },
     {
@@ -646,7 +646,7 @@ export default function App() {
             />
           )}
 
-          {/* Stage 2: Checklist Audit (PRISMA 2020, PRISMA-S, ROSES) */}
+          {/* Stage 2: PRISMA 2020 checklist audit */}
           {activeStage === 1 && (
             <PrismaChecklistAudit
               checklist={checklist}

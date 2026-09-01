@@ -246,21 +246,21 @@ export default function PrismaChecklistAudit({
 
   return (
     <div id="prisma-checklist-audit-container" className="space-y-6">
-      {/* 3-Layer Conceptual Framework Banner */}
+      {/* PRISMA 2020 reporting framework banner */}
       <div className="bg-indigo-950 text-white p-5 rounded-2xl shadow-sm border border-indigo-800">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="space-y-1.5 max-w-3xl">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono text-[11px] font-semibold border border-indigo-400/30">
               <Layers className="w-3.5 h-3.5" />
-              Layered Systematic Review Reporting Framework
+              Systematic Review Reporting Framework
             </div>
             <h2 className="text-xl font-bold tracking-tight text-white">
-              Layered Reporting Standards Audit Suite
+              PRISMA 2020 Reporting Audit
             </h2>
             <p className="text-xs text-indigo-200 leading-relaxed">
-              Systematic evidence syntheses utilize specialized reporting layers depending on scope and discipline:
+              Audit the full review against the PRISMA 2020 reporting checklist.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 pt-2">
+            <div className="pt-2">
               <div className="bg-indigo-900/60 border border-indigo-700/50 p-2.5 rounded-xl">
                 <div className="font-mono text-[11px] font-bold text-amber-300 flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-amber-400" />
@@ -270,151 +270,32 @@ export default function PrismaChecklistAudit({
                   How to report the <strong>entire review</strong> across 7 manuscript sections.
                 </div>
               </div>
-              <div className="bg-indigo-900/60 border border-indigo-700/50 p-2.5 rounded-xl">
-                <div className="font-mono text-[11px] font-bold text-sky-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-sky-400" />
-                  PRISMA-S (16 Items)
-                </div>
-                <div className="text-[11px] text-indigo-200 mt-0.5">
-                  How to report the <strong>literature search</strong> & reproducibility across 4 domains.
-                </div>
-              </div>
-              <div className="bg-indigo-900/60 border border-indigo-700/50 p-2.5 rounded-xl">
-                <div className="font-mono text-[11px] font-bold text-emerald-300 flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                  ROSES (16 Items)
-                </div>
-                <div className="text-[11px] text-indigo-200 mt-0.5">
-                  How to report <strong>environmental & sustainability</strong> syntheses and policy evidence.
-                </div>
-              </div>
             </div>
           </div>
 
           <div className="flex flex-col gap-2 shrink-0">
             <div className="text-right">
-              <span className="font-mono text-[10px] uppercase text-indigo-300 font-bold">Active Layer Compliance</span>
+              <span className="font-mono text-[10px] uppercase text-indigo-300 font-bold">PRISMA 2020 Compliance</span>
               <div className="text-2xl font-bold font-mono text-white mt-0.5">
-                {activeLayer === "PRISMA_2020" ? `${prismaScore}%` : activeLayer === "PRISMA_S" ? `${prismaSScore}%` : `${rosesScore}%`}
+                {prismaScore}%
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Layer Selection Tabs */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <button
-          onClick={() => {
-            setActiveLayer("PRISMA_2020");
-            setSectionFilter("ALL");
-          }}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-            activeLayer === "PRISMA_2020"
-              ? "bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
-              : "bg-slate-50 border-slate-200 hover:bg-white text-slate-700"
-          }`}
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
-                Layer 1: Entire Review
-              </span>
-              <span className="font-mono text-xs font-bold text-indigo-600">{prismaScore}%</span>
-            </div>
-            <div className="font-bold text-slate-900 mt-2 text-sm">PRISMA 2020 (27 Items)</div>
-            <p className="text-xs text-slate-500 mt-1">
-              Main 27-item reporting checklist organized across 7 manuscript sections.
-            </p>
-          </div>
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-slate-500">
-            <span>{prismaReported}/{prismaTotal} Reported</span>
-            <span className="text-emerald-600 font-medium">Items 1–27</span>
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveLayer("PRISMA_S");
-            setSectionFilter("ALL");
-          }}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-            activeLayer === "PRISMA_S"
-              ? "bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
-              : "bg-slate-50 border-slate-200 hover:bg-white text-slate-700"
-          }`}
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">
-                Layer 2: Search Reporting
-              </span>
-              <span className="font-mono text-xs font-bold text-indigo-600">{prismaSScore}%</span>
-            </div>
-            <div className="font-bold text-slate-900 mt-2 text-sm">PRISMA-S (16 Items)</div>
-            <p className="text-xs text-slate-500 mt-1">
-              Literature search reporting across 4 domains (Sources, Methods, Records, Reproducibility).
-            </p>
-          </div>
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-slate-500">
-            <span>{prismaSReported}/{prismaSTotal} Reported</span>
-            <span className="text-sky-600 font-medium">4 Search Domains</span>
-          </div>
-        </button>
-
-        <button
-          onClick={() => {
-            setActiveLayer("ROSES");
-            setSectionFilter("ALL");
-          }}
-          className={`p-4 rounded-xl border text-left transition-all cursor-pointer flex flex-col justify-between ${
-            activeLayer === "ROSES"
-              ? "bg-white border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
-              : "bg-slate-50 border-slate-200 hover:bg-white text-slate-700"
-          }`}
-        >
-          <div>
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Layer 3: Environmental Syntheses
-              </span>
-              <span className="font-mono text-xs font-bold text-indigo-600">{rosesScore}%</span>
-            </div>
-            <div className="font-bold text-slate-900 mt-2 text-sm">ROSES Guidelines</div>
-            <p className="text-xs text-slate-500 mt-1">
-              Reporting standards for environmental management, sustainability & policy evidence.
-            </p>
-          </div>
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] font-mono text-slate-500">
-            <span>{rosesReported}/{rosesTotal} Reported</span>
-            <span className="text-emerald-600 font-medium">Environmental Context</span>
-          </div>
-        </button>
-      </div>
-
-      {/* Layer Details & Export Header */}
+      {/* PRISMA 2020 details and export header */}
       <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              {activeLayer === "PRISMA_2020"
-                ? "PRISMA 2020 27-Item Statement Verification"
-                : activeLayer === "PRISMA_S"
-                ? "PRISMA-S 16-Item Search Audit"
-                : "ROSES Environmental & Sustainability Synthesis Standard"}
+               PRISMA 2020 27-Item Statement Verification
             </div>
             <h3 className="text-xl font-bold text-slate-900 mt-1">
-              {activeLayer === "PRISMA_2020" && "PRISMA 2020 Checklist Audit (Full Review)"}
-              {activeLayer === "PRISMA_S" && "PRISMA-S Literature Search Audit (Search Strings & Sources)"}
-              {activeLayer === "ROSES" && "ROSES Checklist Audit (Environmental & Policy Synthesis)"}
+              PRISMA 2020 Checklist Audit
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-2xl">
-              {activeLayer === "PRISMA_2020" &&
-                "27 items organized into 7 sections: Title (1), Abstract (2), Introduction (3–4), Methods (5–15), Results (16–22), Discussion (23a–d), Other Information (24–27)."}
-              {activeLayer === "PRISMA_S" &&
-                "16 items organized across 4 domains: Information Sources (1–6), Search Methods (7–10), Managing Records (13–15), and Reproducibility (11–12, 16)."}
-              {activeLayer === "ROSES" &&
-                "Specific reporting standards emphasizing Environmental context, Policy relevance, Stakeholder implications, Evidence mapping, and Quality appraisal across diverse study designs."}
+              27 items organized into 7 sections: Title (1), Abstract (2), Introduction (3–4), Methods (5–15), Results (16–22), Discussion (23a–d), and Other Information (24–27).
             </p>
           </div>
 
@@ -448,24 +329,24 @@ export default function PrismaChecklistAudit({
           <div className="flex items-center justify-between text-xs font-mono mb-2">
             <div className="flex items-center gap-3">
               <span className="font-bold text-slate-900">
-                {activeLayer === "PRISMA_2020" ? prismaScore : activeLayer === "PRISMA_S" ? prismaSScore : rosesScore}% Compliance Score
+                {prismaScore}% Compliance Score
               </span>
               <span className="text-emerald-700 font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                {activeLayer === "PRISMA_2020" ? prismaReported : activeLayer === "PRISMA_S" ? prismaSReported : rosesReported} Reported
+                {prismaReported} Reported
               </span>
-              {(activeLayer === "PRISMA_2020" ? prismaPartial : activeLayer === "PRISMA_S" ? prismaSPartial : rosesPartial) > 0 && (
+              {prismaPartial > 0 && (
                 <span className="text-amber-700 font-semibold bg-amber-50 px-2 py-0.5 rounded border border-amber-100">
-                  {activeLayer === "PRISMA_2020" ? prismaPartial : activeLayer === "PRISMA_S" ? prismaSPartial : rosesPartial} Partial
+                  {prismaPartial} Partial
                 </span>
               )}
-              {(activeLayer === "PRISMA_2020" ? prismaNotReported : activeLayer === "PRISMA_S" ? prismaSNotReported : rosesNotReported) > 0 && (
+              {prismaNotReported > 0 && (
                 <span className="text-rose-700 font-semibold bg-rose-50 px-2 py-0.5 rounded border border-rose-100">
-                  {activeLayer === "PRISMA_2020" ? prismaNotReported : activeLayer === "PRISMA_S" ? prismaSNotReported : rosesNotReported} Missing
+                  {prismaNotReported} Missing
                 </span>
               )}
             </div>
             <span className="text-slate-500">
-              {activeLayer === "PRISMA_2020" ? `${prismaReported} / ${prismaTotal}` : activeLayer === "PRISMA_S" ? `${prismaSReported} / ${prismaSTotal}` : `${rosesReported} / ${rosesTotal}`} items
+              {prismaReported} / {prismaTotal} items
             </span>
           </div>
 
@@ -473,11 +354,7 @@ export default function PrismaChecklistAudit({
             <div
               style={{
                 width: `${
-                  activeLayer === "PRISMA_2020"
-                    ? (prismaReported / prismaTotal) * 100
-                    : activeLayer === "PRISMA_S"
-                    ? (prismaSReported / prismaSTotal) * 100
-                    : (rosesReported / rosesTotal) * 100
+                  (prismaReported / prismaTotal) * 100
                 }%`,
               }}
               className="bg-emerald-600 h-full transition-all"
@@ -486,11 +363,7 @@ export default function PrismaChecklistAudit({
             <div
               style={{
                 width: `${
-                  activeLayer === "PRISMA_2020"
-                    ? (prismaPartial / prismaTotal) * 100
-                    : activeLayer === "PRISMA_S"
-                    ? (prismaSPartial / prismaSTotal) * 100
-                    : (rosesPartial / rosesTotal) * 100
+                  (prismaPartial / prismaTotal) * 100
                 }%`,
               }}
               className="bg-amber-500 h-full transition-all"
@@ -499,11 +372,7 @@ export default function PrismaChecklistAudit({
             <div
               style={{
                 width: `${
-                  activeLayer === "PRISMA_2020"
-                    ? (prismaNotReported / prismaTotal) * 100
-                    : activeLayer === "PRISMA_S"
-                    ? (prismaSNotReported / prismaSTotal) * 100
-                    : (rosesNotReported / rosesTotal) * 100
+                  (prismaNotReported / prismaTotal) * 100
                 }%`,
               }}
               className="bg-rose-500 h-full transition-all"
@@ -519,11 +388,10 @@ export default function PrismaChecklistAudit({
           <div className="flex items-center gap-1.5 flex-wrap">
             <Filter className="w-3.5 h-3.5 text-indigo-600 mr-1" />
             <span className="text-xs font-mono font-semibold text-slate-700 mr-1">
-              {activeLayer === "PRISMA_S" ? "Domain:" : "Section:"}
+              Section:
             </span>
 
-            {activeLayer === "PRISMA_2020" && (
-              <>
+            <>
                 {["ALL", "METHODS", "RESULTS", "DISCUSSION", "INTRODUCTION", "TITLE", "ABSTRACT", "OTHER"].map((sec) => (
                   <button
                     key={sec}
@@ -545,52 +413,7 @@ export default function PrismaChecklistAudit({
                       : sec}
                   </button>
                 ))}
-              </>
-            )}
-
-            {activeLayer === "PRISMA_S" && (
-              <>
-                {["ALL", "INFORMATION_SOURCES", "SEARCH_METHODS", "MANAGING_RECORDS", "REPRODUCIBILITY"].map((dom) => (
-                  <button
-                    key={dom}
-                    onClick={() => setSectionFilter(dom)}
-                    className={`px-2.5 py-1 text-xs font-mono rounded-lg transition-colors cursor-pointer ${
-                      sectionFilter === dom
-                        ? "bg-slate-900 text-white font-semibold shadow-2xs"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
-                    }`}
-                  >
-                    {dom === "INFORMATION_SOURCES"
-                      ? "Sources (1-6)"
-                      : dom === "SEARCH_METHODS"
-                      ? "Methods (7-10)"
-                      : dom === "MANAGING_RECORDS"
-                      ? "Records (13-15)"
-                      : dom === "REPRODUCIBILITY"
-                      ? "Reproducibility (11-12, 16)"
-                      : dom}
-                  </button>
-                ))}
-              </>
-            )}
-
-            {activeLayer === "ROSES" && (
-              <>
-                {["ALL", "TITLE", "ABSTRACT", "INTRODUCTION", "METHODS", "RESULTS", "DISCUSSION", "FUNDING"].map((sec) => (
-                  <button
-                    key={sec}
-                    onClick={() => setSectionFilter(sec)}
-                    className={`px-2.5 py-1 text-xs font-mono rounded-lg transition-colors cursor-pointer ${
-                      sectionFilter === sec
-                        ? "bg-slate-900 text-white font-semibold shadow-2xs"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200/80"
-                    }`}
-                  >
-                    {sec}
-                  </button>
-                ))}
-              </>
-            )}
+            </>
           </div>
 
           <div className="flex items-center gap-2">
@@ -612,13 +435,7 @@ export default function PrismaChecklistAudit({
         <div>
           <input
             type="text"
-            placeholder={
-              activeLayer === "PRISMA_2020"
-                ? "Search PRISMA 2020 items by number, keyword, or description (e.g. '13a', 'risk of bias', 'eligibility')..."
-                : activeLayer === "PRISMA_S"
-                ? "Search PRISMA-S items by keyword, source, or method (e.g. 'controlled vocabulary', 'deduplication', 'PRESS')..."
-                : "Search ROSES items by keyword or emphasis (e.g. 'evidence mapping', 'policy relevance', 'critical appraisal')..."
-            }
+            placeholder="Search PRISMA 2020 items by number, keyword, or description (e.g. '13a', 'risk of bias', 'eligibility')..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full text-xs font-mono p-2.5 border border-slate-200 rounded-lg bg-white text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
