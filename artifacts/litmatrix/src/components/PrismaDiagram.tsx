@@ -9,13 +9,18 @@ interface PrismaCounts {
   duplicatesRemoved?: number;
   recordsAfterDuplicatesRemoved?: number;
   screened?: number;
+  recordsNotScreened?: number;
   screenedExcluded?: number;
   soughtRetrieval?: number;
+  reportsNotYetSought?: number;
   notRetrieved?: number;
   assessed?: number;
+  reportsNotAssessed?: number;
+  reportsUnclearEligibility?: number;
   assessedExcluded?: number;
   exclusionReasonsBreakdown?: Record<string, number>;
   included?: number;
+  includedReports?: number;
 }
 
 interface PrismaDiagramProps {
@@ -34,13 +39,18 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
     duplicatesRemoved = 0,
     recordsAfterDuplicatesRemoved = 0,
     screened = 0,
+    recordsNotScreened = 0,
     screenedExcluded = 0,
     soughtRetrieval = 0,
+    reportsNotYetSought = 0,
     notRetrieved = 0,
     assessed = 0,
+    reportsNotAssessed = 0,
+    reportsUnclearEligibility = 0,
     assessedExcluded = 0,
     exclusionReasonsBreakdown = {},
     included = 0,
+    includedReports = included,
   } = counts;
 
   const downloadSVG = () => {
@@ -199,7 +209,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records screened (title & abstract):
             </text>
             <text x="32" y="360" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {screened})
+              (n = {screened}) · Pending decision (n = {recordsNotScreened})
             </text>
 
             {/* Arrow right to excluded records */}
@@ -231,7 +241,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Reports sought for retrieval:
             </text>
             <text x="32" y="476" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {soughtRetrieval})
+              (n = {soughtRetrieval}) · Not yet sought (n = {reportsNotYetSought})
             </text>
 
             {/* Arrow right to not retrieved */}
@@ -252,7 +262,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Reports assessed for eligibility (Full-Text):
             </text>
             <text x="32" y="560" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {assessed})
+              (n = {assessed}) · Not assessed (n = {reportsNotAssessed}) · Unclear (n = {reportsUnclearEligibility})
             </text>
 
             {/* Arrow right to full text excluded with reasons */}
@@ -287,7 +297,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Studies included in review & synthesis:
             </text>
             <text x="32" y="666" fontFamily="JetBrains Mono" fontWeight="600" fontSize="12" fill="#047857">
-              (n = {included} studies)
+              (n = {included} studies) · Reports of included studies (n = {includedReports})
             </text>
           </g>
         </svg>

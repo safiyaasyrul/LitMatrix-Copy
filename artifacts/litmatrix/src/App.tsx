@@ -310,8 +310,12 @@ export default function App() {
   const prismaCounts = useMemo(() => {
     const totalIdentified = records.length + (dupesRemoved || 0);
     const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
+    const recordsNotScreenedCount = Math.max(records.length - screenedCount, 0);
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
+    const reportsNotYetSoughtCount = retainedForFullTextRecords.filter(
+      (record) => !record.fullTextStatus || record.fullTextStatus === "not_sought"
+    ).length;
     const soughtRetrievalCount = retainedForFullTextRecords.filter(
       (record) => record.fullTextStatus && record.fullTextStatus !== "not_sought"
     ).length;
@@ -323,6 +327,16 @@ export default function App() {
         record.fullTextStatus === "retrieved" &&
         record.fullTextEligibility &&
         record.fullTextEligibility !== "not_assessed"
+    ).length;
+    const reportsNotAssessedCount = retainedForFullTextRecords.filter(
+      (record) =>
+        record.fullTextStatus === "retrieved" &&
+        (!record.fullTextEligibility || record.fullTextEligibility === "not_assessed")
+    ).length;
+    const reportsUnclearEligibilityCount = retainedForFullTextRecords.filter(
+      (record) =>
+        record.fullTextStatus === "retrieved" &&
+        record.fullTextEligibility === "unclear"
     ).length;
     const assessedExcludedCount = retainedForFullTextRecords.filter(
       (record) => record.fullTextEligibility === "ineligible"
@@ -354,13 +368,18 @@ export default function App() {
       duplicatesRemoved: dupesRemoved || 0,
       recordsAfterDuplicatesRemoved: records.length,
       screened: screenedCount,
+      recordsNotScreened: recordsNotScreenedCount,
       screenedExcluded: screenedExcludedCount,
       soughtRetrieval: soughtRetrievalCount,
+      reportsNotYetSought: reportsNotYetSoughtCount,
       notRetrieved: notRetrievedCount,
       assessed: assessedCount,
+      reportsNotAssessed: reportsNotAssessedCount,
+      reportsUnclearEligibility: reportsUnclearEligibilityCount,
       assessedExcluded: assessedExcludedCount,
       exclusionReasonsBreakdown,
       included: includedCount,
+      includedReports: includedCount,
       fullTextAssessmentRecorded: assessedCount > 0,
     };
   }, [
