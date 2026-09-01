@@ -305,6 +305,10 @@ export async function callAI(
     if (provider === "other") defaultBase = "https://openrouter.ai/api/v1";
 
     const base = customBase || defaultBase;
+    // Keep OpenRouter requests within a small-credit balance. The previous
+    // 3500-token request can be rejected before generation when the account
+    // can only afford a smaller maximum output.
+    const requestMaxTokens = base.includes("openrouter.ai") ? Math.min(maxTokens, 2000) : maxTokens;
     const chosenModel =
       model ||
       (provider === "replit"
@@ -328,7 +332,7 @@ export async function callAI(
       body: JSON.stringify({
         model: chosenModel,
         messages,
-        max_tokens: maxTokens,
+        max_tokens: requestMaxTokens,
         temperature: 0.3,
       }),
     });
