@@ -123,8 +123,9 @@ export default function App() {
   });
 
   const [gradeItems, setGradeItems] = useState<GradeCertaintyItem[]>(() => {
-    const saved = localStorage.getItem("slr_grade_v1");
-    return saved ? JSON.parse(saved) : [];
+    // GRADE is optional and is not appropriate by default for heterogeneous
+    // engineering evidence. Existing auto-generated rows are not trusted.
+    return [];
   });
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
@@ -330,7 +331,7 @@ export default function App() {
       setCharacteristics(sampleCharacteristics);
       setRiskOfBias(sampleRiskOfBias);
       setSynthesis(sampleSynthesis);
-      setGradeItems(sampleGradeItems);
+      setGradeItems([]);
       setDiscussion(sampleDiscussion);
       setChecklist(initialPrismaChecklist);
       setPrismaSChecklist(initialPrismaSChecklist);
@@ -460,13 +461,13 @@ export default function App() {
     },
     {
       id: "synthesis",
-      label: "Synthesis & Forest Plot",
-      badge: "Items 13a–f & 20a–d",
+      label: "Narrative Synthesis",
+      badge: "Items 13a–f",
       icon: BarChart2,
     },
     {
       id: "grade",
-      label: "GRADE Summary of Findings",
+      label: "Optional Evidence Certainty",
       badge: "Items 15 & 22",
       icon: Award,
     },
@@ -727,7 +728,7 @@ export default function App() {
             />
           )}
 
-          {/* Stage 10: Synthesis & Meta-Analysis Forest Plot */}
+          {/* Stage 10: Narrative / Thematic Synthesis */}
           {activeStage === 9 && (
             <SynthesisSection
               synthesis={synthesis}

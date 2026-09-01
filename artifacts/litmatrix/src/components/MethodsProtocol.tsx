@@ -665,7 +665,7 @@ Return ONLY valid JSON matching this exact structure:
               type="text"
               value={protocol.title}
               onChange={(e) => onUpdateProtocol({ ...protocol, title: e.target.value })}
-              placeholder="e.g. Machine Learning for Early Type 2 Diabetes Prediction: A Systematic Review and Meta-Analysis"
+              placeholder="e.g. Maritime safety and decarbonisation: a systematic literature review"
               className="w-full text-sm font-sans p-2.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 font-medium"
             />
           </div>
@@ -678,7 +678,7 @@ Return ONLY valid JSON matching this exact structure:
               onChange={(e) => onUpdateProtocol({ ...protocol, reviewType: e.target.value })}
               className="w-full text-sm font-sans p-2.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 bg-white text-slate-800"
             >
-              <option>Systematic Review and Quantitative Meta-Analysis</option>
+              <option>Systematic Literature Review with Narrative/Thematic Synthesis</option>
               <option>Systematic Literature Review (Narrative / Thematic)</option>
               <option>Diagnostic Accuracy Systematic Review</option>
               <option>Scoping Review (PRISMA-ScR)</option>

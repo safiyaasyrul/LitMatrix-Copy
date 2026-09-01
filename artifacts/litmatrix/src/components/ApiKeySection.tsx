@@ -187,7 +187,7 @@ export default function ApiKeySection({
               AI Providers & API Keys
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed">
-              Key in your API key for <strong>OpenAI</strong>, <strong>Anthropic Claude</strong>, <strong>Google Gemini</strong>, <strong>Emergent</strong>, <strong>Replit</strong>, or <strong>Custom Endpoints</strong> to power screening, study characteristics extraction, risk of bias, meta-analysis, and PRISMA reports.
+              Optional provider keys can power screening, study-characteristics extraction, methodological appraisal, narrative synthesis, and PRISMA reports.
             </p>
           </div>
 

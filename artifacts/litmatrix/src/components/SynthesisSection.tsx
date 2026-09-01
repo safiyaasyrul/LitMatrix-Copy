@@ -301,7 +301,7 @@ Generate a JSON object conforming strictly to:
               <div className="space-y-1">
                 <h3 className="text-sm font-bold text-slate-800">Narrative Synthesis Not Yet Generated</h3>
                 <p className="text-xs text-slate-500">
-                  Click 'AI Synthesize Findings' or 'Instant Statistical Synthesis' above to generate thematic synthesis.
+                   Click 'AI Synthesize Findings' or 'Instant Narrative Synthesis' above to generate a thematic synthesis.
                 </p>
               </div>
             </div>
@@ -404,7 +404,7 @@ Generate a JSON object conforming strictly to:
       )}
 
       {/* Tab 3: Forest Plot */}
-      {activeTab === "forest" && (
+      {false && activeTab === "forest" && (
         <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -528,7 +528,7 @@ Generate a JSON object conforming strictly to:
             </div>
           ) : (
             <div className="p-8 text-center text-xs font-mono text-slate-500 bg-slate-50 rounded-xl">
-              No forest plot estimates generated yet. Click 'Instant Statistical Synthesis' above.
+              Quantitative pooling is not enabled by default. Add a sufficiently homogeneous, extractable outcome subset before performing a meta-analysis or generating a forest plot.
             </div>
           )}
         </div>

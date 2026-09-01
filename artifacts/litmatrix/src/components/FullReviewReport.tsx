@@ -216,13 +216,19 @@ export default function FullReviewReport({
       md += `Regarding between-study variance and heterogeneity exploration, ${synthesis.heterogeneityDiscussion}\n\n`;
     }
 
-    md += `### 3.5 Certainty of Evidence and Summary of Findings (Table 3)\n\n`;
-    md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
-    md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
-    gradeItems.forEach((g) => {
-      md += `| ${g.outcome} | ${g.numStudies} | ${g.riskOfBias} | ${g.inconsistency} | ${g.indirectness} | ${g.imprecision} | ${g.publicationBias} | ${g.overallCertainty} | ${g.explanation.replace(/\|/g, "/")} |\n`;
-    });
-    md += `\n`;
+    if (gradeItems.length > 0) {
+      md += `### 3.5 Optional Certainty of Evidence Assessment\n\n`;
+      md += `A certainty assessment was included only because it was explicitly populated by the reviewer. It was not generated automatically.\n\n`;
+      md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
+      md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
+      gradeItems.forEach((g) => {
+        md += `| ${g.outcome} | ${g.numStudies} | ${g.riskOfBias} | ${g.inconsistency} | ${g.indirectness} | ${g.imprecision} | ${g.publicationBias} | ${g.overallCertainty} | ${g.explanation.replace(/\|/g, "/")} |\n`;
+      });
+      md += `\n`;
+    } else {
+      md += `### 3.5 Certainty Assessment\n\n`;
+      md += `GRADE was not applied. The heterogeneous engineering evidence was assessed using domain-appropriate methodological quality criteria instead.\n\n`;
+    }
 
     md += `## 4. Discussion\n\n`;
     md += `### 4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis\n${discussion.item23aGeneralInterpretation}\n\n`;
@@ -307,7 +313,7 @@ export default function FullReviewReport({
   <h2>1. Introduction and Academic Rationale</h2>
   
   <h3>1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
-  <p>${protocol.introductionRationale || "The necessity of undertaking this systematic literature review arises from the rapid expansion of technological approaches, divergent empirical performance claims in prior studies, and the absence of a consolidated synthesis evaluating comparative efficacy under standardized benchmarks."}</p>
+   <p>${protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}</p>
   
   ${protocol.backgroundContext ? `<p>In theoretical and domain context, ${protocol.backgroundContext}</p>` : ""}
   ${protocol.knowledgeGap ? `<p>Regarding the existing literature gap, ${protocol.knowledgeGap}</p>` : ""}
@@ -714,8 +720,8 @@ export default function FullReviewReport({
             ))}
           </div>
 
-          {/* Table 3: GRADE / Certainty Profile */}
-          <div className="space-y-2 pt-4">
+          {/* Optional Table 3: reviewer-populated certainty assessment */}
+          {gradeItems.length > 0 && <div className="space-y-2 pt-4">
             <div className="text-xs font-mono font-bold text-slate-900">
               Table 3: Certainty of Evidence and Summary of Findings
             </div>
@@ -741,7 +747,7 @@ export default function FullReviewReport({
                 </tbody>
               </table>
             </div>
-          </div>
+          </div>}
         </section>
 
         {/* Section 4: Discussion (Strictly in Statements / Paragraphs with Author Comparisons) */}

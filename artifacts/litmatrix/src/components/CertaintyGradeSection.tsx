@@ -23,7 +23,8 @@ export default function CertaintyGradeSection({
   const [evaluating, setEvaluating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Heuristic rule-based GRADE summary of findings
+  // Kept as an explicit opt-in utility only. GRADE is not appropriate by default
+  // for heterogeneous engineering/model-development evidence.
   const runHeuristicGrade = () => {
     const nTotal = characteristics.reduce((acc, c) => {
       const match = c.sampleSize?.match(/[0-9,]+/);
@@ -187,33 +188,17 @@ Return ONLY a JSON array of objects.`;
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              PRISMA 2020 Items 15 & 22 · GRADE Summary of Findings
+              Optional certainty assessment
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Certainty of Evidence (GRADE Assessment)
+              Certainty of Evidence, if appropriate
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Evaluate confidence across domains: Risk of Bias, Inconsistency, Indirectness, Imprecision, and Publication Bias.
+              GRADE is not automatically applied. Use it only when the review question, study designs, outcomes, and synthesis method support it.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleAutoGrade}
-              disabled={evaluating || (includedRecords.length === 0 && characteristics.length === 0)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {evaluating ? "Evaluating GRADE Domains..." : "AI Assess GRADE Certainty"}
-            </button>
-            <button
-              onClick={runHeuristicGrade}
-              disabled={includedRecords.length === 0 && characteristics.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 text-indigo-600" />
-              Instant Heuristic GRADE
-            </button>
             {gradeItems.length > 0 && (
               <button
                 onClick={exportCSV}
@@ -232,25 +217,14 @@ Return ONLY a JSON array of objects.`;
         <div className="bg-white border border-slate-200 p-12 text-center rounded-xl space-y-4 shadow-xs">
           <Award className="w-10 h-10 text-slate-300 mx-auto" />
           <div className="space-y-1">
-            <h3 className="text-sm font-bold text-slate-800">GRADE Table Not Yet Populated</h3>
+            <h3 className="text-sm font-bold text-slate-800">No certainty table generated</h3>
             <p className="text-xs text-slate-500">
-              Click 'AI Assess GRADE Certainty' or 'Instant Heuristic GRADE' to populate the Summary of Findings table.
+              For this heterogeneous engineering review, a domain-appropriate methodological quality assessment is usually more suitable than automatic GRADE ratings.
             </p>
           </div>
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={handleAutoGrade}
-              className="px-4 py-2 text-xs font-mono font-semibold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors cursor-pointer"
-            >
-              Auto-Assess with AI
-            </button>
-            <button
-              onClick={runHeuristicGrade}
-              className="px-4 py-2 text-xs font-mono font-medium bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-lg transition-colors cursor-pointer"
-            >
-              Instant Heuristic Populate
-            </button>
-          </div>
+          <p className="text-[11px] text-slate-400 font-mono">
+            Add a certainty assessment manually only after confirming that GRADE is suitable for this evidence base.
+          </p>
         </div>
       ) : (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">

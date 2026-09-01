@@ -81,7 +81,8 @@ export default function RiskOfBiasSection({
       ? threatsDomains
       : clinicalDomains;
 
-  // Heuristic rule-based fallback generator adapted to engineering quality standards
+  // Conservative fallback: missing full-text evidence is a concern, not a low-risk
+  // judgment. Citation metadata cannot establish methodological quality.
   const runHeuristicAppraisal = () => {
     if (includedRecords.length === 0) return;
     const generated: RiskOfBiasItem[] = includedRecords.map((r) => {
@@ -90,25 +91,25 @@ export default function RiskOfBiasSection({
       const char = characteristics.find((c) => c.recordId === r.id);
       const abstract = r.abstract || "";
 
-      const hasBenchmark = /dataset|benchmark|mnist|imagenet|kaggle|corpus|repo/i.test(abstract);
-      const hasBaseline = /baseline|compared with|outperforms|superior to|state-of-the-art|sota/i.test(abstract);
-      const hasMetric = /accuracy|f1|auc|latency|throughput|precision|recall|rmse/i.test(abstract);
-
-      let overallVal: "Low" | "Some concerns" | "High" = "Low";
-      if (!hasBenchmark || !hasBaseline) overallVal = "Some concerns";
+      const hasMethods = /method|experiment|simulation|survey|case study|model|measure/i.test(abstract);
+      const hasValidation = /validat|replicat|sensitivity|uncertainty|calibrat/i.test(abstract);
+      const hasDataSource = /data|dataset|observ|sample|voyage|vessel|port|field/i.test(abstract);
+      const concern = !hasMethods || !hasValidation || !hasDataSource;
 
       return {
         recordId: r.id,
         authorYear: char?.authorYear || `${firstAuthor} et al. (${year})`,
-        d1Selection: "Low", // Study design & setup
-        d2Performance: hasBenchmark ? "Low" : "Some concerns", // Data adequacy
-        d3Attrition: hasMetric ? "Low" : "Some concerns", // Metric definition
-        d4Detection: hasBaseline ? "Low" : "Some concerns", // Baseline comparison
-        d5Reporting: "Low", // Repeatability & reporting
-        overall: overallVal,
-        justification: `Empirical quality verified: clear experimental formulation${
-          hasBenchmark ? ", public or standard benchmark evaluation" : ""
-        }${hasBaseline ? ", baseline comparative validation" : ""}, and defined quantitative metrics.`,
+        d1Selection: hasMethods ? "Some concerns" : "High",
+        d2Performance: hasDataSource ? "Some concerns" : "High",
+        d3Attrition: "Some concerns",
+        d4Detection: hasValidation ? "Some concerns" : "High",
+        d5Reporting: "Some concerns",
+        overall: concern ? "High" : "Some concerns",
+        justification: `This provisional appraisal uses only the abstract. ${
+          hasMethods ? "A method is described" : "Study design is not established"
+        }; ${
+          hasValidation ? "some validation language is present" : "validation and uncertainty reporting are not established"
+        }. Full-text verification is required before a low-concern judgment.`,
       };
     });
 
@@ -134,7 +135,7 @@ export default function RiskOfBiasSection({
 
     let criteriaInstructions = "";
     if (appraisalFramework === "engineering") {
-      criteriaInstructions = `Evaluate the methodological rigor and quality for engineering/computational studies across 5 criteria:
+      criteriaInstructions = `Evaluate methodological quality for engineering, environmental, and computational studies across 5 criteria:
 - d1Selection: "Low" | "Some concerns" | "High" (Study Design & Experimental Setup Rigor)
 - d2Performance: "Low" | "Some concerns" | "High" (Benchmark Data / Sample Adequacy)
 - d3Attrition: "Low" | "Some concerns" | "High" (Measurement Methodology & Metric Precision)
@@ -159,9 +160,10 @@ export default function RiskOfBiasSection({
 - overall: "Low" | "Some concerns" | "High"`;
     }
 
-    const prompt = `Following PRISMA 2020 Items 11 & 18 (Quality & Risk of Bias Assessment in Included Studies):
+     const prompt = `Following PRISMA 2020 Items 11 & 18, evaluate methodological quality using the domain-appropriate framework below:
 ${criteriaInstructions}
 - justification: 1-2 concise sentences summarizing the technical evidence, baseline comparability, and experimental reproducibility.
+Do not infer any judgment from citation metadata alone. Use "Some concerns" or "High" when the abstract does not establish a criterion. Never use clinical terminology for engineering or environmental studies, and never claim full-text verification, independent reviewers, or completed validation unless supplied.
 
 Studies:
 ${JSON.stringify(payload)}
@@ -395,12 +397,12 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
             PRISMA Item 11 Methodological Protocol Specification:
           </div>
           <span className="font-mono text-[10px] text-slate-500 bg-white px-2 py-0.5 border rounded">
-            Dual-Reviewer Standard
+             User-verified appraisal
           </span>
         </div>
         <p className="text-slate-600 leading-relaxed">
           {appraisalFramework === "engineering"
-            ? "Quality appraisal was conducted using a customized engineering rigor checklist assessing experimental setup validity, benchmark data adequacy, measurement methodology, baseline comparability, model assumptions, and repeatability. Two reviewers independently evaluated each study with dispute resolution via consensus."
+            ? "Quality appraisal uses a domain-tailored framework assessing study design, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness. Ratings require user verification against the full text."
             : appraisalFramework === "threats_validity"
             ? "Empirical quality was evaluated using a comprehensive threats-to-validity framework encompassing construct validity, internal validity, external validity (generalizability), conclusion validity, and experimental reliability."
             : "Risk of bias was evaluated using the Cochrane RoB 2 / ROBINS-I tool across five standard bias domains (selection, performance, attrition, detection, and reporting)."}
