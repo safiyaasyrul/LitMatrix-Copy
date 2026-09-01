@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   UserAIKeysConfig,
   AIProviderConfig,
-  getActiveAIConfig,
   testAIConnection,
   SupportedAIProvider,
   DEFAULT_AI_KEYS_CONFIG,
@@ -18,7 +17,6 @@ import {
   ExternalLink,
   Trash2,
   Check,
-  Copy,
   Zap,
   Globe,
   Lock,
@@ -45,7 +43,6 @@ export default function ApiKeySection({
   const [testResults, setTestResults] = useState<{
     [key: string]: { success: boolean; message: string; latencyMs: number } | null;
   }>({});
-  const [copiedDisclosure, setCopiedDisclosure] = useState(false);
   const [saveToast, setSaveToast] = useState(false);
 
   const toggleShowKey = (provider: string) => {
@@ -157,30 +154,6 @@ export default function ApiKeySection({
       setTestResults({});
       triggerSaveToast();
     }
-  };
-
-  const activeAI = getActiveAIConfig(keysConfig);
-
-  // PRISMA Item 8 automation disclosure prose
-  const getPrismaItem8Disclosure = () => {
-    const providerNameMap: Record<SupportedAIProvider, string> = {
-      "server-gemini": "Google Gemini (Built-in Server Gemini 3.7 Flash)",
-      openai: `OpenAI (${keysConfig?.openai?.model || "gpt-4o-mini"})`,
-      claude: `Anthropic Claude (${keysConfig?.claude?.model || "claude-3-7-sonnet"})`,
-      gemini: `Google Gemini (${keysConfig?.gemini?.model || "gemini-3.7-flash"})`,
-      emergent: `Emergent AI (${keysConfig?.emergent?.model || "gpt-4o-mini"})`,
-      replit: `Replit AI (${keysConfig?.replit?.model || "replit-code"})`,
-      other: `Custom LLM (${keysConfig?.other?.model || "custom model"}) via ${keysConfig?.other?.customBase || ""}`,
-    };
-
-    return `PRISMA 2020 Item 8 Automation & LLM Disclosure:
-"Title/abstract screening, study characteristics extraction, risk-of-bias evaluation, and preliminary synthesis were assisted using large language model automation (${providerNameMap[keysConfig?.activeProvider || "server-gemini"]}). Automated screening recommendations were reviewed and independently verified by human investigators with a pre-specified consensus threshold."`;
-  };
-
-  const copyDisclosure = () => {
-    navigator.clipboard.writeText(getPrismaItem8Disclosure());
-    setCopiedDisclosure(true);
-    setTimeout(() => setCopiedDisclosure(false), 2000);
   };
 
   return (
@@ -998,23 +971,16 @@ export default function ApiKeySection({
         </div>
       </div>
 
-      {/* Security & PRISMA Disclosure Panel */}
+      {/* Security & responsible-use note */}
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs font-mono font-bold text-slate-800">
             <Lock className="w-4 h-4 text-indigo-600" />
-            <span>PRISMA 2020 Item 8 Automation Transparency Disclosure</span>
+            <span>Privacy & Responsible Use</span>
           </div>
-          <button
-            onClick={copyDisclosure}
-            className="flex items-center gap-1 text-xs font-mono text-indigo-600 hover:text-indigo-800 cursor-pointer"
-          >
-            {copiedDisclosure ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            {copiedDisclosure ? "Copied" : "Copy Disclosure Text"}
-          </button>
         </div>
         <p className="text-xs font-mono bg-white p-3 rounded-lg border border-slate-200 text-slate-700 leading-relaxed">
-          {getPrismaItem8Disclosure()}
+          API keys stay in this browser and are sent only to the provider you select. If a journal, institution, or course requires an AI-use statement, describe your actual workflow accurately and follow its policy.
         </p>
         <div className="flex items-center justify-between text-[11px] text-slate-500 font-sans pt-1">
           <span>
