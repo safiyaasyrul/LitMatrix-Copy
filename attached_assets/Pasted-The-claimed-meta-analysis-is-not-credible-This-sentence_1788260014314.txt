@@ -1,0 +1,126 @@
+The claimed meta-analysis is not credible
+
+This sentence concerns me greatly:
+
+“Pooled quantitative synthesis confirmed positive outcome directionality with a summary estimate of 0.883.”
+
+and later:
+
+“95% CI 0.853 to 0.913”
+“I² = 48.6%”
+
+There is no evidence in the supplied manuscript that the 16 studies provide a common quantitative effect measure that could legitimately be pooled.
+
+Think about the studies:
+
+fuel consumption prediction
+CII prediction
+EEDI forecasting
+CFD pressure fields
+operational phase identification
+reinforcement learning
+fuel consumption modelling
+
+These do not automatically share a common effect size.
+
+An AI cannot simply manufacture:
+
+Effect size = 0.883
+CI = 0.853–0.913
+I² = 48.6%
+
+Those values should be deleted unless an actual statistical meta-analysis has been performed from extractable comparable data.
+
+For this dataset, a narrative/thematic synthesis is probably much more defensible.
+
+5. The study categorization is also artificial
+
+The manuscript creates:
+
+Optimization & Algorithmic Frameworks
+Deep Learning & Generative Models
+Edge & Embedded Computing Systems
+Predictive & Empirical Architecture
+Machine Learning & Architectural Design
+
+But these categories don't appear to naturally arise from the maritime literature.
+
+For example, calling:
+
+“Toward trustworthy decision-making for wing-diesel hybrid ship's navigation”
+
+an Edge & Embedded Computing System
+
+is questionable based solely on the title/abstract evidence presented.
+
+Likewise:
+
+“Quantifying wave-induced fuel consumption and CO₂ emissions: a high-fidelity free-running CFD approach”
+
+doesn't naturally belong to a software architecture taxonomy.
+
+The classification has been driven by the generic prompt, not by the scientific structure of the papers.
+
+6. There is an obvious irrelevant paper
+
+The first included paper is:
+
+“Impact from the evolution of private vehicle fleet composition on traffic related emissions in the small-medium automotive city.”
+
+If your actual review is shipping and maritime decarbonization, this is almost certainly a screening issue.
+
+This paper could potentially be relevant if your review question is deliberately about transport-sector decarbonization broadly.
+
+But if the scope is:
+
+shipping / maritime transportation / ships / maritime emissions
+
+then this paper should probably be excluded.
+
+This demonstrates that the eligibility criteria were not applied consistently.
+
+7. The manuscript claims information that the RIS data cannot support
+
+For example:
+
+“independently screened by 2 reviewers with consensus resolution.”
+
+Did two human reviewers actually screen these records?
+
+If not, this must not be stated.
+
+Similarly:
+
+“Full-text evaluation of 16 retrieved reports resulted in 0 exclusions...”
+
+But the uploaded material is RIS bibliographic data, not 16 full-text PDFs.
+
+Therefore the AI cannot legitimately claim that full-text eligibility was completed unless those full texts were actually reviewed.
+
+This is exactly the kind of statement that can cause problems with reviewers.
+
+8. The Introduction is almost entirely wrong for this dataset
+
+This sentence is particularly revealing:
+
+“co2 emissions from shipping and decarbonization has emerged as a pivotal domain in contemporary software engineering, computing systems, and applied technology.”
+
+That isn't the scientific framing suggested by the actual papers.
+
+The literature is much more naturally framed around:
+
+maritime transportation → fuel consumption → GHG/CO₂ emissions → energy efficiency → IMO regulations → prediction/optimization → decarbonization
+
+rather than:
+
+software engineering → architecture → latency → throughput → deployment constraints
+
+The AI needs to rebuild the conceptual framework from the actual literature.
+
+9. The research questions need to be completely rewritten
+
+Current RQs ask:
+
+What are the empirical performance benchmarks such as latency, throughput, accuracy, memory footprint...?
+
+That's the wrong question for most of these papers.
