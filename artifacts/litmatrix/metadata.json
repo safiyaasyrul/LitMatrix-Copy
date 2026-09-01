@@ -1,6 +1,6 @@
 {
-  "name": "ScholarPen",
-  "description": "From Literature Search to Review Paper. Your AI Research Assistant for Systematic Literature Reviews.",
+  "name": "PRISMA 2020 Systematic Literature Review Workbench",
+  "description": "Comprehensive PRISMA 2020 compliant Systematic Literature Review tool with automated Boolean search strings, deduplication, AI screening, Risk of Bias (RoB), study characteristics extraction, synthesis, GRADE certainty, interactive PRISMA flow diagram, and full PRISMA 2020 checklist audit.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
