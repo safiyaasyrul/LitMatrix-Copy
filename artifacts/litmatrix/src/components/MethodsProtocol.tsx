@@ -622,10 +622,10 @@ Return ONLY valid JSON matching this exact structure:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              PRISMA 2020 Item 1 & 24a · ROSES Item 1
+              PRISMA 2020 Item 1
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Review Title, Methodology & Registration
+              Review Title & Methodology
             </h2>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -690,18 +690,6 @@ Return ONLY valid JSON matching this exact structure:
           </div>
         </div>
 
-        <div>
-          <label className="block text-xs font-mono font-semibold text-slate-700 mb-1">
-            Protocol Registration & Repository Link (PRISMA Item 24a / ROSES Item 1)
-          </label>
-          <input
-            type="text"
-            value={protocol.protocolRegistration || ""}
-            onChange={(e) => onUpdateProtocol({ ...protocol, protocolRegistration: e.target.value })}
-            placeholder="e.g. PROSPERO Registration ID: CRD42026884129 · Open Science Framework (osf.io/xxxx) / PROCEED registry"
-            className="w-full text-xs font-mono p-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800"
-          />
-        </div>
       </div>
 
       {/* SECTION 1: PRISMA Item 3 - RATIONALE & BACKGROUND */}

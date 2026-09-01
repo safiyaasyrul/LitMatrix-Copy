@@ -15,7 +15,6 @@ export const BLANK_PROTOCOL: SLRProtocol = {
     "Evaluate subgroup variations across demographic and methodological strata",
     "Assess certainty of cumulative evidence using the GRADE framework",
   ],
-  protocolRegistration: "PROSPERO (e.g., CRD42026XXXXXX) / OSF Registries (osf.io/xxxxx)",
   formulationFramework: "PICO",
   objectivesPICO: {
     population: "Define target population or condition (e.g., adults with specific condition)...",
@@ -117,7 +116,6 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     "Identify top consistent predictive feature rankings (e.g., fasting plasma glucose, HbA1c, BMI, lipid ratios) across model architectures",
     "Formulate evidence-based clinical implementation guidelines based on GRADE certainty ratings",
   ],
-  protocolRegistration: "PROSPERO 2026 Registration ID: CRD42026884129 (Available via osf.io/preprints/t2dm-ml-slr)",
   formulationFramework: "PICO",
   objectivesPICO: {
     population: "Adult populations (aged >= 18 years) at risk of developing Type 2 Diabetes Mellitus (T2DM) without baseline diagnosis.",

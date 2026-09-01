@@ -132,9 +132,6 @@ export default function FullReviewReport({
   const generateFullMarkdown = () => {
     let md = `# ${protocol.title || "Systematic Literature Review Manuscript"}\n\n`;
     md += `**Methodology:** ${protocol.reviewType}\n`;
-    if (protocol.protocolRegistration) {
-      md += `**Protocol Registration:** ${protocol.protocolRegistration}\n`;
-    }
     md += `\n---\n\n`;
 
     md += `## Abstract\n\n`;
@@ -299,7 +296,6 @@ export default function FullReviewReport({
   <h1>${protocol.title || "Systematic Literature Review Manuscript"}</h1>
   <div class="meta-box">
     <strong>Review Methodology:</strong> ${protocol.reviewType}<br>
-    ${protocol.protocolRegistration ? `<strong>Protocol Registration:</strong> ${protocol.protocolRegistration}<br>` : ""}
   </div>
 
   <div class="abstract-box">
@@ -504,9 +500,6 @@ export default function FullReviewReport({
           </h1>
           <div className="text-xs font-mono text-slate-500 pt-1 space-y-1">
             <div>Methodology: <span className="font-semibold text-slate-800">{protocol.reviewType}</span></div>
-            {protocol.protocolRegistration && (
-              <div>Protocol Registration: <span className="font-semibold text-indigo-700">{protocol.protocolRegistration}</span></div>
-            )}
           </div>
         </header>
 
