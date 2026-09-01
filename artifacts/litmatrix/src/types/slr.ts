@@ -15,6 +15,7 @@ export interface ScreeningDecision {
   score: number | null; // 0 - 100
   reason: string;
   decision: "include" | "exclude";
+  recommendation?: "include" | "exclude" | "maybe";
   agreed?: boolean; // human confirmation
   criteriaAnswers?: {
     populationContext: "Yes" | "No" | "Unclear";

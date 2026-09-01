@@ -23,6 +23,10 @@ interface ScreeningSectionProps {
 }
 
 type ScreeningCriterionKey = keyof NonNullable<ScreeningDecision["criteriaAnswers"]>;
+type AIRecommendation = NonNullable<ScreeningDecision["recommendation"]>;
+
+const getRecommendationLabel = (recommendation: AIRecommendation) =>
+  recommendation === "include" ? "Accept" : recommendation === "exclude" ? "Exclude" : "Maybe / Unclear";
 
 export default function ScreeningSection({
   records,
@@ -119,7 +123,7 @@ ${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}
 Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
 ${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
 
-Calculate an overall eligibility score (0-100) only as a transparent summary of the answers. A "No" on any required question should favor exclusion; any "Unclear" answer must remain unresolved for reviewer confirmation. Use an exclusion reason only when the evidence supports it: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
+Calculate an overall eligibility score (0-100) only as a transparent summary of the answers. Apply this recommendation rule: accept when Q1 OR Q2 is Yes AND Q3 is Yes AND Q4 is Yes. If Q1/Q2/Q3/Q4 is unresolved, or if Q5 is anything other than Yes, recommend Maybe / Unclear. Exclude only when Q1 and Q2 are both No, or Q3 or Q4 is No. AI recommendations remain pending for reviewer confirmation. Use an exclusion reason only when the evidence supports exclusion: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
 
 Studies:
 ${JSON.stringify(payload)}
@@ -137,6 +141,7 @@ Return ONLY a JSON array:
       "studyType": "Yes",
       "requiredEvidence": "No"
     },
+    "recommendation": "maybe",
     "exclusionReason": "Wrong population" (optional)
   }
 ]`;
@@ -161,17 +166,31 @@ Return ONLY a JSON array:
                 studyType: normalizeAnswer(rawAnswers.studyType),
                 requiredEvidence: normalizeAnswer(rawAnswers.requiredEvidence),
               };
-              const answerValues = Object.values(answers);
-              const hasNo = answerValues.includes("No");
+              const q1OrQ2Yes =
+                answers.populationContext === "Yes" || answers.phenomenon === "Yes";
+              const coreCriteriaAccepted =
+                q1OrQ2Yes &&
+                answers.researchContribution === "Yes" &&
+                answers.studyType === "Yes";
+              const coreCriteriaExcluded =
+                (answers.populationContext === "No" && answers.phenomenon === "No") ||
+                answers.researchContribution === "No" ||
+                answers.studyType === "No";
+              const recommendation: AIRecommendation = coreCriteriaExcluded
+                ? "exclude"
+                : coreCriteriaAccepted && answers.requiredEvidence === "Yes"
+                ? "include"
+                : "maybe";
               const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
 
               nextScreening[p.id] = {
                 score: finalScore,
                 reason: p.reason || "AI screening suggestion based on the approved eligibility criteria.",
-                decision: hasNo ? "exclude" : "include",
+                recommendation,
+                decision: recommendation === "exclude" ? "exclude" : "include",
                 agreed: undefined,
                 criteriaAnswers: answers,
-                exclusionReason: hasNo ? p.exclusionReason || "Criteria not met" : undefined,
+                exclusionReason: recommendation === "exclude" ? p.exclusionReason || "Criteria not met" : undefined,
               };
             });
           }
@@ -375,6 +394,19 @@ Return ONLY a JSON array:
                           }`}
                         >
                           {s.score}% Eligibility Summary
+                        </span>
+                      )}
+                      {s?.recommendation && s.agreed === undefined && (
+                        <span
+                          className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
+                            s.recommendation === "include"
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                              : s.recommendation === "exclude"
+                              ? "bg-rose-50 border-rose-200 text-rose-800"
+                              : "bg-amber-50 border-amber-200 text-amber-800"
+                          }`}
+                        >
+                          AI recommendation: {getRecommendationLabel(s.recommendation)}
                         </span>
                       )}
                       <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
