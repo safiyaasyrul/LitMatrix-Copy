@@ -16,11 +16,22 @@ export interface ScreeningDecision {
   reason: string;
   decision: "include" | "exclude";
   agreed?: boolean; // human confirmation
+  criteriaAnswers?: {
+    populationContext: "Yes" | "No" | "Unclear";
+    phenomenon: "Yes" | "No" | "Unclear";
+    researchContribution: "Yes" | "No" | "Unclear";
+    studyType: "Yes" | "No" | "Unclear";
+    requiredEvidence: "Yes" | "No" | "Unclear";
+  };
   exclusionReason?:
     | "Secondary literature / Review paper"
+    | "Out of scope / Criteria not met"
     | "Out of scope / Keyword mismatch"
     | "Wrong population"
+    | "Wrong population / context"
     | "Wrong intervention / exposure"
+    | "Wrong phenomenon / contribution"
+    | "Insufficient evidence in record"
     | "Wrong comparator"
     | "Wrong outcome"
     | "Wrong study design"
