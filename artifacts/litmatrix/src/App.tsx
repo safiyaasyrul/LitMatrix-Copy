@@ -865,6 +865,7 @@ export default function App() {
               discussion={discussion}
               checklist={checklist}
               counts={prismaCounts}
+              aiConfig={activeAIConfig}
             />
           )}
 

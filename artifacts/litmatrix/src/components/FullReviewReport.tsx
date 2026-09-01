@@ -11,6 +11,16 @@ import {
 } from "../types/slr";
 import { Download, Copy, Printer, Check, BookOpen, FileText, CheckCircle2, ShieldAlert, Sparkles, Layers, SlidersHorizontal, Quote } from "lucide-react";
 import PrismaDiagram from "./PrismaDiagram";
+import { AIProviderConfig, callAI, parseJSONLoose } from "../utils/aiClient";
+
+interface StructuredAbstract {
+  bg: string;
+  obj: string;
+  meth: string;
+  res: string;
+  concl: string;
+  keywords: string[];
+}
 
 interface FullReviewReportProps {
   protocol: SLRProtocol;
@@ -22,6 +32,7 @@ interface FullReviewReportProps {
   discussion: DiscussionSections;
   checklist: PrismaChecklistItem[];
   counts: any;
+  aiConfig: AIProviderConfig;
 }
 
 export default function FullReviewReport({
@@ -34,8 +45,12 @@ export default function FullReviewReport({
   discussion,
   checklist,
   counts,
+  aiConfig,
 }: FullReviewReportProps) {
   const [copied, setCopied] = useState(false);
+  const [generatedAbstract, setGeneratedAbstract] = useState<StructuredAbstract | null>(null);
+  const [generatingAbstract, setGeneratingAbstract] = useState(false);
+  const [abstractError, setAbstractError] = useState<string | null>(null);
 
   const questions = protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
@@ -99,35 +114,133 @@ export default function FullReviewReport({
   const hasCountryData = characteristics.some((c) => c.country && c.country !== "Not reported" && c.country !== "N/A");
   const hasSampleData = characteristics.some((c) => c.sampleSize && c.sampleSize !== "N/A" && c.sampleSize !== "Not reported");
 
-  // Structured Abstract generator
-  const getAbstractContent = () => {
-    const bg = protocol.introductionRationale || `This review examines the evidence relevant to ${protocol.title || "the defined topic"}.`;
-    const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
-    const uploadedSources = counts.identifiedDbSources?.join(", ") || "uploaded files without a recorded source label";
-    const meth = `The workspace contains records uploaded from ${uploadedSources}. Title and abstract screening decisions were recorded against approved eligibility criteria. Full-text retrieval and eligibility are reported only from recorded reviewer decisions.`;
-    
-    // Generate synthesized category summary
-    const catSummaries: string[] = [];
-    categoriesMap.forEach((studies, cat) => {
-      const authors = studies.map((s) => s.authorYear).join(" and ");
-      catSummaries.push(`The ${cat} theme includes ${authors}`);
-    });
+  const includedIds = new Set(includedRecords.map((record) => record.id));
+  const extractedIds = new Set(
+    characteristics.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
+  );
+  const appraisedIds = new Set(
+    riskOfBias.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
+  );
+  const selectionComplete = includedRecords.length > 0 && counts.assessed >= includedRecords.length;
+  const extractionComplete =
+    includedRecords.length > 0 && includedRecords.every((record) => extractedIds.has(record.id));
+  const appraisalComplete =
+    includedRecords.length > 0 && includedRecords.every((record) => appraisedIds.has(record.id));
+  const synthesisComplete =
+    (synthesis.subtopics?.length || 0) > 0 && (synthesis.keyFindingsTable?.length || 0) > 0;
+  const abstractReady =
+    selectionComplete && extractionComplete && appraisalComplete && synthesisComplete;
 
-    const res = `${counts.screened || 0} records have title and abstract screening decisions; ${counts.soughtRetrieval || 0} reports were sought, ${counts.assessed || 0} full texts were assessed, and ${includedRecords.length} studies were approved as eligible. ${catSummaries.join(". ")}. No pooled quantitative analysis was performed.`;
-    const concl = `The available evidence is summarized narratively. Eligibility, extracted characteristics, and methodological judgments should be verified against full texts before drawing definitive conclusions.`;
-    const keywords = [
-      protocol.reviewType || "Systematic Literature Review",
-      "Evidence Synthesis",
-       "Narrative Synthesis",
-       "Study Characteristics",
-      "Methodological Quality",
-      ...Array.from(categoriesMap.keys()).slice(0, 3),
-    ].filter(Boolean);
+  const removeCitationArtifacts = (value: string) =>
+    value
+      .replace(/\b[A-ZÀ-ÖØ-Þ][\p{L}'’-]+(?:\s+(?:and|&)\s+[A-ZÀ-ÖØ-Þ][\p{L}'’-]+)?\s+et\s+al\.?,?\s*\(?\d{4}[a-z]?\)?/giu, "")
+      .replace(/\([^)]*(?:19|20)\d{2}[a-z]?[^)]*\)/gi, "")
+      .replace(/\[(?:\d+\s*[,–-]?\s*)+\]/g, "")
+      .replace(/https?:\/\/\S+|doi:\s*\S+/gi, "")
+      .replace(/\s{2,}/g, " ")
+      .replace(/\s+([,.;:])/g, "$1")
+      .trim();
 
-    return { bg, obj, meth, res, concl, keywords };
+  const pendingAbstract: StructuredAbstract = {
+    bg: "Generate the abstract after final study selection, extraction, methodological appraisal, and evidence synthesis are complete.",
+    obj: "The review objective will be summarized from the approved protocol.",
+    meth: "The methods summary will report only recorded search, screening, full-text, and appraisal procedures.",
+    res: "Synthesis-level results are not yet available for abstract generation.",
+    concl: "No abstract conclusion is generated before the finalized synthesis is available.",
+    keywords: [protocol.reviewType || "Systematic Review", "Evidence Synthesis"],
   };
 
-  const abstract = getAbstractContent();
+  const abstract = generatedAbstract || pendingAbstract;
+
+  const handleGenerateAbstract = async () => {
+    if (!abstractReady) return;
+    setGeneratingAbstract(true);
+    setAbstractError(null);
+
+    const synthesisEvidence = {
+      themes: (synthesis.subtopics || []).map((item) => ({
+        title: removeCitationArtifacts(item.title),
+        synthesis: removeCitationArtifacts(item.prose),
+      })),
+      crossStudyFindings: (synthesis.keyFindingsTable || []).map((item) => ({
+        topic: removeCitationArtifacts(item.topic),
+        summary: removeCitationArtifacts(item.summary),
+        consistency: removeCitationArtifacts(item.consistency),
+        evidenceBase: removeCitationArtifacts(item.evidenceBase),
+      })),
+      heterogeneity: removeCitationArtifacts(synthesis.heterogeneityDiscussion || ""),
+    };
+    const appraisalSummary = {
+      totalAppraised: riskOfBias.filter((item) => includedIds.has(item.recordId)).length,
+      lowConcern: riskOfBias.filter(
+        (item) => includedIds.has(item.recordId) && (item.overall === "Low" || item.overall === "High Rigor")
+      ).length,
+      someConcerns: riskOfBias.filter(
+        (item) => includedIds.has(item.recordId) && (item.overall === "Some concerns" || item.overall === "Moderate Rigor")
+      ).length,
+      highConcern: riskOfBias.filter(
+        (item) => includedIds.has(item.recordId) && (item.overall === "High" || item.overall === "Low Rigor")
+      ).length,
+    };
+    const uploadedSources = counts.identifiedDbSources?.join(", ") || "uploaded source records";
+
+    const prompt = `Generate a structured systematic-review abstract from FINALIZED SYNTHESIS-LEVEL EVIDENCE only.
+
+Review title: ${protocol.title}
+Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
+Approved objectives: ${JSON.stringify(objectives)}
+Recorded methods: Sources represented in uploaded records: ${uploadedSources}. Records screened: ${counts.screened || 0}. Full texts assessed: ${counts.assessed || 0}. Final included studies: ${includedRecords.length}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
+Final synthesis: ${JSON.stringify(synthesisEvidence)}
+Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
+
+STRICT ABSTRACT RULES:
+1. Return Background, Objective, Methods, Results, Conclusion, and Keywords.
+2. Results must answer what the review found after cross-study synthesis. Summarize dominant patterns, relationships, consistencies, contradictions, methodological limitations, and evidence gaps.
+3. Do not list studies or write a sequence of individual-study findings.
+4. Do not include author names, years, citations, reference numbers, DOI links, or URLs anywhere.
+5. Do not derive findings from screening counts, keyword frequencies, titles alone, excluded records, or records awaiting full-text assessment.
+6. Use only the supplied finalized synthesis. If a relationship is not supported there, omit it.
+7. Do not invent numerical values. Use recorded flow counts only in Methods or Results when useful.
+8. Do not report pooled effects, confidence intervals, heterogeneity statistics, GRADE ratings, p-values, or meta-analysis unless present in the supplied finalized synthesis.
+9. The Conclusion must reflect evidence strength and limitations and must not turn association, prediction, modelling performance, or theoretical potential into demonstrated real-world effectiveness.
+10. Keep Results concise and synthesis-level, with no citations.
+
+Return ONLY JSON:
+{
+  "background": "Why the topic matters",
+  "objective": "What the review investigated",
+  "methods": "Brief recorded sources, screening, PRISMA flow, extraction, appraisal, and synthesis approach",
+  "results": "Cross-study synthesized findings without citations",
+  "conclusion": "Meaning, limitations, principal gap, and implication",
+  "keywords": ["3 to 6 concise terms"]
+}`;
+
+    try {
+      const text = await callAI(
+        prompt,
+        "You are a systematic review abstract editor. Write synthesis-level findings only and never include citations in the abstract.",
+        aiConfig
+      );
+      const parsed = parseJSONLoose(text);
+      if (!parsed?.results || !parsed?.conclusion) {
+        throw new Error("The AI response did not contain a complete structured abstract.");
+      }
+      setGeneratedAbstract({
+        bg: removeCitationArtifacts(String(parsed.background || "")),
+        obj: removeCitationArtifacts(String(parsed.objective || "")),
+        meth: removeCitationArtifacts(String(parsed.methods || "")),
+        res: removeCitationArtifacts(String(parsed.results || "")),
+        concl: removeCitationArtifacts(String(parsed.conclusion || "")),
+        keywords: Array.isArray(parsed.keywords)
+          ? parsed.keywords.map((item: unknown) => removeCitationArtifacts(String(item))).filter(Boolean).slice(0, 6)
+          : ["Systematic Review", "Evidence Synthesis"],
+      });
+    } catch (error: any) {
+      setAbstractError(error?.message || "The synthesis abstract could not be generated.");
+    } finally {
+      setGeneratingAbstract(false);
+    }
+  };
 
   const generateFullMarkdown = () => {
     let md = `# ${protocol.title || "Systematic Literature Review Manuscript"}\n\n`;
@@ -210,7 +323,7 @@ export default function FullReviewReport({
     md += `\n`;
 
     md += `### 3.4 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
-    synthesis.subtopics.forEach((sub) => {
+    (synthesis.subtopics || []).forEach((sub) => {
       md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
 
@@ -410,7 +523,7 @@ export default function FullReviewReport({
   </table>
 
   <h3>3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
-  ${synthesis.subtopics.map((st) => `
+  ${(synthesis.subtopics || []).map((st) => `
     <h4>${st.title}</h4>
     <p>${st.prose}</p>
   `).join("")}
@@ -463,28 +576,36 @@ export default function FullReviewReport({
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
+            disabled={!generatedAbstract}
+            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? "Copied!" : "Copy Markdown"}
           </button>
           <button
             onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
+            disabled={!generatedAbstract}
+            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             <Download className="w-3.5 h-3.5" />
             Download Markdown (.md)
           </button>
           <button
             onClick={handleDownloadDoc}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
+            disabled={!generatedAbstract}
+            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-600" />
             Download Word (.doc)
           </button>
           <button
             onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer"
+            disabled={!generatedAbstract}
+            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
             Print / PDF
@@ -509,15 +630,45 @@ export default function FullReviewReport({
 
         {/* Structured Academic Abstract */}
         <section className="bg-slate-50/80 border border-slate-200 p-6 sm:p-8 rounded-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
             <h2 className="text-base font-bold text-slate-900 font-mono flex items-center gap-2 uppercase tracking-wide">
               <BookOpen className="w-4 h-4 text-indigo-600" />
               Structured Academic Abstract
             </h2>
-            <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
-              Publication Ready
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`text-[10px] font-mono border px-2 py-0.5 rounded ${
+                generatedAbstract
+                  ? "text-emerald-700 bg-emerald-50 border-emerald-200"
+                  : abstractReady
+                  ? "text-indigo-700 bg-indigo-50 border-indigo-200"
+                  : "text-amber-700 bg-amber-50 border-amber-200"
+              }`}>
+                {generatedAbstract ? "Synthesis Abstract Ready" : abstractReady ? "Ready to Generate" : "Prerequisites Incomplete"}
+              </span>
+              <button
+                onClick={handleGenerateAbstract}
+                disabled={!abstractReady || generatingAbstract}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:bg-slate-300 disabled:cursor-not-allowed"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                {generatingAbstract ? "Synthesizing..." : generatedAbstract ? "Regenerate Abstract" : "Generate Abstract"}
+              </button>
+            </div>
           </div>
+
+          {!abstractReady && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              Complete all final-evidence stages first:
+              <span className="ml-1 font-mono">
+                selection {selectionComplete ? "✓" : "○"} · extraction {extractionComplete ? "✓" : "○"} · appraisal {appraisalComplete ? "✓" : "○"} · synthesis {synthesisComplete ? "✓" : "○"}
+              </span>
+            </div>
+          )}
+          {abstractError && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+              Abstract generation failed: {abstractError}
+            </div>
+          )}
 
           <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
             <p>
@@ -716,7 +867,7 @@ export default function FullReviewReport({
           {/* Narrative Synthesis with Cross-Author Similarities */}
           <div className="space-y-3 pt-4">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
-            {synthesis.subtopics.map((st, i) => (
+            {(synthesis.subtopics || []).map((st, i) => (
               <div key={i} className="space-y-1">
                 <h4 className="font-bold text-xs text-slate-900 font-mono">{st.title}</h4>
                 <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">{st.prose}</p>

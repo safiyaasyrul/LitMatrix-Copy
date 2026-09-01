@@ -129,7 +129,7 @@ STRICT WRITING RULES:
 1. Write in strictly third-person objective academic voice. NEVER use first-person pronouns (DO NOT use "we", "our", "us", "in our study", "we observed").
 2. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
 3. DO NOT mention "PRISMA Item", "PRISMA", "Item 20", etc.
-4. CITE EVERY INCLUDED STUDY EXPLICITLY in the narrative text (e.g. Chen et al., 2023) and present its key characteristics and findings. Compare authors who share methodological or paradigm similarities within each category.
+4. In subtopic prose, cite included studies where needed to preserve traceability. In keyFindingsTable summaries, synthesize across studies without author names, years, citations, reference numbers, DOI links, or individual-study lists.
 5. Group the findings into 3-4 structured subtopics with descriptive academic titles.
 6. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
 7. Do not calculate or report pooled effects, confidence intervals, p-values, I², weights, meta-analysis, or statistical significance.
@@ -146,7 +146,7 @@ Generate a JSON object conforming strictly to:
   "keyFindingsTable": [
     {
       "topic": "Synthesis Domain",
-      "summary": "Concise summary citing findings",
+      "summary": "Cross-study synthesis of dominant findings, consistencies, contradictions, limitations, and gaps; no citations or author names",
       "consistency": "Describe cautiously or state not assessable",
       "evidenceBase": "Number of records contributing to this theme"
     }
