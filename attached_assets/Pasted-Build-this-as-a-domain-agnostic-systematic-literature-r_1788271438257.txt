@@ -1,0 +1,23 @@
+Build this as a domain-agnostic systematic literature review application. Never hard-code a specific research discipline, population, intervention, technology, outcome, terminology, or eligibility criterion. The application must infer the appropriate research domain, conceptual framework, research questions, inclusion criteria, exclusion criteria, screening dimensions, data-extraction fields, and methodological appraisal approach dynamically from the user's research title/question and the retrieved literature.
+
+The user's primary input should be the research title/topic. The AI should intelligently develop the remaining review protocol while allowing the researcher to inspect, edit, and approve it before screening.
+
+Screening decisions must be based on semantic alignment with the approved research question and eligibility criteria, not merely keyword matching. Use generic concepts such as population/context, intervention/exposure/phenomenon, comparator, outcome, study design, and publication characteristics, but dynamically adapt their meaning to the research domain.
+
+Never insert domain-specific examples into the application's core logic. For example, do not hard-code terms such as maritime, shipping, vessels, ports, medicine, patients, construction, education, or any other discipline-specific terminology. Domain-specific terminology may only be generated dynamically from the user's research topic.
+
+Clearly distinguish between records screened, records retained for full-text assessment, full-text reports assessed for eligibility, and studies finally included. A record must not be labelled an "included study" until full-text eligibility has been completed and approved.
+
+When information is unavailable from the abstract, mark the criterion as "Unclear" or "Insufficient information" rather than guessing. Do not fabricate study characteristics, sample sizes, outcomes, methods, quality ratings, full-text findings, or eligibility decisions.
+
+The system must identify potentially irrelevant studies based on the approved eligibility criteria, explain the specific reason for exclusion, and allow the researcher to override the AI decision.
+
+Methodological appraisal must be adaptive. Select or recommend an appropriate appraisal strategy based on the study designs and research domain. Do not automatically apply a clinical risk-of-bias instrument to non-clinical studies. If no validated instrument is appropriate, use a transparent domain-specific methodological appraisal framework and clearly label it as such.
+
+The PRISMA 2020 flow diagram and all manuscript numbers must be generated directly from the underlying screening database. Never invent or manually estimate PRISMA counts.
+
+Do not perform meta-analysis unless the extracted data genuinely support quantitative pooling. If studies are too heterogeneous, perform an appropriate narrative, thematic, bibliometric, or other justified synthesis and explain why quantitative pooling is inappropriate.
+
+The final manuscript must accurately reflect what the screening and extraction database actually supports. Never upgrade prediction into demonstrated intervention effectiveness, association into causation, or modelling capability into real-world impact.
+
+The application should be designed as a reusable SLR platform for researchers from different disciplines, not as a maritime-specific application.

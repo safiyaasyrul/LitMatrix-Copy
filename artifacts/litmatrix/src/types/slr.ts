@@ -9,6 +9,10 @@ export interface SLRRecord {
   databaseSource?: "Scopus" | "Web of Science" | "PubMed" | "Google Scholar" | "IEEE Xplore" | "Cochrane" | "Other" | string;
   databaseSources?: string[];
   studyType?: string;
+  fullTextStatus?: "not_sought" | "sought" | "retrieved" | "not_retrieved";
+  fullTextEligibility?: "not_assessed" | "eligible" | "ineligible" | "unclear";
+  fullTextExclusionReason?: string;
+  fullTextNotes?: string;
 }
 
 export interface ScreeningDecision {

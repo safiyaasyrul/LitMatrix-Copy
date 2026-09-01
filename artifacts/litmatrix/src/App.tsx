@@ -34,6 +34,7 @@ import MethodsProtocol from "./components/MethodsProtocol";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
+import FullTextEligibilitySection from "./components/FullTextEligibilitySection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
 import RiskOfBiasSection from "./components/RiskOfBiasSection";
@@ -273,9 +274,19 @@ export default function App() {
     return getActiveAIConfig(keysConfig);
   }, [keysConfig]);
 
-  // Derived included records
-  const includedRecords = useMemo(() => {
+  // Records retained at title/abstract screening are not yet included studies.
+  const retainedForFullTextRecords = useMemo(() => {
     return records.filter((r) => screening[r.id]?.agreed === true);
+  }, [records, screening]);
+
+  // A study is included only after reviewer-approved full-text eligibility.
+  const includedRecords = useMemo(() => {
+    return records.filter(
+      (r) =>
+        screening[r.id]?.agreed === true &&
+        r.fullTextStatus === "retrieved" &&
+        r.fullTextEligibility === "eligible"
+    );
   }, [records, screening]);
 
   // Derived excluded records
@@ -300,6 +311,21 @@ export default function App() {
     const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
+    const soughtRetrievalCount = retainedForFullTextRecords.filter(
+      (record) => record.fullTextStatus && record.fullTextStatus !== "not_sought"
+    ).length;
+    const notRetrievedCount = retainedForFullTextRecords.filter(
+      (record) => record.fullTextStatus === "not_retrieved"
+    ).length;
+    const assessedCount = retainedForFullTextRecords.filter(
+      (record) =>
+        record.fullTextStatus === "retrieved" &&
+        record.fullTextEligibility &&
+        record.fullTextEligibility !== "not_assessed"
+    ).length;
+    const assessedExcludedCount = retainedForFullTextRecords.filter(
+      (record) => record.fullTextEligibility === "ineligible"
+    ).length;
     const uploadedSourceNames = Array.from(
       new Set(
         records.flatMap((record) => {
@@ -327,15 +353,23 @@ export default function App() {
       duplicatesRemoved: dupesRemoved || 0,
       screened: screenedCount,
       screenedExcluded: screenedExcludedCount,
-      soughtRetrieval: 0,
-      notRetrieved: 0,
-      assessed: 0,
-      assessedExcluded: 0,
+      soughtRetrieval: soughtRetrievalCount,
+      notRetrieved: notRetrievedCount,
+      assessed: assessedCount,
+      assessedExcluded: assessedExcludedCount,
       exclusionReasonsBreakdown,
       included: includedCount,
-      fullTextAssessmentRecorded: false,
+      fullTextAssessmentRecorded: assessedCount > 0,
     };
-  }, [records, screening, dupesRemoved, includedRecords, excludedRecords, exclusionReasonsBreakdown]);
+  }, [
+    records,
+    screening,
+    dupesRemoved,
+    includedRecords,
+    excludedRecords,
+    retainedForFullTextRecords,
+    exclusionReasonsBreakdown,
+  ]);
 
   // Checklist item update helpers
   const handleUpdateChecklistItem = (itemNumber: string, updates: Partial<PrismaChecklistItem>) => {
@@ -454,7 +488,7 @@ export default function App() {
     },
     {
       id: "protocol",
-      label: "Protocol & PICO Objectives",
+      label: "Protocol & Review Questions",
       badge: "Items 4, 5, 8–15",
       icon: FileSpreadsheet,
     },
@@ -475,6 +509,12 @@ export default function App() {
       label: "AI Selection & Exclusions",
       badge: "Items 8, 16a, 16b",
       icon: CheckCircle,
+    },
+    {
+      id: "full-text",
+      label: "Full-Text Eligibility",
+      badge: "Item 16a",
+      icon: FileText,
     },
     {
       id: "diagram",
@@ -522,7 +562,7 @@ export default function App() {
 
   // Overall PRISMA compliance count
   const reportedCount = checklist.filter((c) => c.status === "Reported").length;
-  const compliancePct = Math.round((reportedCount / 27) * 100);
+  const compliancePct = Math.round((reportedCount / Math.max(checklist.length, 1)) * 100);
 
   return (
     <div id="prisma-workbench-root" className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
@@ -557,9 +597,9 @@ export default function App() {
           {/* Right Header Status */}
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-              <span className="text-xs font-mono text-slate-500">Compliance:</span>
+              <span className="text-xs font-mono text-slate-500">Checklist completion:</span>
               <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                {compliancePct}% ({reportedCount}/27 Items)
+                {compliancePct}% ({reportedCount}/{checklist.length} entries)
               </span>
             </div>
 
@@ -598,7 +638,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              13 Stages
+              14 Stages
             </span>
           </div>
 
@@ -647,6 +687,10 @@ export default function App() {
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">Included Studies:</span>
               <strong className="text-emerald-700 font-mono font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{includedRecords.length} studies</strong>
+            </div>
+            <div className="flex items-center justify-between text-xs mt-2">
+              <span className="text-slate-500 font-medium">Retained for full text:</span>
+              <strong className="text-indigo-700 font-mono">{retainedForFullTextRecords.length} records</strong>
             </div>
             <div className="flex items-center justify-between text-xs mt-2">
               <span className="text-slate-500 font-medium">Total Records:</span>
@@ -721,8 +765,16 @@ export default function App() {
             />
           )}
 
-          {/* Stage 7: PRISMA 2020 Flow Diagram */}
+          {/* Stage 7: Full-text retrieval and eligibility */}
           {activeStage === 6 && (
+            <FullTextEligibilitySection
+              records={retainedForFullTextRecords}
+              onUpdateRecords={setRecords}
+            />
+          )}
+
+          {/* Stage 8: PRISMA 2020 Flow Diagram */}
+          {activeStage === 7 && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
@@ -740,55 +792,56 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 8: Study Characteristics (Table 1) */}
-          {activeStage === 7 && (
+          {/* Stage 9: Study Characteristics (Table 1) */}
+          {activeStage === 8 && (
             <StudyCharacteristicsTable
               includedRecords={includedRecords}
               characteristics={characteristics}
               onUpdateCharacteristics={setCharacteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(6)}
             />
           )}
 
-          {/* Stage 9: Risk of Bias (Table 2) */}
-          {activeStage === 8 && (
+          {/* Stage 10: Risk of Bias (Table 2) */}
+          {activeStage === 9 && (
             <RiskOfBiasSection
               includedRecords={includedRecords}
               riskOfBias={riskOfBias}
               onUpdateRiskOfBias={setRiskOfBias}
               aiConfig={activeAIConfig}
               characteristics={characteristics}
-              onNavigateToScreening={() => setActiveStage(5)}
+              protocol={protocol}
+              onNavigateToScreening={() => setActiveStage(6)}
             />
           )}
 
-          {/* Stage 10: Narrative / Thematic Synthesis */}
-          {activeStage === 9 && (
+          {/* Stage 11: Narrative / Thematic Synthesis */}
+          {activeStage === 10 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(6)}
             />
           )}
 
-          {/* Stage 11: GRADE Certainty of Evidence */}
-          {activeStage === 10 && (
+          {/* Stage 12: Optional certainty assessment */}
+          {activeStage === 11 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(6)}
             />
           )}
 
-          {/* Stage 12: 4-Part Discussion */}
-          {activeStage === 11 && (
+          {/* Stage 13: 4-Part Discussion */}
+          {activeStage === 12 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -800,8 +853,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 13: Consolidated Manuscript */}
-          {activeStage === 12 && (
+          {/* Stage 14: Consolidated Manuscript */}
+          {activeStage === 13 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}

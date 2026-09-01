@@ -61,7 +61,7 @@ export default function SynthesisSection({
       ? characteristics
       : includedRecords.map((r) => ({
           recordId: r.id,
-          authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
+          authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "Year not reported"})`,
           country: "Not reported",
           sampleSize: "Not reported",
           population: "Not reported",
@@ -86,7 +86,7 @@ export default function SynthesisSection({
         topic: category,
         summary: categoryStudies.map((study) => `${study.authorYear}: ${study.keyFinding}`).join(" "),
         consistency: "Not assessed quantitatively",
-        evidenceBase: `${categoryStudies.length} screened-in record${categoryStudies.length === 1 ? "" : "s"}`,
+        evidenceBase: `${categoryStudies.length} full-text eligible stud${categoryStudies.length === 1 ? "y" : "ies"}`,
       })),
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
@@ -106,7 +106,7 @@ export default function SynthesisSection({
       ? characteristics
       : includedRecords.map((r) => ({
           recordId: r.id,
-          authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
+          authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "Year not reported"})`,
           country: "Not reported",
           sampleSize: "Not reported",
           population: "Not reported",
@@ -117,7 +117,7 @@ export default function SynthesisSection({
           keyFinding: (r.abstract || "").slice(0, 260),
         }));
 
-    const prompt = `Act as a systematic review synthesis methodologist. Produce a narrative and thematic synthesis of the ${studiesData.length} screened-in records.
+    const prompt = `Act as a systematic review synthesis methodologist. Produce a narrative and thematic synthesis of the ${studiesData.length} full-text eligible studies.
 
 Group studies using themes that emerge from the supplied records.
 Within each category or thematic group, explicitly identify authors who share similarities in their methods, designs, or outcomes, and compare/contrast their empirical results.
@@ -262,14 +262,14 @@ Generate a JSON object conforming strictly to:
           <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
           <h3 className="text-sm font-bold text-amber-900">No Included Studies Available for Synthesis</h3>
           <p className="text-xs text-amber-700 max-w-md mx-auto">
-            Synthesis requires studies included during the Screening stage.
+            Synthesis requires studies approved after full-text eligibility assessment.
           </p>
           {onNavigateToScreening && (
             <button
               onClick={onNavigateToScreening}
               className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
             >
-              Go to Screening Stage
+              Go to Full-Text Eligibility Stage
             </button>
           )}
         </div>

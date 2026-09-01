@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { SLRProtocol, FormulationFrameworkType, ObjectivesPICO, ObjectivesPICOC, ObjectivesPEO, ObjectivesSPIDER } from "../types/slr";
-import { Sparkles, Plus, Trash2, BookOpen, ShieldCheck, CheckSquare, Layers, HelpCircle, FileText, Check, Cpu, Leaf, MessageSquare, Stethoscope, Wand2, Info, ArrowRight } from "lucide-react";
+import { Sparkles, Plus, Trash2, BookOpen, ShieldCheck, CheckSquare, Layers, HelpCircle, FileText, Check, Cpu, Leaf, MessageSquare, Wand2, Info, ArrowRight } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
 interface MethodsProtocolProps {
@@ -9,51 +9,11 @@ interface MethodsProtocolProps {
   aiConfig: any;
 }
 
-// Intelligent detection of framework from review title and keywords
+// A title alone cannot be safely classified with a discipline keyword list.
+// PICOC is used only as a neutral manual starting structure; AI drafting may
+// recommend a different framework from the title's actual concepts.
 export function detectFrameworkFromTitle(title: string): FormulationFrameworkType {
-  const t = title.toLowerCase();
-
-  // Engineering & Technology keywords (PICOC)
-  const techKeywords = [
-    "software", "algorithm", "architecture", "deep learning", "machine learning",
-    "neural", "iot", "cloud", "blockchain", "robotics", "cyber", "computation",
-    "computing", "distributed", "hardware", "firmware", "compiler", "network",
-    "microservice", "ai-driven", "smart contract", "edge computing", "fpga",
-    "gpu", "latency", "throughput", "system", "technology", "engineering",
-    "devops", "kubernetes", "database", "query optimization", "compiler", "api",
-    "data pipeline", "computer vision", "nlp", "large language model", "llm"
-  ];
-  if (techKeywords.some((k) => t.includes(k))) {
-    return "PICOC";
-  }
-
-  // Environmental, Ecological, Occupational, and Exposure keywords (PEO)
-  const environmentalKeywords = [
-    "environmental", "exposure", "pollutant", "pollution", "climate", "ecology",
-    "ecological", "catchment", "ecosystem", "species", "biodiversity", "marine",
-    "forest", "microplastic", "pesticide", "occupational", "hazard", "toxicology",
-    "ambient", "particulate", "pm2.5", "water quality", "soil", "air quality",
-    "wildlife", "biomonitoring", "roses", "epidemiology", "risk factor",
-    "contaminant", "heavy metal", "river", "ocean", "wetland", "coastal"
-  ];
-  if (environmentalKeywords.some((k) => t.includes(k))) {
-    return "PEO";
-  }
-
-  // Qualitative & Mixed-methods keywords (SPIDER)
-  const qualitativeKeywords = [
-    "qualitative", "lived experience", "perceptions", "attitudes", "barriers",
-    "facilitators", "interview", "interviews", "focus group", "thematic",
-    "phenomenology", "grounded theory", "ethnography", "mixed-method", "mixed method",
-    "delphi", "coping", "perspectives", "social", "behavioral", "stakeholder",
-    "user experience", "ux", "narrative inquiry", "lived reality", "feelings"
-  ];
-  if (qualitativeKeywords.some((k) => t.includes(k))) {
-    return "SPIDER";
-  }
-
-  // Clinical / Health / Medical (PICO) default
-  return "PICO";
+  return title.trim() ? "PICOC" : "PICOC";
 }
 
 export default function MethodsProtocol({ protocol, onUpdateProtocol, aiConfig }: MethodsProtocolProps) {
@@ -62,6 +22,7 @@ export default function MethodsProtocol({ protocol, onUpdateProtocol, aiConfig }
   const [newExclusion, setNewExclusion] = useState("");
   const [newQuestion, setNewQuestion] = useState("");
   const [newObjective, setNewObjective] = useState("");
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
   const currentFramework: FormulationFrameworkType = protocol.formulationFramework || "PICO";
 
@@ -149,21 +110,20 @@ export default function MethodsProtocol({ protocol, onUpdateProtocol, aiConfig }
   const handleAiAutoDraftAll = async () => {
     if (!protocol.title.trim()) return;
     setGeneratingAll(true);
+    setGenerationError(null);
     try {
       let frameworkSpecificInstructions = "";
       let expectedJsonStructure = "";
 
       if (currentFramework === "PICO") {
-        frameworkSpecificInstructions = `Framework: PICO (Clinical / Health-Oriented Evidence Synthesis).
-Focus on: Target clinical patient population (P), therapeutic/diagnostic intervention (I), clinical comparator or standard of care (C), measurable clinical/diagnostic outcomes (O), and eligible medical study designs (S - RCTs, cohort studies).`;
+        frameworkSpecificInstructions = `Framework: PICO. Define the population or unit of analysis, intervention or focal concept, comparator where relevant, outcomes, and eligible study designs using only concepts found in the title.`;
         expectedJsonStructure = `"pico_population": "...",
   "pico_intervention": "...",
   "pico_comparator": "...",
   "pico_outcomes": "...",
   "pico_studyDesigns": "...",`;
       } else if (currentFramework === "PICOC") {
-        frameworkSpecificInstructions = `Framework: PICOC (Engineering & Technology Systematic Literature Review - Kitchenham & Charters standard).
-Focus on: Target software systems/codebases/users (P), technology/algorithm/architecture/tool (I), baseline comparison/legacy heuristics/state-of-the-art benchmark (C), technical performance metrics like latency, throughput, accuracy, memory, scalability (O), and operational deployment context/environmental constraints (C).`;
+        frameworkSpecificInstructions = `Framework: PICOC. Define the population or unit of analysis, intervention or focal concept, comparison, outcomes, context, and eligible study designs using only concepts found in the title.`;
         expectedJsonStructure = `"picoc_population": "...",
   "picoc_intervention": "...",
   "picoc_comparison": "...",
@@ -171,16 +131,14 @@ Focus on: Target software systems/codebases/users (P), technology/algorithm/arch
   "picoc_context": "...",
   "picoc_studyDesigns": "...",`;
       } else if (currentFramework === "PEO") {
-        frameworkSpecificInstructions = `Framework: PEO (Observational / Environmental / Exposure-Oriented Evidence Synthesis - ROSES Standard).
-Focus on: Target ecological population/community/catchment/cohort (P), environmental exposure/pollutant/climate stressor/hazard (E), ecological impacts/disease incidence/biomarkers (O), ecosystem/geographical setting (S), and field observational study designs.`;
+        frameworkSpecificInstructions = `Framework: PEO. Define the population or context, exposure or phenomenon, outcomes, setting, and eligible study designs using only concepts found in the title.`;
         expectedJsonStructure = `"peo_population": "...",
   "peo_exposure": "...",
   "peo_outcomes": "...",
   "peo_setting": "...",
   "peo_studyDesigns": "...",`;
       } else if (currentFramework === "SPIDER") {
-        frameworkSpecificInstructions = `Framework: SPIDER (Qualitative / Mixed-Method Evidence Synthesis - Cooke, Smith & Booth standard).
-Focus on: Target informants/study participants/stakeholder sample (S), phenomenon of interest/lived experience/perceptions/behaviors (PI), qualitative research design like interviews/focus groups/ethnography (D), evaluation of subjective themes/attitudes/barriers/facilitators (E), and research type like Qualitative or Mixed-Methods (R).`;
+        frameworkSpecificInstructions = `Framework: SPIDER. Define the sample, phenomenon of interest, design, evaluation, and research type using only concepts found in the title.`;
         expectedJsonStructure = `"spider_sample": "...",
   "spider_phenomenonOfInterest": "...",
   "spider_design": "...",
@@ -190,14 +148,15 @@ Focus on: Target informants/study participants/stakeholder sample (S), phenomeno
 
       const prompt = `Systematic Review Title: "${protocol.title}"
 Review Type: "${protocol.reviewType}"
-Formulation Framework: "${currentFramework}"
+Current researcher-selected framework: "${currentFramework}"
 
 ${frameworkSpecificInstructions}
 
-Act as a world-class systematic review methodologist, domain scholar, and journal editor. Generate a comprehensive, publication-grade Introduction, Academic Rationale (PRISMA 2020 Item 3 / ROSES Item 3), Explicit Objectives & Research Questions (PRISMA 2020 Item 4 / ROSES Item 4), and structured framework elements strictly tailored to this topic and framework.
+Act as a systematic review methodologist. Infer the domain and concepts from the title without inserting examples from unrelated disciplines. Recommend the best-fitting framework from PICO, PICOC, PEO, or SPIDER; retain the current framework when the title alone does not support a confident change. Draft a PRISMA 2020 protocol for researcher review. Do not claim facts, prevalence, effects, gaps, or prior-review findings that are not supplied by the user.
 
 Return ONLY valid JSON matching this exact structure:
 {
+  "formulationFramework": "PICO | PICOC | PEO | SPIDER",
   "introductionRationale": "A thorough, 2-3 paragraph academic rationale explaining the domain background, problem magnitude, limitations of current methods, specific gaps in existing systematic reviews, and the definitive justification for conducting this review...",
   "backgroundContext": "Concise summary of domain background, practical significance, and current baselines...",
   "knowledgeGap": "Specific methodological, empirical, or qualitative gap in current literature justifying this synthesis...",
@@ -227,11 +186,15 @@ Return ONLY valid JSON matching this exact structure:
 
       const text = await callAI(
         prompt,
-        "You are an expert systematic review methodologist adhering strictly to PRISMA 2020, PRISMA-S, and ROSES guidelines across health, engineering, environmental, and qualitative domains.",
+        "You are a domain-agnostic systematic review methodologist. Use only concepts supported by the supplied title and mark assumptions as proposed criteria for researcher approval.",
         aiConfig
       );
       const parsed = parseJSONLoose(text);
       if (parsed) {
+        const recommendedFramework: FormulationFrameworkType =
+          ["PICO", "PICOC", "PEO", "SPIDER"].includes(parsed.formulationFramework)
+            ? parsed.formulationFramework
+            : currentFramework;
         // Build updated objects
         const updatedPico: ObjectivesPICO = {
           population: parsed.pico_population || parsed.population || protocol.objectivesPICO.population,
@@ -246,28 +209,29 @@ Return ONLY valid JSON matching this exact structure:
           intervention: parsed.picoc_intervention || parsed.intervention || protocol.objectivesPICOC?.intervention || updatedPico.intervention,
           comparison: parsed.picoc_comparison || parsed.comparator || protocol.objectivesPICOC?.comparison || updatedPico.comparator,
           outcomes: parsed.picoc_outcomes || parsed.outcomes || protocol.objectivesPICOC?.outcomes || updatedPico.outcomes,
-          context: parsed.picoc_context || protocol.objectivesPICOC?.context || "Deployment environment, computational platform, and runtime operational constraints",
-          studyDesigns: parsed.picoc_studyDesigns || parsed.studyDesigns || protocol.objectivesPICOC?.studyDesigns || "Empirical software benchmarks, controlled experiments, and industrial case studies",
+          context: parsed.picoc_context || protocol.objectivesPICOC?.context || "",
+          studyDesigns: parsed.picoc_studyDesigns || parsed.studyDesigns || protocol.objectivesPICOC?.studyDesigns || "",
         };
 
         const updatedPeo: ObjectivesPEO = {
           population: parsed.peo_population || parsed.population || protocol.objectivesPEO?.population || updatedPico.population,
           exposure: parsed.peo_exposure || parsed.intervention || protocol.objectivesPEO?.exposure || updatedPico.intervention,
           outcomes: parsed.peo_outcomes || parsed.outcomes || protocol.objectivesPEO?.outcomes || updatedPico.outcomes,
-          setting: parsed.peo_setting || protocol.objectivesPEO?.setting || "Geographical scale, climatic zone, and ecosystem setting",
-          studyDesigns: parsed.peo_studyDesigns || parsed.studyDesigns || protocol.objectivesPEO?.studyDesigns || "Longitudinal field biomonitoring, observational cohort surveys, and ecological registries",
+          setting: parsed.peo_setting || protocol.objectivesPEO?.setting || "",
+          studyDesigns: parsed.peo_studyDesigns || parsed.studyDesigns || protocol.objectivesPEO?.studyDesigns || "",
         };
 
         const updatedSpider: ObjectivesSPIDER = {
           sample: parsed.spider_sample || parsed.population || protocol.objectivesSPIDER?.sample || updatedPico.population,
           phenomenonOfInterest: parsed.spider_phenomenonOfInterest || parsed.intervention || protocol.objectivesSPIDER?.phenomenonOfInterest || updatedPico.intervention,
-          design: parsed.spider_design || protocol.objectivesSPIDER?.design || "Semi-structured in-depth interviews, focus groups, and thematic qualitative synthesis",
+          design: parsed.spider_design || protocol.objectivesSPIDER?.design || "",
           evaluation: parsed.spider_evaluation || parsed.outcomes || protocol.objectivesSPIDER?.evaluation || updatedPico.outcomes,
-          researchType: parsed.spider_researchType || protocol.objectivesSPIDER?.researchType || "Qualitative research (phenomenology, grounded theory) or Mixed-Methods",
+          researchType: parsed.spider_researchType || protocol.objectivesSPIDER?.researchType || "",
         };
 
         onUpdateProtocol({
           ...protocol,
+          formulationFramework: recommendedFramework,
           introductionRationale: parsed.introductionRationale || protocol.introductionRationale,
           backgroundContext: parsed.backgroundContext || protocol.backgroundContext,
           knowledgeGap: parsed.knowledgeGap || protocol.knowledgeGap,
@@ -293,9 +257,11 @@ Return ONLY valid JSON matching this exact structure:
           },
         });
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      handleHeuristicDraft();
+      setGenerationError(
+        `Protocol draft was not generated: ${err?.message || "AI request failed"}. No fallback protocol was fabricated.`
+      );
     }
     setGeneratingAll(false);
   };
@@ -545,14 +511,14 @@ Return ONLY valid JSON matching this exact structure:
   };
 
   const questions = protocol.primaryResearchQuestions || [
-    "RQ1: What is the cumulative effect, accuracy, or performance across included studies?",
-    "RQ2: How do comparative approaches or sub-methodologies perform against baseline benchmarks?",
-    "RQ3: What sources of methodological heterogeneity or bias influence outcomes across study settings?",
+    "RQ1: What evidence directly addresses the review topic?",
+    "RQ2: What methods, contexts, and outcomes are reported?",
+    "RQ3: What limitations and evidence gaps remain?",
   ];
 
   const objectives = protocol.secondaryObjectives || [
-    "Evaluate subgroup variations across demographic and methodological strata",
-    "Assess certainty of cumulative evidence using the GRADE framework",
+    "Describe patterns and differences across eligible studies",
+    "Apply an appraisal approach appropriate to the included study designs",
   ];
 
   // Active framework configurations
@@ -570,46 +536,46 @@ Return ONLY valid JSON matching this exact structure:
     {
       id: "PICO",
       label: "PICO",
-      targetDomain: "Clinical & Health-Oriented",
-      icon: <Stethoscope className="w-4 h-4" />,
+      targetDomain: "Intervention or comparison questions",
+      icon: <Layers className="w-4 h-4" />,
       colorTheme: "indigo",
       borderActive: "border-indigo-600 ring-2 ring-indigo-500/20 bg-indigo-50/70",
       bgActive: "bg-indigo-600 text-white",
       textActive: "text-indigo-900",
-      desc: "Population · Intervention · Comparator · Outcome (Clinical Medicine, Healthcare, Pharmacology)",
+      desc: "Population or unit · Intervention or focus · Comparator · Outcome",
     },
     {
       id: "PICOC",
       label: "PICOC",
-      targetDomain: "Engineering & Technology",
-      icon: <Cpu className="w-4 h-4" />,
+      targetDomain: "Context-sensitive questions",
+      icon: <HelpCircle className="w-4 h-4" />,
       colorTheme: "sky",
       borderActive: "border-sky-600 ring-2 ring-sky-500/20 bg-sky-50/70",
       bgActive: "bg-sky-600 text-white",
       textActive: "text-sky-950",
-      desc: "Population · Intervention · Comparison · Outcome · Context (Software Engineering, AI/ML Systems, CS)",
+      desc: "Population or unit · Focus · Comparison · Outcome · Context",
     },
     {
       id: "PEO",
       label: "PEO",
-      targetDomain: "Observational & Environmental / Exposure",
-      icon: <Leaf className="w-4 h-4" />,
+      targetDomain: "Exposure or phenomenon questions",
+      icon: <BookOpen className="w-4 h-4" />,
       colorTheme: "emerald",
       borderActive: "border-emerald-600 ring-2 ring-emerald-500/20 bg-emerald-50/70",
       bgActive: "bg-emerald-700 text-white",
       textActive: "text-emerald-950",
-      desc: "Population · Exposure · Outcome · Setting (Environmental Science, ROSES, Ecology, Public Health)",
+      desc: "Population or context · Exposure or phenomenon · Outcome · Setting",
     },
     {
       id: "SPIDER",
       label: "SPIDER",
-      targetDomain: "Qualitative & Mixed-Method Evidence",
-      icon: <MessageSquare className="w-4 h-4" />,
+      targetDomain: "Experience or qualitative questions",
+      icon: <FileText className="w-4 h-4" />,
       colorTheme: "amber",
       borderActive: "border-amber-600 ring-2 ring-amber-500/20 bg-amber-50/70",
       bgActive: "bg-amber-600 text-white",
       textActive: "text-amber-950",
-      desc: "Sample · Phenomenon of Interest · Design · Evaluation · Research type (Qualitative, UX, Social Sciences)",
+      desc: "Sample · Phenomenon of interest · Design · Evaluation · Research type",
     },
   ];
 
@@ -630,31 +596,21 @@ Return ONLY valid JSON matching this exact structure:
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <button
-              onClick={handleAutoDetectFramework}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              title="Automatically detect optimal framework (PICO, PICOC, PEO, SPIDER) based on title keywords"
-            >
-              <Wand2 className="w-3.5 h-3.5 text-indigo-600" />
-              Auto-Detect Framework
-            </button>
-            <button
-              onClick={handleHeuristicDraft}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
-              title="Apply instant structured template tailored to title and chosen framework"
-            >
-              <FileText className="w-3.5 h-3.5 text-slate-600" />
-              Quick Template ({currentFramework})
-            </button>
-            <button
               onClick={handleAiAutoDraftAll}
               disabled={generatingAll || !protocol.title.trim()}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {generatingAll ? `Synthesizing ${currentFramework} Protocol...` : `AI Auto-Draft (${currentFramework})`}
+              {generatingAll ? "Drafting protocol..." : "AI Draft from Research Title"}
             </button>
           </div>
         </div>
+
+        {generationError && (
+          <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-xs text-amber-900">
+            {generationError}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="md:col-span-2">
@@ -665,7 +621,7 @@ Return ONLY valid JSON matching this exact structure:
               type="text"
               value={protocol.title}
               onChange={(e) => onUpdateProtocol({ ...protocol, title: e.target.value })}
-              placeholder="e.g. Maritime safety and decarbonisation: a systematic literature review"
+              placeholder="Enter the research title or topic"
               className="w-full text-sm font-sans p-2.5 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-900 font-medium"
             />
           </div>
@@ -680,12 +636,10 @@ Return ONLY valid JSON matching this exact structure:
             >
               <option>Systematic Literature Review with Narrative/Thematic Synthesis</option>
               <option>Systematic Literature Review (Narrative / Thematic)</option>
-              <option>Diagnostic Accuracy Systematic Review</option>
-              <option>Scoping Review (PRISMA-ScR)</option>
-              <option>Prognostic / Prediction Model Systematic Review</option>
-              <option>Environmental Evidence Synthesis (ROSES)</option>
-              <option>Qualitative Evidence Synthesis (SPIDER / Meta-Ethnography)</option>
-              <option>Engineering & Technology SLR (Kitchenham PICOC)</option>
+              <option>Scoping Review</option>
+              <option>Qualitative Evidence Synthesis</option>
+              <option>Mixed-Methods Systematic Review</option>
+              <option>Systematic Review with Quantitative Synthesis (only when justified)</option>
             </select>
           </div>
         </div>
@@ -696,7 +650,7 @@ Return ONLY valid JSON matching this exact structure:
       <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-4">
         <div>
           <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-            PRISMA 2020 Item 3 · ROSES Item 3
+              PRISMA 2020 Item 3
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
             Introduction: Rationale & Background Context
@@ -715,7 +669,7 @@ Return ONLY valid JSON matching this exact structure:
               rows={3}
               value={protocol.backgroundContext || ""}
               onChange={(e) => onUpdateProtocol({ ...protocol, backgroundContext: e.target.value })}
-              placeholder="Contextualize the scientific, clinical, technological, or environmental problem..."
+              placeholder="Describe the background and significance supported by known information..."
               className="w-full text-xs font-sans p-2.5 bg-slate-50/70 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 leading-relaxed"
             />
           </div>
