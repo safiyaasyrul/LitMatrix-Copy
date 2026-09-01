@@ -44,6 +44,9 @@ export default function ApiKeySection({
     [key: string]: { success: boolean; message: string; latencyMs: number } | null;
   }>({});
   const [saveToast, setSaveToast] = useState(false);
+  const [selectedProvider, setSelectedProvider] = useState<SupportedAIProvider>(
+    keysConfig.activeProvider || "replit-managed"
+  );
 
   const toggleShowKey = (provider: string) => {
     setShowKeys((prev) => ({ ...prev, [provider]: !prev[provider] }));
@@ -256,101 +259,51 @@ export default function ApiKeySection({
             </button>
           </div>
         </div>
-        {keysConfig.activeProvider === "replit-managed" && (
-          <p className="text-[11px] text-amber-200/90 font-mono">
-            This is the shared default. The managed credential stays on the server; users do not need to enter an API key.
-          </p>
-        )}
       </div>
 
-      {/* Provider Selector Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-        {[
-          {
-            id: "replit-managed" as SupportedAIProvider,
-            label: "Managed AI (Default)",
-            desc: "Shared server-side AI connection",
-            hasKey: true,
-            icon: Server,
-          },
-          {
-            id: "openai" as SupportedAIProvider,
-            label: "OpenAI",
-            desc: "GPT-4o, GPT-4o-mini, o3-mini",
-            hasKey: Boolean(keysConfig.openai.apiKey),
-            icon: Sparkles,
-          },
-          {
-            id: "claude" as SupportedAIProvider,
-            label: "Anthropic Claude",
-            desc: "Claude 3.7 / 3.5 Sonnet",
-            hasKey: Boolean(keysConfig.claude.apiKey),
-            icon: Shield,
-          },
-          {
-            id: "gemini" as SupportedAIProvider,
-            label: "Google Gemini",
-            desc: "Gemini 2.5 Flash, 2.5 Pro",
-            hasKey: Boolean(keysConfig.gemini.apiKey),
-            icon: Zap,
-          },
-          {
-            id: "emergent" as SupportedAIProvider,
-            label: "Emergent AI",
-            desc: "api.emergent.sh Gateway",
-            hasKey: Boolean(keysConfig.emergent.apiKey),
-            icon: Globe,
-          },
-          {
-            id: "replit" as SupportedAIProvider,
-            label: "Replit AI",
-            desc: "api.replit.com/ai Endpoint",
-            hasKey: Boolean(keysConfig.replit.apiKey),
-            icon: Terminal,
-          },
-          {
-            id: "other" as SupportedAIProvider,
-            label: "Custom / Local",
-            desc: "OpenRouter, Groq, Ollama",
-            hasKey: Boolean(keysConfig.other.apiKey),
-            icon: Cpu,
-          },
-        ].map((p) => {
-          const isActive = keysConfig.activeProvider === p.id;
-          const Icon = p.icon;
-          return (
-            <button
-              key={p.id}
-              onClick={() => handleSetActive(p.id)}
-              className={`p-3 text-left rounded-xl border transition-all cursor-pointer ${
-                isActive
-                  ? "bg-indigo-50/90 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
-                  : "bg-white border-slate-200 hover:border-slate-300"
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5">
-                <Icon className={`w-4 h-4 ${isActive ? "text-indigo-600" : "text-slate-500"}`} />
-                {isActive && (
-                  <span className="text-[9px] font-mono font-bold bg-indigo-600 text-white px-1.5 py-0.5 rounded">
-                    ACTIVE
-                  </span>
-                )}
-                {!isActive && p.hasKey && (
-                  <span className="text-[9px] font-mono font-medium text-emerald-700 bg-emerald-50 px-1 py-0.5 rounded border border-emerald-200">
-                    KEY SET
-                  </span>
-                )}
-              </div>
-              <div className="font-bold text-xs text-slate-900">{p.label}</div>
-              <div className="text-[10px] text-slate-500 truncate mt-0.5">{p.desc}</div>
-            </button>
-          );
-        })}
+      {/* Compact provider dropdown */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
+        <label htmlFor="ai-provider-select" className="block text-[11px] font-mono font-bold text-slate-700 mb-2">
+          AI provider
+        </label>
+        <select
+          id="ai-provider-select"
+          value={selectedProvider}
+          onChange={(event) => {
+            const provider = event.target.value as SupportedAIProvider;
+            setSelectedProvider(provider);
+            if (provider === "replit-managed") handleSetActive(provider);
+          }}
+          className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
+        >
+          <option value="replit-managed">Managed AI (Default) · no key required</option>
+          <option value="openai">OpenAI{keysConfig.openai.apiKey ? " · key set" : ""}</option>
+          <option value="claude">Anthropic Claude{keysConfig.claude.apiKey ? " · key set" : ""}</option>
+          <option value="gemini">Google Gemini{keysConfig.gemini.apiKey ? " · key set" : ""}</option>
+          <option value="emergent">Emergent AI{keysConfig.emergent.apiKey ? " · key set" : ""}</option>
+          <option value="replit">Replit AI Gateway{keysConfig.replit.apiKey ? " · key set" : ""}</option>
+          <option value="other">Custom / OpenRouter / Local{keysConfig.other.apiKey ? " · key set" : ""}</option>
+        </select>
+        <p className="mt-2 text-[11px] text-slate-500">
+          Select an optional provider to reveal its connection settings.
+        </p>
       </div>
 
       {/* Provider Details Cards */}
       <div className="space-y-4">
+        {selectedProvider === "replit-managed" && (
+          <div className="bg-indigo-50/60 border border-indigo-200 rounded-xl p-5 shadow-xs flex items-start gap-3">
+            <Server className="w-5 h-5 text-indigo-600 mt-0.5 shrink-0" />
+            <div>
+              <h3 className="font-bold text-sm text-slate-900">Managed AI is ready</h3>
+              <p className="text-xs text-slate-600 mt-1">
+                This shared server-side connection is the default. No user API key or additional setup is required.
+              </p>
+            </div>
+          </div>
+        )}
         {/* 1. OpenAI Configuration */}
+        {selectedProvider === "openai" && (
         <div
           className={`bg-white border rounded-xl p-5 shadow-xs transition-all ${
             keysConfig.activeProvider === "openai"
@@ -452,8 +405,10 @@ export default function ApiKeySection({
             </div>
           )}
         </div>
+        )}
 
         {/* 2. Claude Configuration */}
+        {selectedProvider === "claude" && (
         <div
           className={`bg-white border rounded-xl p-5 shadow-xs transition-all ${
             keysConfig.activeProvider === "claude"
@@ -554,8 +509,10 @@ export default function ApiKeySection({
             </div>
           )}
         </div>
+        )}
 
         {/* 3. Google Gemini (AI Studio Key) */}
+        {selectedProvider === "gemini" && (
         <div
           className={`bg-white border rounded-xl p-5 shadow-xs transition-all ${
             keysConfig.activeProvider === "gemini"
@@ -657,8 +614,10 @@ export default function ApiKeySection({
             </div>
           )}
         </div>
+        )}
 
         {/* 4. Emergent AI */}
+        {selectedProvider === "emergent" && (
         <div
           className={`bg-white border rounded-xl p-5 shadow-xs transition-all ${
             keysConfig.activeProvider === "emergent"
@@ -770,8 +729,10 @@ export default function ApiKeySection({
             </div>
           )}
         </div>
+        )}
 
         {/* 5. Replit AI */}
+        {selectedProvider === "replit" && (
         <div
           className={`bg-white border rounded-xl p-5 shadow-xs transition-all ${
             keysConfig.activeProvider === "replit"
@@ -883,8 +844,10 @@ export default function ApiKeySection({
             </div>
           )}
         </div>
+        )}
 
         {/* 6. Custom OpenAI-compatible / OpenRouter / Groq / Ollama */}
+        {selectedProvider === "other" && (
         <div
           className={`bg-white border rounded-xl p-5 shadow-xs transition-all ${
             keysConfig.activeProvider === "other"
@@ -996,6 +959,7 @@ export default function ApiKeySection({
             </div>
           )}
         </div>
+        )}
       </div>
 
       {/* Security & responsible-use note */}
