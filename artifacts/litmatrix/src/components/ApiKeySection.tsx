@@ -73,6 +73,7 @@ export default function ApiKeySection({
     const updated = {
       ...DEFAULT_AI_KEYS_CONFIG,
       ...keysConfig,
+      ...(field === "apiKey" && value.trim() ? { activeProvider: provider } : {}),
       [provider]: {
         ...defaultProviderObj,
         ...(keysConfig?.[provider] || {}),
@@ -212,7 +213,7 @@ export default function ApiKeySection({
               <div className="font-mono text-sm font-bold text-white uppercase tracking-wide flex items-center gap-2">
                 <span>
                   {keysConfig.activeProvider === "server-gemini"
-                    ? "Built-in Gemini (Server-side 2.5 Flash)"
+                    ? "Built-in Gemini (server key required)"
                     : keysConfig.activeProvider === "openai"
                     ? `OpenAI (${keysConfig.openai.model || "gpt-4o-mini"})`
                     : keysConfig.activeProvider === "claude"
@@ -241,6 +242,11 @@ export default function ApiKeySection({
             </button>
           </div>
         </div>
+        {keysConfig.activeProvider === "server-gemini" && (
+          <p className="text-[11px] text-amber-200/90 font-mono">
+            Built-in Gemini is unavailable until GEMINI_API_KEY is configured on the server. Enter a provider key below to select it automatically.
+          </p>
+        )}
       </div>
 
       {/* Provider Selector Grid */}
