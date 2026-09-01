@@ -300,10 +300,30 @@ export default function App() {
     const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
+    const uploadedSourceNames = Array.from(
+      new Set(
+        records.flatMap((record) => {
+          const sources =
+            record.databaseSources && record.databaseSources.length > 0
+              ? record.databaseSources
+              : record.databaseSource
+              ? [record.databaseSource]
+              : [];
+          return sources.flatMap((source) =>
+            source
+              .split(",")
+              .map((value) => value.trim())
+              .filter(Boolean)
+          );
+        })
+      )
+    );
 
     return {
       identifiedDb: totalIdentified,
       identifiedOther: 0,
+      identifiedDbSources: uploadedSourceNames,
+      identifiedOtherSources: [],
       duplicatesRemoved: dupesRemoved || 0,
       screened: screenedCount,
       screenedExcluded: screenedExcludedCount,

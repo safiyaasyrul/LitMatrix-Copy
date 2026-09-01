@@ -4,6 +4,8 @@ import { Download, RefreshCw, Layers } from "lucide-react";
 interface PrismaCounts {
   identifiedDb?: number;
   identifiedOther?: number;
+  identifiedDbSources?: string[];
+  identifiedOtherSources?: string[];
   duplicatesRemoved?: number;
   screened?: number;
   screenedExcluded?: number;
@@ -26,6 +28,8 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
   const {
     identifiedDb = 0,
     identifiedOther = 0,
+    identifiedDbSources = [],
+    identifiedOtherSources = [],
     duplicatesRemoved = 0,
     screened = 0,
     screenedExcluded = 0,
@@ -148,19 +152,19 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
             {/* Box 1a: Databases */}
             <rect x="20" y="94" width="290" height="68" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
             <text x="32" y="116" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
-              Records identified from databases:
+              Records uploaded from databases:
             </text>
             <text x="32" y="134" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              Scopus, WoS, PubMed (n = {identifiedDb})
+              {identifiedDbSources.length > 0 ? identifiedDbSources.join(", ") : "Uploaded files"} (n = {identifiedDb})
             </text>
 
             {/* Box 1b: Other sources */}
             <rect x="330" y="94" width="280" height="68" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
             <text x="342" y="116" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
-              Records from other sources:
+              Records uploaded from other sources:
             </text>
             <text x="342" y="134" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              Registers, Scholar, citations (n = {identifiedOther})
+              {identifiedOtherSources.length > 0 ? identifiedOtherSources.join(", ") : "None recorded"} (n = {identifiedOther})
             </text>
 
             {/* Arrow connecting to deduplication */}
