@@ -81,6 +81,8 @@ export const DEFAULT_AI_KEYS_CONFIG: UserAIKeysConfig = {
 export const OPENROUTER_DEFAULT_BASE = "https://openrouter.ai/api/v1";
 const OPENROUTER_KEY_PREFIX = "sk-or-v1-";
 const DIRECT_AI_PROVIDERS = ["other", "openai", "claude", "gemini", "emergent", "replit"] as const;
+let openRouterRequestQueue: Promise<void> = Promise.resolve();
+let lastOpenRouterRequestAt = 0;
 
 export function isOpenRouterApiKey(value?: string): boolean {
   return value?.trim().startsWith(OPENROUTER_KEY_PREFIX) ?? false;
@@ -103,6 +105,24 @@ function getOpenRouterKeySource(
     apiKey: source?.apiKey?.trim() || "",
     model: source?.model?.trim() || "openai/gpt-4o-mini",
   };
+}
+
+function enqueueOpenRouterRequest<T>(request: () => Promise<T>): Promise<T> {
+  const queuedRequest = openRouterRequestQueue.then(async () => {
+    const elapsed = Date.now() - lastOpenRouterRequestAt;
+    const waitMs = Math.max(0, 500 - elapsed);
+    if (waitMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+    lastOpenRouterRequestAt = Date.now();
+    return request();
+  });
+
+  openRouterRequestQueue = queuedRequest.then(
+    () => undefined,
+    () => undefined
+  );
+  return queuedRequest;
 }
 
 export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIProviderConfig {
@@ -326,19 +346,23 @@ export async function callAI(
       Authorization: `Bearer ${apiKey}`,
     };
 
-    const res = await fetch(`${base.replace(/\/+$/, "")}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model: chosenModel,
-        messages,
-        max_tokens: requestMaxTokens,
-        temperature: 0.3,
-      }),
-    });
-    const data = await readAIResponseJson(res, `${provider} AI`);
-    if (data.error) throw new Error(data.error.message || `API error (${res.status}): ${JSON.stringify(data.error)}`);
-    return data.choices?.[0]?.message?.content || "";
+    const request = async () => {
+      const res = await fetch(`${base.replace(/\/+$/, "")}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model: chosenModel,
+          messages,
+          max_tokens: requestMaxTokens,
+          temperature: 0.3,
+        }),
+      });
+      const data = await readAIResponseJson(res, `${provider} AI`);
+      if (data.error) throw new Error(data.error.message || `API error (${res.status}): ${JSON.stringify(data.error)}`);
+      return data.choices?.[0]?.message?.content || "";
+    };
+
+    return base.includes("openrouter.ai") ? enqueueOpenRouterRequest(request) : request();
   }
 
   throw new Error(`Unsupported AI provider: ${provider}`);

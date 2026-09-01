@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { SLRRecord, ScreeningDecision, SLRProtocol } from "../types/slr";
 import {
   Sparkles,
@@ -46,6 +46,7 @@ export default function ScreeningSection({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const screeningRunRef = useRef(false);
 
   // Extract core keywords from protocol PICO & title
   const targetKeywords = useMemo(() => {
@@ -132,7 +133,10 @@ export default function ScreeningSection({
 
   // AI-assisted screening
   const runAIScreening = async () => {
-    if (records.length === 0) return;
+    // State updates are asynchronous; the ref prevents two rapid clicks from
+    // creating overlapping OpenRouter batches before the button disables.
+    if (records.length === 0 || screeningRunRef.current) return;
+    screeningRunRef.current = true;
     setRunningScreening(true);
     setProgress(0);
     setErrorMessage(null);
@@ -177,7 +181,8 @@ Return ONLY a JSON array:
           const text = await callAI(
             prompt,
             "You are a medical librarian and PRISMA screening methodologist.",
-            aiConfig
+            aiConfig,
+            1200
           );
           const parsed = parseJSONLoose(text);
           if (Array.isArray(parsed)) {
@@ -223,6 +228,7 @@ Return ONLY a JSON array:
         onUpdateScreening({ ...nextScreening });
       }
     } finally {
+      screeningRunRef.current = false;
       setRunningScreening(false);
     }
   };
