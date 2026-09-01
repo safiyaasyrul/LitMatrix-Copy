@@ -654,9 +654,6 @@ export default function App() {
                   <span className="font-bold text-base tracking-tight text-slate-900">
                     PRISMA 2020 Workbench
                   </span>
-                  <span className="text-[10px] font-mono font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100 px-2 py-0.5 rounded-full uppercase tracking-wider">
-                    SLR Engine
-                  </span>
                 </div>
                 <p className="text-xs text-slate-500 hidden sm:block truncate max-w-md">
                   {protocol.title || "Systematic Literature Review Assistant"}
@@ -667,34 +664,6 @@ export default function App() {
 
           {/* Right Header Status */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Active AI Provider Quick Pill */}
-            <button
-              onClick={() => {
-                setActiveStage(0);
-                setMobileNavOpen(false);
-              }}
-              title="Configure AI Providers (OpenAI, Claude, Google Gemini)"
-              className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-mono font-medium rounded-lg border shadow-2xs transition-colors cursor-pointer ${
-                activeStage === 0
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 border-indigo-200"
-              }`}
-            >
-              <Key className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-              <span className="hidden md:inline text-slate-500">AI:</span>
-              <span className="font-bold">
-                {keysConfig.activeProvider === "server-gemini"
-                  ? "Gemini 3.7"
-                  : keysConfig.activeProvider === "openai"
-                  ? `OpenAI (${keysConfig.openai.model || "gpt-4o-mini"})`
-                  : keysConfig.activeProvider === "claude"
-                  ? `Claude (${keysConfig.claude.model?.includes("3-7") ? "3.7" : "3.5"})`
-                  : keysConfig.activeProvider === "gemini"
-                  ? `Gemini (${keysConfig.gemini.model || "2.5"})`
-                  : `Custom`}
-              </span>
-            </button>
-
             <div className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
               <span className="text-xs font-mono text-slate-500">Compliance:</span>
               <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
