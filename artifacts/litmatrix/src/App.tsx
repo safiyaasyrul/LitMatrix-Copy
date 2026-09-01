@@ -549,6 +549,12 @@ export default function App() {
   // Navigation Stages Definition mapped directly to PRISMA 2020, PRISMA-S, and ROSES Checklists
   const stages = [
     {
+      id: "ai-keys",
+      label: "AI Providers & API Keys",
+      badge: "OpenAI, Claude, Gemini",
+      icon: Key,
+    },
+    {
       id: "checklist",
       label: "Reporting Checklists (PRISMA, PRISMA-S, ROSES)",
       badge: "3 Standards",
@@ -620,12 +626,6 @@ export default function App() {
       badge: "Full Report",
       icon: FileText,
     },
-    {
-      id: "ai-keys",
-      label: "AI Providers & API Keys",
-      badge: "OpenAI, Claude, Gemini",
-      icon: Key,
-    },
   ];
 
   // Overall PRISMA compliance count
@@ -670,12 +670,12 @@ export default function App() {
             {/* Active AI Provider Quick Pill */}
             <button
               onClick={() => {
-                setActiveStage(12);
+                setActiveStage(0);
                 setMobileNavOpen(false);
               }}
               title="Configure AI Providers (OpenAI, Claude, Google Gemini)"
               className={`flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-mono font-medium rounded-lg border shadow-2xs transition-colors cursor-pointer ${
-                activeStage === 12
+                activeStage === 0
                   ? "bg-indigo-600 text-white border-indigo-600"
                   : "text-indigo-700 bg-indigo-50/90 hover:bg-indigo-100 border-indigo-200"
               }`}
@@ -796,8 +796,17 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* Stage 0: Checklist Audit (PRISMA 2020, PRISMA-S, ROSES) */}
+          {/* Stage 1: AI Providers & API Keys */}
           {activeStage === 0 && (
+            <ApiKeySection
+              keysConfig={keysConfig}
+              onUpdateKeysConfig={setKeysConfig}
+              onContinueToNext={() => setActiveStage(1)}
+            />
+          )}
+
+          {/* Stage 2: Checklist Audit (PRISMA 2020, PRISMA-S, ROSES) */}
+          {activeStage === 1 && (
             <PrismaChecklistAudit
               checklist={checklist}
               onUpdateItem={handleUpdateChecklistItem}
@@ -809,8 +818,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 1: Protocol & PICO Objectives */}
-          {activeStage === 1 && (
+          {/* Stage 3: Protocol & PICO Objectives */}
+          {activeStage === 2 && (
             <MethodsProtocol
               protocol={protocol}
               onUpdateProtocol={setProtocol}
@@ -818,8 +827,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 2: Information Sources & Search Strings */}
-          {activeStage === 2 && (
+          {/* Stage 4: Information Sources & Search Strings */}
+          {activeStage === 3 && (
             <SearchStringsGenerator
               protocol={protocol}
               onUpdateProtocol={setProtocol}
@@ -827,8 +836,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 3: Records Import & Deduplication */}
-          {activeStage === 3 && (
+          {/* Stage 5: Records Import & Deduplication */}
+          {activeStage === 4 && (
             <RecordsImport
               records={records}
               onUpdateRecords={setRecords}
@@ -840,8 +849,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 4: AI & Dual-Reviewer Screening */}
-          {activeStage === 4 && (
+          {/* Stage 6: AI & Dual-Reviewer Screening */}
+          {activeStage === 5 && (
             <ScreeningSection
               records={records}
               screening={screening}
@@ -851,8 +860,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 5: PRISMA 2020 Flow Diagram */}
-          {activeStage === 5 && (
+          {/* Stage 7: PRISMA 2020 Flow Diagram */}
+          {activeStage === 6 && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
@@ -870,55 +879,55 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 6: Study Characteristics (Table 1) */}
-          {activeStage === 6 && (
+          {/* Stage 8: Study Characteristics (Table 1) */}
+          {activeStage === 7 && (
             <StudyCharacteristicsTable
               includedRecords={includedRecords}
               characteristics={characteristics}
               onUpdateCharacteristics={setCharacteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(4)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 7: Risk of Bias (Table 2) */}
-          {activeStage === 7 && (
+          {/* Stage 9: Risk of Bias (Table 2) */}
+          {activeStage === 8 && (
             <RiskOfBiasSection
               includedRecords={includedRecords}
               riskOfBias={riskOfBias}
               onUpdateRiskOfBias={setRiskOfBias}
               aiConfig={activeAIConfig}
               characteristics={characteristics}
-              onNavigateToScreening={() => setActiveStage(4)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 8: Synthesis & Meta-Analysis Forest Plot */}
-          {activeStage === 8 && (
+          {/* Stage 10: Synthesis & Meta-Analysis Forest Plot */}
+          {activeStage === 9 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(4)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 9: GRADE Certainty of Evidence */}
-          {activeStage === 9 && (
+          {/* Stage 11: GRADE Certainty of Evidence */}
+          {activeStage === 10 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(4)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 10: 4-Part Discussion */}
-          {activeStage === 10 && (
+          {/* Stage 12: 4-Part Discussion */}
+          {activeStage === 11 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -930,8 +939,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 11: Consolidated Manuscript */}
-          {activeStage === 11 && (
+          {/* Stage 13: Consolidated Manuscript */}
+          {activeStage === 12 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
@@ -945,13 +954,6 @@ export default function App() {
             />
           )}
 
-          {/* Stage 12: AI Providers & API Keys */}
-          {activeStage === 12 && (
-            <ApiKeySection
-              keysConfig={keysConfig}
-              onUpdateKeysConfig={setKeysConfig}
-            />
-          )}
         </main>
       </div>
     </div>
