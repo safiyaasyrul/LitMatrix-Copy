@@ -261,32 +261,95 @@ export default function ApiKeySection({
         </div>
       </div>
 
-      {/* Compact provider dropdown */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-xs">
-        <label htmlFor="ai-provider-select" className="block text-[11px] font-mono font-bold text-slate-700 mb-2">
-          AI provider
-        </label>
-        <select
-          id="ai-provider-select"
-          value={selectedProvider}
-          onChange={(event) => {
-            const provider = event.target.value as SupportedAIProvider;
-            setSelectedProvider(provider);
-            if (provider === "replit-managed") handleSetActive(provider);
-          }}
-          className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-sm font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 cursor-pointer"
-        >
-          <option value="replit-managed">Managed AI (Default) · no key required</option>
-          <option value="openai">OpenAI{keysConfig.openai.apiKey ? " · key set" : ""}</option>
-          <option value="claude">Anthropic Claude{keysConfig.claude.apiKey ? " · key set" : ""}</option>
-          <option value="gemini">Google Gemini{keysConfig.gemini.apiKey ? " · key set" : ""}</option>
-          <option value="emergent">Emergent AI{keysConfig.emergent.apiKey ? " · key set" : ""}</option>
-          <option value="replit">Replit AI Gateway{keysConfig.replit.apiKey ? " · key set" : ""}</option>
-          <option value="other">Custom / OpenRouter / Local{keysConfig.other.apiKey ? " · key set" : ""}</option>
-        </select>
-        <p className="mt-2 text-[11px] text-slate-500">
-          Select an optional provider to reveal its connection settings.
-        </p>
+      {/* Provider cards reveal one configuration panel at a time */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {[
+          {
+            id: "replit-managed" as SupportedAIProvider,
+            label: "Managed AI (Default)",
+            desc: "Shared server-side AI connection",
+            hasKey: true,
+            icon: Server,
+          },
+          {
+            id: "openai" as SupportedAIProvider,
+            label: "OpenAI",
+            desc: "GPT-4o, GPT-4o-mini, o3-mini",
+            hasKey: Boolean(keysConfig.openai.apiKey),
+            icon: Sparkles,
+          },
+          {
+            id: "claude" as SupportedAIProvider,
+            label: "Anthropic Claude",
+            desc: "Claude 3.7 / 3.5 Sonnet",
+            hasKey: Boolean(keysConfig.claude.apiKey),
+            icon: Shield,
+          },
+          {
+            id: "gemini" as SupportedAIProvider,
+            label: "Google Gemini",
+            desc: "Gemini 2.5 Flash, 2.5 Pro",
+            hasKey: Boolean(keysConfig.gemini.apiKey),
+            icon: Zap,
+          },
+          {
+            id: "emergent" as SupportedAIProvider,
+            label: "Emergent AI",
+            desc: "api.emergent.sh Gateway",
+            hasKey: Boolean(keysConfig.emergent.apiKey),
+            icon: Globe,
+          },
+          {
+            id: "replit" as SupportedAIProvider,
+            label: "Replit AI",
+            desc: "api.replit.com/ai Endpoint",
+            hasKey: Boolean(keysConfig.replit.apiKey),
+            icon: Terminal,
+          },
+          {
+            id: "other" as SupportedAIProvider,
+            label: "Custom / Local",
+            desc: "OpenRouter, Groq, Ollama",
+            hasKey: Boolean(keysConfig.other.apiKey),
+            icon: Cpu,
+          },
+        ].map((provider) => {
+          const isSelected = selectedProvider === provider.id;
+          const isActive = keysConfig.activeProvider === provider.id;
+          const Icon = provider.icon;
+
+          return (
+            <button
+              key={provider.id}
+              type="button"
+              onClick={() => {
+                setSelectedProvider(provider.id);
+                if (provider.id === "replit-managed") handleSetActive(provider.id);
+              }}
+              aria-expanded={isSelected}
+              className={`min-h-28 p-4 text-left rounded-xl border transition-all cursor-pointer ${
+                isSelected
+                  ? "bg-indigo-50/90 border-indigo-600 ring-2 ring-indigo-500/20 shadow-xs"
+                  : "bg-white border-slate-200 hover:border-indigo-300 hover:bg-slate-50"
+              }`}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <Icon className={`w-5 h-5 ${isSelected ? "text-indigo-600" : "text-slate-500"}`} />
+                {isActive ? (
+                  <span className="text-[9px] font-mono font-bold bg-indigo-600 text-white px-2 py-1 rounded">
+                    ACTIVE
+                  </span>
+                ) : provider.hasKey ? (
+                  <span className="text-[9px] font-mono font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded border border-emerald-200">
+                    KEY SET
+                  </span>
+                ) : null}
+              </div>
+              <div className="font-bold text-sm text-slate-900">{provider.label}</div>
+              <div className="text-xs text-slate-500 mt-1">{provider.desc}</div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Provider Details Cards */}
