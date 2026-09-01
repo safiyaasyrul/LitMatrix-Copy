@@ -224,7 +224,9 @@ export default function ApiKeySection({
                     ? `Emergent AI (${keysConfig.emergent.model || "gpt-4o-mini"})`
                     : keysConfig.activeProvider === "replit"
                     ? `Replit AI (${keysConfig.replit.model || "replit-code"})`
-                    : `Custom Endpoint (${keysConfig.other.model})`}
+                     : keysConfig.other.customBase.includes("openrouter.ai")
+                     ? `OpenRouter (${keysConfig.other.model})`
+                     : `Custom Endpoint (${keysConfig.other.model})`}
                 </span>
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               </div>

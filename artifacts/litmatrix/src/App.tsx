@@ -47,6 +47,7 @@ import {
   UserAIKeysConfig,
   DEFAULT_AI_KEYS_CONFIG,
   getActiveAIConfig,
+  SupportedAIProvider,
 } from "./utils/aiClient";
 
 import {
@@ -143,7 +144,7 @@ export default function App() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        return {
+        const merged: UserAIKeysConfig = {
           ...DEFAULT_AI_KEYS_CONFIG,
           ...parsed,
           openai: { ...DEFAULT_AI_KEYS_CONFIG.openai, ...(parsed.openai || {}) },
@@ -153,6 +154,20 @@ export default function App() {
           replit: { ...DEFAULT_AI_KEYS_CONFIG.replit, ...(parsed.replit || {}) },
           other: { ...DEFAULT_AI_KEYS_CONFIG.other, ...(parsed.other || {}) },
         };
+
+        // Migrate configurations saved before direct-provider keys auto-selected
+        // themselves. This prevents a stored OpenRouter key from being ignored
+        // while the old server-Gemini default remains active.
+        if (merged.activeProvider === "server-gemini") {
+          const configuredProvider = (
+            ["other", "openai", "claude", "gemini", "emergent", "replit"] as const
+          ).find((provider) => Boolean(merged[provider].apiKey?.trim()));
+          if (configuredProvider) {
+            merged.activeProvider = configuredProvider as SupportedAIProvider;
+          }
+        }
+
+        return merged;
       } catch {
         return DEFAULT_AI_KEYS_CONFIG;
       }

@@ -78,10 +78,21 @@ export const DEFAULT_AI_KEYS_CONFIG: UserAIKeysConfig = {
   },
 };
 
+const DIRECT_AI_PROVIDERS = ["other", "openai", "claude", "gemini", "emergent", "replit"] as const;
+
+function getConfiguredDirectProvider(keys: Partial<UserAIKeysConfig>): (typeof DIRECT_AI_PROVIDERS)[number] | undefined {
+  return DIRECT_AI_PROVIDERS.find((provider) => Boolean(keys[provider]?.apiKey?.trim()));
+}
+
 export function getActiveAIConfig(keys?: Partial<UserAIKeysConfig> | null): AIProviderConfig {
   if (!keys) return { provider: "server-gemini", model: "gemini-3.7-flash" };
 
-  const active = keys.activeProvider || "server-gemini";
+  // Older saved sessions may still say server-gemini even though a direct
+  // provider key was entered. Never route those saved keys to Gemini.
+  const active =
+    keys.activeProvider === "server-gemini"
+      ? getConfiguredDirectProvider(keys) || "server-gemini"
+      : keys.activeProvider || "server-gemini";
 
   switch (active) {
     case "openai":

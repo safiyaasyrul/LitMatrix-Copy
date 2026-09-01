@@ -1,0 +1,1 @@
+- [Artifact API routing](artifact-api-routing.md) — use a unique app API prefix when shared api-server owns `/api`; otherwise requests can bypass the artifact server.
