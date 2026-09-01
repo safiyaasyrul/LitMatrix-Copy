@@ -304,8 +304,9 @@ export default function App() {
     return acc;
   }, [excludedRecords, screening]);
 
-  // PRISMA flow counts are derived only from records and recorded screening decisions.
-  // Full-text retrieval/assessment is not tracked by this application.
+  // PRISMA flow counts are derived from the current record library and recorded
+  // reviewer decisions. A record can be present in the library before screening,
+  // so deduplicated and screened counts must remain separate.
   const prismaCounts = useMemo(() => {
     const totalIdentified = records.length + (dupesRemoved || 0);
     const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
@@ -351,6 +352,7 @@ export default function App() {
       identifiedDbSources: uploadedSourceNames,
       identifiedOtherSources: [],
       duplicatesRemoved: dupesRemoved || 0,
+      recordsAfterDuplicatesRemoved: records.length,
       screened: screenedCount,
       screenedExcluded: screenedExcludedCount,
       soughtRetrieval: soughtRetrievalCount,

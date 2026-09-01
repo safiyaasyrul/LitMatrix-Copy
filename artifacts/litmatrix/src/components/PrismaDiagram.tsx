@@ -7,6 +7,7 @@ interface PrismaCounts {
   identifiedDbSources?: string[];
   identifiedOtherSources?: string[];
   duplicatesRemoved?: number;
+  recordsAfterDuplicatesRemoved?: number;
   screened?: number;
   screenedExcluded?: number;
   soughtRetrieval?: number;
@@ -31,6 +32,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
     identifiedDbSources = [],
     identifiedOtherSources = [],
     duplicatesRemoved = 0,
+    recordsAfterDuplicatesRemoved = 0,
     screened = 0,
     screenedExcluded = 0,
     soughtRetrieval = 0,
@@ -185,7 +187,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records after duplicates removed:
             </text>
             <text x="32" y="270" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {screened}) · Duplicates removed (n = {duplicatesRemoved})
+              (n = {recordsAfterDuplicatesRemoved}) · Duplicates removed (n = {duplicatesRemoved})
             </text>
 
             {/* Arrow down to title/abstract screening */}
