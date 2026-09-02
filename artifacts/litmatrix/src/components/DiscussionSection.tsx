@@ -26,43 +26,25 @@ export default function DiscussionSection({
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Dynamic rule-based discussion generator grounded in included study findings and categorized author similarities
+  const synthesisReady =
+    synthesis.status === "finalized" &&
+    (synthesis.rqFindings?.length || 0) > 0 &&
+    Boolean(synthesis.crossStudySynthesis);
+
+  // Conservative discussion fallback interprets only the finalized synthesis.
   const runHeuristicDiscussion = () => {
     const topic = protocol.title || "the investigated domain";
-
-    // Group characteristics by category
-    const catMap = new Map<string, StudyCharacteristic[]>();
-    characteristics.forEach((c) => {
-      const cat = c.category || "Uncategorized evidence";
-      if (!catMap.has(cat)) catMap.set(cat, []);
-      catMap.get(cat)!.push(c);
-    });
-
-    const categoryDiscussions: string[] = [];
-    catMap.forEach((studies, catName) => {
-      if (studies.length >= 2) {
-        const a1 = studies[0];
-        const a2 = studies[1];
-        categoryDiscussions.push(
-          `Within the ${catName} theme, ${a1.authorYear} reported ${a1.keyFinding} ${a2.authorYear} reported ${a2.keyFinding} Direct comparison is limited to the information available in the extracted fields.`
-        );
-      } else if (studies.length === 1) {
-        const s = studies[0];
-        categoryDiscussions.push(
-          `Within the ${catName} theme, ${s.authorYear} reported ${s.keyFinding}`
-        );
-      }
-    });
-
-    const crossAuthorText = categoryDiscussions.length > 0
-      ? categoryDiscussions.join(" ")
-      : "The available extracted characteristics are insufficient for a reliable cross-study comparison.";
+    const crossStudy = synthesis.crossStudySynthesis;
+    if (!crossStudy) return;
+    const rqInterpretation = (synthesis.rqFindings || [])
+      .map((finding) => `${finding.rqId} indicates ${finding.synthesizedAnswer}`)
+      .join(" ");
 
     const generated: DiscussionSections = {
-      item23aGeneralInterpretation: `The records marked for inclusion address ${topic} through several thematic approaches. ${crossAuthorText} These observations are narrative only and do not establish a pooled direction or magnitude of effect.`,
-      item23bLimitationsOfEvidence: `The supplied citation metadata and abstracts do not consistently report comparable study designs, samples, measures, or validation procedures. Methodological quality and transferability therefore require verification against the full texts.`,
-      item23cLimitationsOfReviewProcess: `This workspace records title and abstract screening decisions but does not verify full-text retrieval, independent duplicate review, or adjudication. Any unrecorded search coverage, language restrictions, reviewer activity, or eligibility assessment should not be inferred.`,
-      item23dImplications: `The evidence should be interpreted as a thematic map rather than a quantitative estimate. Future work should verify eligibility and extracted fields against full texts, document reviewer actions, and define comparable outcomes before any statistical synthesis is considered.`,
+      item23aGeneralInterpretation: `The finalized synthesis for ${topic} identifies the following overall pattern: ${crossStudy.overallPatterns} Considered by research question, ${rqInterpretation} This section interprets the synthesized pattern rather than repeating individual study findings.`,
+      item23bLimitationsOfEvidence: `The principal contradictions and evidence limitations are ${crossStudy.contradictions} The main gaps are ${crossStudy.evidenceGaps}`,
+      item23cLimitationsOfReviewProcess: `Interpretation is limited to the recorded search, screening, extraction, appraisal, and synthesis procedures. Independent duplicate review, broader search coverage, and other unrecorded procedures are not inferred.`,
+      item23dImplications: crossStudy.implications,
     };
 
     onUpdateDiscussion(generated);
@@ -73,47 +55,31 @@ export default function DiscussionSection({
     setGenerating(true);
     setErrorMessage(null);
 
-    const studiesData = characteristics.length > 0
-      ? characteristics.map((c) => ({
-          citation: c.authorYear,
-          category: c.category,
-          country: c.country,
-          sampleSize: c.sampleSize,
-          population: c.population,
-          intervention: c.interventionOrFocus,
-          comparator: c.comparator,
-          primaryOutcome: c.primaryOutcome,
-          keyFinding: c.keyFinding,
-          studyDesign: c.studyDesign,
-        }))
-      : includedRecords.map((r) => ({
-          citation: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
-          title: r.title,
-          abstract: (r.abstract || "").slice(0, 250),
-        }));
+    if (!synthesisReady) return;
 
-    const prompt = `Draft a cautious 4-part academic Discussion grounded only in the supplied records and extracted characteristics.
+    const prompt = `Draft a cautious 4-part academic Discussion grounded only in the finalized RQ-based and cross-study synthesis.
 
 Review Title: "${protocol.title}"
 Review Type: "${protocol.reviewType}"
 Framework: "${protocol.formulationFramework || "PICOC"}"
-Included Studies and Characteristics:
-${JSON.stringify(studiesData)}
+Final RQ-based Results:
+${JSON.stringify(synthesis.rqFindings || [])}
 
-Synthesis Subtopics:
-${JSON.stringify(synthesis.subtopics.map((s) => ({ title: s.title, summary: s.prose.slice(0, 200) })))}
+Final Cross-study Synthesis:
+${JSON.stringify(synthesis.crossStudySynthesis)}
 
 STRICT WRITING RULES:
 1. WRITE IN CONTINUOUS COHESIVE PARAGRAPHS AND STATEMENTS ONLY. DO NOT USE ANY BULLET POINTS, LISTS, OR DASHES (-).
 2. Write in strictly third-person objective academic voice. NEVER use first-person pronouns (DO NOT use "we", "our", "us", "in our review", "we found").
 3. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
 4. DO NOT mention "PRISMA Item", "PRISMA", "Item 23a", etc. Use natural academic discourse.
-5. CITE AND DISCUSS THE ACTUAL INCLUDED STUDIES by author and year (e.g. Chen et al., 2023). Within each category, discuss authors who share similarities and contrast their results.
-6. Never invent or infer pooled effects, confidence intervals, significance, reviewer activity, full-text assessment, search coverage, validation, or findings absent from the supplied data.
+5. Results already state what the studies found. Discussion must explain what the cross-study pattern means, why contradictions may matter, how the findings relate to each research question, and what implications follow cautiously.
+6. Do not repeat a sequence of individual-study findings and do not regenerate Results from citation records.
+7. Never invent or infer pooled effects, confidence intervals, significance, reviewer activity, full-text assessment, search coverage, validation, or findings absent from the supplied synthesis.
 
 Structure the response into 4 distinct sections:
-1. item23aGeneralInterpretation: Deep interpretation of findings directly citing included studies, grouping by category, discussing similarities among authors in the same category, and contextualizing within existing literature.
-2. item23bLimitationsOfEvidence: Critical evaluation of limitations within the primary studies (e.g., experimental setups, sample/data adequacy, measurement limitations, lack of external validation).
+1. item23aGeneralInterpretation: Principal findings and interpretation by research question, followed by the meaning of the combined pattern.
+2. item23bLimitationsOfEvidence: Contradictions and limitations within the included evidence.
 3. item23cLimitationsOfReviewProcess: Objective appraisal of systematic review process limitations (e.g., database coverage, exclusion of secondary review papers to prioritize primary evidence, language boundaries).
 4. item23dImplications: Cautious implications for practice and future research appropriate to the review topic.
 
@@ -187,22 +153,23 @@ Return ONLY a JSON object:
               Structured Academic Discussion
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Comprehensive discussion interpreting findings from included records, evaluating evidence limitations, addressing review methodology constraints, and formulating practical implications.
+              Interprets what the finalized RQ-based pattern means. Results state what studies found; Discussion explains the meaning, limitations, and implications.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleGenerateDiscussion}
-              disabled={generating}
+              disabled={generating || !synthesisReady}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {generating ? "Drafting Discussion..." : "AI Generate Discussion (from Records)"}
+              {generating ? "Drafting Discussion..." : "AI Generate Discussion (from Final Synthesis)"}
             </button>
             <button
               onClick={runHeuristicDiscussion}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
+              disabled={!synthesisReady}
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 disabled:bg-slate-100 disabled:text-slate-400 rounded-lg shadow-2xs cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-indigo-600" />
               Instant Structured Draft
@@ -304,14 +271,14 @@ Return ONLY a JSON object:
               <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-800">
                 4
               </span>
-              <span>Practical Implications and Future Research Directions</span>
+              <span>Research and Practice Implications</span>
             </div>
           </div>
           <textarea
             value={discussion.item23dImplications}
             onChange={(e) => updatePart("item23dImplications", e.target.value)}
             rows={5}
-            placeholder="Discuss actionable implications of the results for clinical practice, health policy, and future studies..."
+            placeholder="Discuss cautious implications for research, practice, policy, design, or future studies as appropriate to the review topic..."
             className="w-full text-xs sm:text-sm font-sans p-3.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 leading-relaxed text-slate-800"
           />
         </div>

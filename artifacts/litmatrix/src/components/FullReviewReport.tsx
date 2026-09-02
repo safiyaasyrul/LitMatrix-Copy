@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SLRProtocol,
   SLRRecord,
@@ -126,8 +126,22 @@ export default function FullReviewReport({
     includedRecords.length > 0 && includedRecords.every((record) => extractedIds.has(record.id));
   const appraisalComplete =
     includedRecords.length > 0 && includedRecords.every((record) => appraisedIds.has(record.id));
+  const rqFindings = synthesis.rqFindings || [];
+  const expectedRqIds = questions.map((_, index) => `RQ${index + 1}`);
+  const rqSynthesisComplete =
+    expectedRqIds.length > 0 &&
+    expectedRqIds.every((rqId) =>
+      rqFindings.some(
+        (finding) => finding.rqId === rqId && Boolean(finding.synthesizedAnswer?.trim())
+      )
+    );
   const synthesisComplete =
-    (synthesis.subtopics?.length || 0) > 0 && (synthesis.keyFindingsTable?.length || 0) > 0;
+    synthesis.status === "finalized" &&
+    (synthesis.studyEvidence?.length || 0) > 0 &&
+    (synthesis.subtopics?.length || 0) > 0 &&
+    rqSynthesisComplete &&
+    Boolean(synthesis.crossStudySynthesis?.overallPatterns?.trim()) &&
+    Boolean(synthesis.crossStudySynthesis?.evidenceGaps?.trim());
   const abstractReady =
     selectionComplete && extractionComplete && appraisalComplete && synthesisComplete;
 
@@ -152,6 +166,11 @@ export default function FullReviewReport({
 
   const abstract = generatedAbstract || pendingAbstract;
 
+  useEffect(() => {
+    setGeneratedAbstract(null);
+    setAbstractError(null);
+  }, [synthesis, protocol.primaryResearchQuestions, protocol.title, includedRecords.length]);
+
   const handleGenerateAbstract = async () => {
     if (!abstractReady) return;
     setGeneratingAbstract(true);
@@ -168,6 +187,22 @@ export default function FullReviewReport({
         consistency: removeCitationArtifacts(item.consistency),
         evidenceBase: removeCitationArtifacts(item.evidenceBase),
       })),
+      rqBasedFindings: rqFindings.map((item) => ({
+        rqId: item.rqId,
+        question: removeCitationArtifacts(item.question),
+        synthesizedAnswer: removeCitationArtifacts(item.synthesizedAnswer),
+        dominantPatterns: removeCitationArtifacts(item.dominantPatterns),
+        contradictions: removeCitationArtifacts(item.contradictions),
+        evidenceGaps: removeCitationArtifacts(item.evidenceGaps),
+      })),
+      integratedSynthesis: synthesis.crossStudySynthesis
+        ? {
+            overallPatterns: removeCitationArtifacts(synthesis.crossStudySynthesis.overallPatterns),
+            contradictions: removeCitationArtifacts(synthesis.crossStudySynthesis.contradictions),
+            evidenceGaps: removeCitationArtifacts(synthesis.crossStudySynthesis.evidenceGaps),
+            implications: removeCitationArtifacts(synthesis.crossStudySynthesis.implications),
+          }
+        : null,
       heterogeneity: removeCitationArtifacts(synthesis.heterogeneityDiscussion || ""),
     };
     const appraisalSummary = {
@@ -183,26 +218,34 @@ export default function FullReviewReport({
       ).length,
     };
     const uploadedSources = counts.identifiedDbSources?.join(", ") || "uploaded source records";
+    const recordedSearchDates = protocol.informationSources
+      .map((source) => source.lastSearchedDate)
+      .filter(Boolean)
+      .join(", ");
+    const synthesisApproach =
+      protocol.synthesisMethods?.synthesisModel ||
+      protocol.eligibilityCriteria.groupingForSynthesis ||
+      "narrative and thematic synthesis";
 
     const prompt = `Generate a structured systematic-review abstract from FINALIZED SYNTHESIS-LEVEL EVIDENCE only.
 
 Review title: ${protocol.title}
 Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
 Approved objectives: ${JSON.stringify(objectives)}
-Recorded methods: Sources represented in uploaded records: ${uploadedSources}. Records screened: ${counts.screened || 0}. Full texts assessed: ${counts.assessed || 0}. Final included studies: ${includedRecords.length}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
+Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened: ${counts.screened || 0}. Full texts assessed: ${counts.assessed || 0}. Final included studies: ${includedRecords.length}. Synthesis approach: ${synthesisApproach}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
 Final synthesis: ${JSON.stringify(synthesisEvidence)}
 Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
 
 STRICT ABSTRACT RULES:
 1. Return Background, Objective, Methods, Results, Conclusion, and Keywords.
-2. Results must answer what the review found after cross-study synthesis. Summarize dominant patterns, relationships, consistencies, contradictions, methodological limitations, and evidence gaps.
+2. Results must answer the approved research questions using the finalized cross-study synthesis. Summarize dominant patterns, approaches, outcomes, consistencies, contradictions, weak evidence, and gaps.
 3. Do not list studies or write a sequence of individual-study findings.
 4. Do not include author names, years, citations, reference numbers, DOI links, or URLs anywhere.
 5. Do not derive findings from screening counts, keyword frequencies, titles alone, excluded records, or records awaiting full-text assessment.
 6. Use only the supplied finalized synthesis. If a relationship is not supported there, omit it.
 7. Do not invent numerical values. Use recorded flow counts only in Methods or Results when useful.
 8. Do not report pooled effects, confidence intervals, heterogeneity statistics, GRADE ratings, p-values, or meta-analysis unless present in the supplied finalized synthesis.
-9. The Conclusion must reflect evidence strength and limitations and must not turn association, prediction, modelling performance, or theoretical potential into demonstrated real-world effectiveness.
+9. The Conclusion must state what the total evidence means, the principal research gap, and cautious implications. It must not turn association, prediction, modelling performance, or theoretical potential into demonstrated real-world effectiveness.
 10. Keep Results concise and synthesis-level, with no citations.
 
 Return ONLY JSON:
@@ -322,13 +365,20 @@ Return ONLY JSON:
     });
     md += `\n`;
 
-    md += `### 3.4 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
-    (synthesis.subtopics || []).forEach((sub) => {
-      md += `#### ${sub.title}\n${sub.prose}\n\n`;
+    rqFindings.forEach((finding, index) => {
+      md += `### 3.${index + 4} ${finding.rqId}: ${finding.question.replace(/^RQ\d+:\s*/i, "")}\n\n`;
+      md += `${finding.synthesizedAnswer}\n\n`;
+      md += `**Dominant patterns:** ${finding.dominantPatterns}\n\n`;
+      md += `**Contradictions:** ${finding.contradictions}\n\n`;
+      md += `**Evidence gaps:** ${finding.evidenceGaps}\n\n`;
     });
 
-    if (synthesis.heterogeneityDiscussion) {
-      md += `Regarding between-study variance and heterogeneity exploration, ${synthesis.heterogeneityDiscussion}\n\n`;
+    const crossStudySectionNumber = rqFindings.length + 4;
+    if (synthesis.crossStudySynthesis) {
+      md += `### 3.${crossStudySectionNumber} Cross-study Synthesis\n\n`;
+      md += `${synthesis.crossStudySynthesis.overallPatterns}\n\n`;
+      md += `**Cross-cutting contradictions:** ${synthesis.crossStudySynthesis.contradictions}\n\n`;
+      md += `**Principal evidence gaps:** ${synthesis.crossStudySynthesis.evidenceGaps}\n\n`;
     }
 
     if (gradeItems.length > 0) {
@@ -346,10 +396,20 @@ Return ONLY JSON:
     }
 
     md += `## 4. Discussion\n\n`;
-    md += `### 4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis\n${discussion.item23aGeneralInterpretation}\n\n`;
-    md += `### 4.2 Methodological Strengths and Limitations of Included Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n`;
-    md += `### 4.3 Limitations of Systematic Review Methodology\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
-    md += `### 4.4 Practical Implications and Future Research Directions\n${discussion.item23dImplications}\n\n`;
+    md += `### 4.1 Principal Findings\n${discussion.item23aGeneralInterpretation}\n\n`;
+    md += `### 4.2 Interpretation by Research Question\n`;
+    rqFindings.forEach((finding) => {
+      md += `**${finding.rqId}:** ${finding.synthesizedAnswer}\n\n`;
+    });
+    md += `### 4.3 Comparison with Previous Reviews\nNo comparison is claimed unless previous-review evidence is explicitly supplied and appraised.\n\n`;
+    md += `### 4.4 Contradictions and Limitations of the Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n`;
+    md += `### 4.5 Research and Practice Implications\n${discussion.item23dImplications}\n\n`;
+
+    md += `## 5. Limitations\n\n`;
+    md += `${discussion.item23bLimitationsOfEvidence}\n\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
+
+    md += `## 6. Conclusion\n\n`;
+    md += `${abstract.concl}\n\n`;
 
     md += `## References of Included Studies\n\n`;
     includedRecords.forEach((r) => {
@@ -522,24 +582,42 @@ Return ONLY JSON:
     </tbody>
   </table>
 
-  <h3>3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
-  ${(synthesis.subtopics || []).map((st) => `
-    <h4>${st.title}</h4>
-    <p>${st.prose}</p>
+  ${rqFindings.map((finding, index) => `
+    <h3>3.${index + 4} ${finding.rqId}: ${finding.question.replace(/^RQ\d+:\s*/i, "")}</h3>
+    <p>${finding.synthesizedAnswer}</p>
+    <p><strong>Dominant patterns:</strong> ${finding.dominantPatterns}</p>
+    <p><strong>Contradictions:</strong> ${finding.contradictions}</p>
+    <p><strong>Evidence gaps:</strong> ${finding.evidenceGaps}</p>
   `).join("")}
+  ${synthesis.crossStudySynthesis ? `
+    <h3>3.${rqFindings.length + 4} Cross-study Synthesis</h3>
+    <p>${synthesis.crossStudySynthesis.overallPatterns}</p>
+    <p><strong>Cross-cutting contradictions:</strong> ${synthesis.crossStudySynthesis.contradictions}</p>
+    <p><strong>Principal evidence gaps:</strong> ${synthesis.crossStudySynthesis.evidenceGaps}</p>
+  ` : ""}
 
   <h2>4. Discussion</h2>
-  <h3>4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis</h3>
+  <h3>4.1 Principal Findings</h3>
   <p>${discussion.item23aGeneralInterpretation}</p>
 
-  <h3>4.2 Methodological Strengths and Limitations of Included Evidence</h3>
+  <h3>4.2 Interpretation by Research Question</h3>
+  ${rqFindings.map((finding) => `<p><strong>${finding.rqId}:</strong> ${finding.synthesizedAnswer}</p>`).join("")}
+
+  <h3>4.3 Comparison with Previous Reviews</h3>
+  <p>No comparison is claimed unless previous-review evidence is explicitly supplied and appraised.</p>
+
+  <h3>4.4 Contradictions and Limitations of the Evidence</h3>
   <p>${discussion.item23bLimitationsOfEvidence}</p>
 
-  <h3>4.3 Limitations of Systematic Review Methodology</h3>
+  <h3>4.5 Research and Practice Implications</h3>
+  <p>${discussion.item23dImplications}</p>
+
+  <h2>5. Limitations</h2>
+  <p>${discussion.item23bLimitationsOfEvidence}</p>
   <p>${discussion.item23cLimitationsOfReviewProcess}</p>
 
-  <h3>4.4 Practical Implications and Future Research Directions</h3>
-  <p>${discussion.item23dImplications}</p>
+  <h2>6. Conclusion</h2>
+  <p>${abstract.concl}</p>
 
   <h2>References of Included Studies</h2>
   ${includedRecords.map((r) => {
@@ -864,15 +942,31 @@ Return ONLY JSON:
             </div>
           </div>
 
-          {/* Narrative Synthesis with Cross-Author Similarities */}
+          {/* RQ-controlled synthesis results */}
           <div className="space-y-3 pt-4">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
-            {(synthesis.subtopics || []).map((st, i) => (
-              <div key={i} className="space-y-1">
-                <h4 className="font-bold text-xs text-slate-900 font-mono">{st.title}</h4>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">{st.prose}</p>
+            {rqFindings.map((finding, index) => (
+              <div key={finding.rqId} className="space-y-2 border border-indigo-100 rounded-xl p-4">
+                <h3 className="font-bold text-slate-900 text-sm font-mono">
+                  3.{index + 4} {finding.rqId}: {finding.question.replace(/^RQ\d+:\s*/i, "")}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{finding.synthesizedAnswer}</p>
+                <div className="grid md:grid-cols-3 gap-2 text-xs">
+                  <p><strong>Dominant patterns:</strong> {finding.dominantPatterns}</p>
+                  <p><strong>Contradictions:</strong> {finding.contradictions}</p>
+                  <p><strong>Evidence gaps:</strong> {finding.evidenceGaps}</p>
+                </div>
               </div>
             ))}
+            {synthesis.crossStudySynthesis && (
+              <div className="space-y-2 bg-indigo-950 text-white rounded-xl p-5">
+                <h3 className="font-bold text-sm font-mono">
+                  3.{rqFindings.length + 4} Cross-study Synthesis
+                </h3>
+                <p className="text-xs sm:text-sm leading-relaxed">{synthesis.crossStudySynthesis.overallPatterns}</p>
+                <p className="text-xs"><strong>Cross-cutting contradictions:</strong> {synthesis.crossStudySynthesis.contradictions}</p>
+                <p className="text-xs"><strong>Principal evidence gaps:</strong> {synthesis.crossStudySynthesis.evidenceGaps}</p>
+              </div>
+            )}
           </div>
 
           {/* Optional Table 3: reviewer-populated certainty assessment */}
@@ -905,29 +999,46 @@ Return ONLY JSON:
           </div>}
         </section>
 
-        {/* Section 4: Discussion (Strictly in Statements / Paragraphs with Author Comparisons) */}
+        {/* Section 4: interpretation of synthesized results */}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
             4. Discussion
           </h2>
           <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.1 Principal Findings</h3>
               <p className="text-justify">{discussion.item23aGeneralInterpretation}</p>
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.2 Methodological Strengths and Limitations of Included Evidence</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.2 Interpretation by Research Question</h3>
+              {rqFindings.map((finding) => (
+                <p key={finding.rqId} className="text-justify"><strong>{finding.rqId}:</strong> {finding.synthesizedAnswer}</p>
+              ))}
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.3 Comparison with Previous Reviews</h3>
+              <p className="text-justify">No comparison is claimed unless previous-review evidence is explicitly supplied and appraised.</p>
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.4 Contradictions and Limitations of the Evidence</h3>
               <p className="text-justify">{discussion.item23bLimitationsOfEvidence}</p>
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.3 Limitations of Systematic Review Methodology</h3>
-              <p className="text-justify">{discussion.item23cLimitationsOfReviewProcess}</p>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.4 Practical Implications and Future Research Directions</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.5 Research and Practice Implications</h3>
               <p className="text-justify">{discussion.item23dImplications}</p>
             </div>
           </div>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">5. Limitations</h2>
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{discussion.item23bLimitationsOfEvidence}</p>
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{discussion.item23cLimitationsOfReviewProcess}</p>
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">6. Conclusion</h2>
+          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{abstract.concl}</p>
         </section>
 
         {/* References */}

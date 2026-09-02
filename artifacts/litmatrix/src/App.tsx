@@ -557,7 +557,7 @@ export default function App() {
     },
     {
       id: "synthesis",
-      label: "Narrative Synthesis",
+      label: "RQ-Based Evidence Synthesis",
       badge: "Items 13a–f",
       icon: BarChart2,
     },
@@ -569,7 +569,7 @@ export default function App() {
     },
     {
       id: "discussion",
-      label: "4-Part PRISMA Discussion",
+      label: "Discussion & Interpretation",
       badge: "Items 23a–23d",
       icon: BookOpen,
     },
@@ -844,6 +844,7 @@ export default function App() {
               onUpdateSynthesis={setSynthesis}
               includedRecords={includedRecords}
               characteristics={characteristics}
+              protocol={protocol}
               aiConfig={activeAIConfig}
               onNavigateToScreening={() => setActiveStage(6)}
             />

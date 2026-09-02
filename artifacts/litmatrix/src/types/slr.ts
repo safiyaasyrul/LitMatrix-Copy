@@ -116,10 +116,33 @@ export interface SynthesisCategory {
 }
 
 export interface SynthesisResult {
+  status?: "evidence_map" | "finalized";
+  studyEvidence?: {
+    recordId: string;
+    studyLabel: string;
+    finding: string;
+    assignedResearchQuestions: string[];
+  }[];
   subtopics: {
     title: string;
     prose: string;
+    recordIds?: string[];
   }[];
+  rqFindings?: {
+    rqId: string;
+    question: string;
+    synthesizedAnswer: string;
+    dominantPatterns: string;
+    contradictions: string;
+    evidenceGaps: string;
+    contributingRecordIds: string[];
+  }[];
+  crossStudySynthesis?: {
+    overallPatterns: string;
+    contradictions: string;
+    evidenceGaps: string;
+    implications: string;
+  };
   keyFindingsTable: {
     topic: string;
     summary: string;
