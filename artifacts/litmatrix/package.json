@@ -7,6 +7,7 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --target=node20 --format=esm --packages=external --sourcemap --outfile=dist/server.js",
     "test:e2e": "playwright test",
+    "test:fixtures": "node --import tsx --test test/sampleDataset.test.ts",
     "start": "node dist/server.js",
     "preview": "vite preview --host 0.0.0.0",
     "clean": "rm -rf dist server.js",
