@@ -11,6 +11,7 @@ import {
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
+import { Guidelines } from './parts';
 
 const CORE_SWATCHES = [
   { name: 'Primary', className: 'bg-primary' },
@@ -128,6 +129,27 @@ export function OverviewPage() {
           <Badge variant="secondary">Secondary</Badge>
           <Badge variant="outline">Outline</Badge>
         </div>
+      </section>
+
+      <section className="grid gap-4 rounded-xl border bg-card p-5 text-card-foreground lg:grid-cols-2">
+        <div>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Workbench principles
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-muted-foreground">
+            The interface treats review progress as evidence state: clear stage
+            labels, reviewer-controlled decisions, traceable records, and
+            cautious language when evidence is incomplete.
+          </p>
+        </div>
+        <Guidelines
+          items={[
+            { kind: 'do', text: 'Use indigo for active workflow emphasis and primary actions.' },
+            { kind: 'do', text: 'Use mono labels for metadata, counts, and stage identifiers.' },
+            { kind: 'do', text: 'Use emerald for confirmed progress and amber for provisional or pending states.' },
+            { kind: 'dont', text: 'Do not imply full-text certainty, quantitative pooling, or reviewer action that is not recorded.' },
+          ]}
+        />
       </section>
     </div>
   );

@@ -289,7 +289,12 @@ Return ONLY JSON:
           : ["Systematic Review", "Evidence Synthesis"],
       });
     } catch (error: any) {
-      setAbstractError(error?.message || "The synthesis abstract could not be generated.");
+      const message = error?.message || "The synthesis abstract could not be generated.";
+      setAbstractError(
+        message.includes("(401)")
+          ? `${message} The managed provider rejected this request; please retry once so its server-side session can refresh.`
+          : message
+      );
     } finally {
       setGeneratingAbstract(false);
     }

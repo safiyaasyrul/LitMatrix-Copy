@@ -36,6 +36,10 @@ on it and import its theme and components directly.
   from the source; omit it when the source documents no usage rules.
 - `src/preview/demos/<component>.tsx` — component stories. Keep these stories and
   the registry aligned with the final web component inventory.
+- `docs/references/component-inventory.md` — normalized component families
+  extracted from the PRISMA 2020 Workbench source.
+- `docs/references/components/` — source evidence and visual rules for the
+  current Button, Badge, Card, Input, and Table pilot.
 - `docs/consuming-web.md`, `docs/consuming-expo.md`, and
   `docs/consuming-slides.md` — platform-specific usage.
 - `docs/migrating-web.md` and `docs/migrating-expo.md` — replacing scaffolded or

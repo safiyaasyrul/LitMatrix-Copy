@@ -190,9 +190,9 @@ export type NavGroup = {
 };
 
 export const DESIGN_SYSTEM = {
-  title: 'Design System',
+  title: 'PRISMA 2020 Workbench Design System',
   description:
-    'A reusable system of foundations, components, and patterns for product surfaces.',
+    'An evidence-focused visual language for systematic-review workflows, traceable findings, and cautious status communication.',
 } as const;
 
 export const OVERVIEW_ENTRY: PreviewEntry = {
@@ -203,7 +203,17 @@ export const OVERVIEW_ENTRY: PreviewEntry = {
 };
 
 export const NAV_GROUPS: NavGroup[] = [
-  { name: 'Brand', entries: [] },
+  {
+    name: 'Brand',
+    entries: [
+      {
+        id: 'brand-principles',
+        name: 'Workbench principles',
+        description: 'Academic clarity, traceability, and reviewer-controlled progress.',
+        Page: OverviewPage,
+      },
+    ],
+  },
   {
     name: 'Colors',
     entries: [
@@ -584,7 +594,17 @@ export const NAV_GROUPS: NavGroup[] = [
       },
     ],
   },
-  { name: 'Content', entries: [] },
+  {
+    name: 'Content',
+    entries: [
+      {
+        id: 'content-voice',
+        name: 'Voice and tone',
+        description: 'Cautious, evidence-grounded language for review work.',
+        Page: OverviewPage,
+      },
+    ],
+  },
   {
     name: 'Charts',
     entries: [
