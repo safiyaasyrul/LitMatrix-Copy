@@ -125,7 +125,7 @@ ${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}
 Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
 ${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
 
-Apply this recommendation rule: accept when Q1 OR Q2 is Yes AND Q3 is Yes AND Q4 is Yes. If Q1/Q2/Q3/Q4 is unresolved, or if Q5 is anything other than Yes, recommend Maybe / Unclear. Exclude only when Q1 and Q2 are both No, or Q3 or Q4 is No. AI recommendations remain pending for reviewer confirmation.
+Apply this recommendation rule: accept only when Q1 OR Q2 is Yes, Q3 is Yes, Q4 is Yes, and Q5 is Yes. If any required question is unresolved, recommend Maybe / Unclear. Exclude when Q1 and Q2 are both No, or when Q3, Q4, or Q5 is No. AI recommendations remain pending for reviewer confirmation.
 
 Keep each reason to no more than 25 words. Do not repeat the title, abstract, criteria, or question text. Use an exclusion reason only when supported: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
 
@@ -179,14 +179,16 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
               const coreCriteriaAccepted =
                 q1OrQ2Yes &&
                 answers.researchContribution === "Yes" &&
-                answers.studyType === "Yes";
+                answers.studyType === "Yes" &&
+                answers.requiredEvidence === "Yes";
               const coreCriteriaExcluded =
                 (answers.populationContext === "No" && answers.phenomenon === "No") ||
                 answers.researchContribution === "No" ||
-                answers.studyType === "No";
+                answers.studyType === "No" ||
+                answers.requiredEvidence === "No";
               const recommendation: AIRecommendation = coreCriteriaExcluded
                 ? "exclude"
-                : coreCriteriaAccepted && answers.requiredEvidence === "Yes"
+                : coreCriteriaAccepted
                 ? "include"
                 : "maybe";
               const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
@@ -295,13 +297,13 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              PRISMA 2020 Items 8, 16a & 16b · Eligibility Criteria Screening
+              PRISMA 2020 Item 5 · Eligibility Criteria · Items 8, 16a & 16b · Study Selection
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Study Selection & Eligibility Criteria Screening
+              Study Selection & Eligibility Criteria
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Screen records by asking explicit questions derived from the approved inclusion, exclusion, and study-type criteria. AI suggestions remain pending until the reviewer confirms them.
+              Evaluate each record against five explicit eligibility questions derived from the approved inclusion, exclusion, and study-type criteria. AI recommendations remain pending until the reviewer confirms them.
             </p>
           </div>
 
@@ -312,7 +314,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {runningScreening ? `Screening (${progress}%)...` : "AI Screen Records"}
+              {runningScreening ? `Evaluating (${progress}%)...` : "AI Evaluate Records"}
             </button>
           </div>
         </div>
@@ -325,7 +327,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         )}
 
         <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-950">
-          <div className="font-mono font-bold">Screening questions generated from approved eligibility criteria</div>
+          <div className="font-mono font-bold">Five eligibility questions derived from the approved criteria</div>
           <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
             {screeningQuestions.map((question) => (
               <div key={question.key} className="bg-white/80 border border-indigo-100 rounded-lg p-2">

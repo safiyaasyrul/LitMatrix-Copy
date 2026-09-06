@@ -430,8 +430,8 @@ export default function App() {
     },
     {
       id: "screening",
-      label: "AI Selection & Exclusions",
-      badge: "Items 8, 16a, 16b",
+      label: "Study Selection & Eligibility Criteria",
+      badge: "Item 5 · Items 8, 16a–b",
       icon: CheckCircle,
     },
     {
@@ -638,7 +638,7 @@ export default function App() {
             />
           )}
 
-           {/* Stage 5: AI & Reviewer Screening */}
+            {/* Stage 5: Study Selection & Eligibility Criteria */}
            {activeStage === 4 && (
             <ScreeningSection
               records={records}
