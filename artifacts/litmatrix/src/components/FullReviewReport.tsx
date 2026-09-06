@@ -487,11 +487,11 @@ Return ONLY valid JSON with exactly these fields:
 {
   "title": "precise scientific title",
   "abstract": {
-    "bg": "Background",
-    "obj": "Objective",
-    "meth": "Methods",
-    "res": "Results",
-    "concl": "Conclusion",
+    "bg": "Opening background clause for one continuous abstract paragraph",
+    "obj": "Objective clause continuing the same paragraph",
+    "meth": "Methods clause continuing the same paragraph",
+    "res": "Results clause continuing the same paragraph",
+    "concl": "Conclusion clause continuing the same paragraph",
     "keywords": ["3 to 6 keywords"]
   },
   "introduction": "3 to 6 coherent academic paragraphs",
@@ -508,7 +508,8 @@ MANUSCRIPT STANDARD:
 - Write a conventional original systematic review manuscript, not a magazine article, briefing, blog post, evidence report, or list of study summaries.
 - Use formal journal prose with numbered section logic: Introduction; Methods; Results; Discussion; Conclusion.
 - Consolidate the evidence into comparative scientific claims. Do not merely enumerate individual studies.
-- Use paragraphs and normal academic subheadings inside the section text. Do not use bullets, checklists, promotional language, decorative labels, or conversational phrasing.
+- Use continuous academic paragraphs and normal academic subheadings inside the section text. Do not use bullets, numbered lists, checklists, promotional language, decorative labels, or conversational phrasing.
+- The abstract clauses must read as one uninterrupted paragraph when concatenated. Do not prefix them with “Background,” “Objective,” “Methods,” “Results,” or “Conclusion.”
 - The manuscript must be complete enough for editorial review, while remaining explicit about the abstract-only evidence boundary.
 
 EVIDENCE AND CITATION RULES:
@@ -585,7 +586,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
     if (generatedManuscript) {
       const manuscript = generatedManuscript;
       let generated = `# ${manuscript.title}\n\n`;
-      generated += `## Abstract\n\n**Background:** ${manuscript.abstract.bg}\n\n**Objective:** ${manuscript.abstract.obj}\n\n**Methods:** ${manuscript.abstract.meth}\n\n**Results:** ${manuscript.abstract.res}\n\n**Conclusion:** ${manuscript.abstract.concl}\n\n**Keywords:** ${manuscript.keywords.join(", ")}\n\n`;
+      generated += `## Abstract\n\n${abstractStatement(manuscript.abstract)}\n\n**Keywords:** ${manuscript.keywords.join(", ")}\n\n`;
       generated += `## 1. Introduction\n\n${manuscript.introduction}\n\n`;
       generated += `## 2. Methods\n\n${manuscript.methods}\n\n`;
       generated += `## 3. Results\n\n${manuscript.results}\n\n`;
@@ -604,11 +605,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
     md += `\n---\n\n`;
 
     md += `## Abstract\n\n`;
-    md += `**Background:** ${abstract.bg}\n\n`;
-    md += `**Objectives:** ${abstract.obj}\n\n`;
-    md += `**Methods:** ${abstract.meth}\n\n`;
-    md += `**Results:** ${abstract.res}\n\n`;
-    md += `**Discussion and Conclusion:** ${abstract.concl}\n\n`;
+    md += `${abstractStatement(abstract)}\n\n`;
     md += `**Keywords:** ${abstract.keywords.join(", ")}\n\n`;
     md += `---\n\n`;
 
@@ -748,16 +745,10 @@ ${JSON.stringify(manuscriptEvidence)}`;
       const paragraphHtml = (value: string) =>
         renderJournalText(value).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
       const abstractHtml = `
-        <div class="abstract-box">
-          <h2 style="margin-top: 0; border-bottom: none; font-size: 13pt;">Abstract</h2>
-          <p><strong>Background:</strong> ${escapeHtml(manuscript.abstract.bg)}</p>
-          <p><strong>Objective:</strong> ${escapeHtml(manuscript.abstract.obj)}</p>
-          <p><strong>Methods:</strong> ${escapeHtml(manuscript.abstract.meth)}</p>
-          <p><strong>Results:</strong> ${escapeHtml(manuscript.abstract.res)}</p>
-          <p><strong>Conclusion:</strong> ${escapeHtml(manuscript.abstract.concl)}</p>
-          <p><strong>Keywords:</strong> <em>${escapeHtml(manuscript.keywords.join(", "))}</em></p>
-        </div>`;
-      const generatedDocHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(manuscript.title)}</title><style>body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.6;color:#1e293b;margin:40px}h1{font-size:20pt;color:#0f172a}h2{font-size:14pt;color:#1e293b;border-bottom:1.5pt solid #cbd5e1;padding-bottom:4px;margin-top:28px}p{margin-bottom:12px;text-align:justify}.abstract-box{background:#f1f5f9;border-left:3pt solid #4338ca;padding:14px 18px;margin-bottom:24px}</style></head><body><h1>${escapeHtml(manuscript.title)}</h1>${abstractHtml}<h2>1. Introduction</h2>${paragraphHtml(manuscript.introduction)}<h2>2. Methods</h2>${paragraphHtml(manuscript.methods)}<h2>3. Results</h2>${paragraphHtml(manuscript.results)}<h2>4. Discussion</h2>${paragraphHtml(manuscript.discussion)}<h2>5. Conclusion</h2>${paragraphHtml(manuscript.conclusion)}<h2>References</h2>${includedRecords.map((record) => `<p>${escapeHtml((record.authors || []).join(", ") || "Unknown authors")} (${escapeHtml(String(record.year || "n.d."))}). ${escapeHtml(record.title)}. <em>${escapeHtml(record.source || "Journal")}</em>${record.doi ? `, doi:${escapeHtml(record.doi)}` : ""}.</p>`).join("")}</body></html>`;
+        <h2 style="margin-top: 0; border-bottom: none; font-size: 13pt;">Abstract</h2>
+        <p>${escapeHtml(abstractStatement(manuscript.abstract))}</p>
+        <p><strong>Keywords:</strong> <em>${escapeHtml(manuscript.keywords.join(", "))}</em></p>`;
+      const generatedDocHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(manuscript.title)}</title><style>body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.6;color:#1e293b;margin:40px}h1{font-size:20pt;color:#0f172a}h2{font-size:14pt;color:#1e293b;border-bottom:1.5pt solid #cbd5e1;padding-bottom:4px;margin-top:28px}p{margin-bottom:12px;text-align:justify}</style></head><body><h1>${escapeHtml(manuscript.title)}</h1>${abstractHtml}<h2>1. Introduction</h2>${paragraphHtml(manuscript.introduction)}<h2>2. Methods</h2>${paragraphHtml(manuscript.methods)}<h2>3. Results</h2>${paragraphHtml(manuscript.results)}<h2>4. Discussion</h2>${paragraphHtml(manuscript.discussion)}<h2>5. Conclusion</h2>${paragraphHtml(manuscript.conclusion)}<h2>References</h2>${includedRecords.map((record) => `<p>${escapeHtml((record.authors || []).join(", ") || "Unknown authors")} (${escapeHtml(String(record.year || "n.d."))}). ${escapeHtml(record.title)}. <em>${escapeHtml(record.source || "Journal")}</em>${record.doi ? `, doi:${escapeHtml(record.doi)}` : ""}.</p>`).join("")}</body></html>`;
       const generatedBlob = new Blob([generatedDocHTML], { type: "application/msword;charset=utf-8" });
       const generatedLink = document.createElement("a");
       generatedLink.href = URL.createObjectURL(generatedBlob);
@@ -789,7 +780,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
     h4 { font-size: 11pt; font-weight: 700; color: #475569; margin-top: 14px; margin-bottom: 4px; }
     p { margin-bottom: 12px; text-align: justify; }
     .meta-box { background-color: #f8fafc; border: 1px solid #e2e8f0; padding: 12px 16px; margin-bottom: 24px; border-radius: 4px; font-size: 10pt; }
-    .abstract-box { background-color: #f1f5f9; border-left: 3pt solid #4338ca; padding: 14px 18px; margin-bottom: 24px; }
+    .abstract-box { padding: 14px 0; margin-bottom: 24px; border-top: 1px solid #cbd5e1; border-bottom: 1px solid #cbd5e1; }
     table { border-collapse: collapse; width: 100%; margin: 18px 0; font-size: 10pt; page-break-inside: avoid; }
     th { background-color: #f1f5f9; color: #0f172a; font-weight: 700; padding: 8px 10px; border: 1px solid #cbd5e1; text-align: left; }
     td { padding: 7px 10px; border: 1px solid #e2e8f0; vertical-align: top; }
@@ -806,11 +797,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
 
   <div class="abstract-box">
     <h2 style="margin-top: 0; border-bottom: none; font-size: 13pt;">Abstract</h2>
-    <p><strong>Background:</strong> ${abstract.bg}</p>
-    <p><strong>Objectives:</strong> ${abstract.obj}</p>
-    <p><strong>Methods:</strong> ${abstract.meth}</p>
-    <p><strong>Results:</strong> ${abstract.res}</p>
-    <p><strong>Discussion and Conclusion:</strong> ${abstract.concl}</p>
+    <p>${abstractStatement(abstract)}</p>
     <p><strong>Keywords:</strong> <em>${abstract.keywords.join(", ")}</em></p>
   </div>
 
@@ -1005,6 +992,16 @@ ${JSON.stringify(manuscriptEvidence)}`;
             <Sparkles className="w-3.5 h-3.5" />
             {generatingManuscript ? "Writing Manuscript..." : generatedManuscript ? "Regenerate Journal Manuscript" : "Generate Full Journal Manuscript"}
           </button>
+          {generatedManuscript && (
+            <button
+              onClick={handleGrammarCheck}
+              disabled={grammarChecking}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              {grammarChecking ? "Checking Grammar..." : grammarChecked ? "Grammar Checked" : "Run Grammar Check"}
+            </button>
+          )}
           <button
             onClick={handleCopy}
             disabled={!generatedAbstract && !generatedManuscript}
@@ -1060,7 +1057,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
         </header>
 
         {/* Structured Academic Abstract */}
-        <section className="bg-slate-50/80 border border-slate-200 p-6 sm:p-8 rounded-xl space-y-4">
+        <section className="bg-white border border-slate-200 p-6 sm:p-8 rounded-xl space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
             <h2 className="text-base font-bold text-slate-900 font-mono flex items-center gap-2 uppercase tracking-wide">
               <BookOpen className="w-4 h-4 text-indigo-600" />
@@ -1107,26 +1104,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
           )}
 
           <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Background:</strong>
-              {abstract.bg}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Objectives:</strong>
-              {abstract.obj}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Methods:</strong>
-              {abstract.meth}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Results:</strong>
-              {abstract.res}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Discussion & Conclusion:</strong>
-              {abstract.concl}
-            </p>
+            <p>{abstractStatement(abstract)}</p>
             <div className="pt-2 border-t border-slate-200 text-xs font-mono text-slate-600">
               <strong className="text-slate-900 mr-1.5 font-bold">Keywords:</strong>
               <span className="text-slate-700 italic">{abstract.keywords.join(", ")}</span>
@@ -1135,10 +1113,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
         </section>
 
         {generatedManuscript && (
-          <section className="space-y-6 border-t-2 border-emerald-200 pt-8">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs leading-5 text-emerald-950">
-              This version is structured as a conventional journal manuscript. Methods and Results are constrained to the supplied RIS records, abstracts, reviewer-confirmed decisions, reporting assessments, and finalized synthesis. Citation markers were resolved only when they matched an included RIS record.
-            </div>
+          <section className="space-y-6 border-t border-slate-200 pt-8">
             {[
               ["1. Introduction", generatedManuscript.introduction],
               ["2. Methods", generatedManuscript.methods],
