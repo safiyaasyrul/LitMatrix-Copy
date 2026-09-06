@@ -25,8 +25,6 @@ import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
-import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
-import AbstractReportingSection from "./components/AbstractReportingSection";
 import EvidenceSynthesisStage, { EvidenceSynthesisPhase } from "./components/EvidenceSynthesisStage";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
@@ -51,8 +49,6 @@ import {
   UploadCloud,
   CheckCircle,
   GitBranch,
-  Table,
-  ShieldCheck,
   BarChart2,
   BookOpen,
   FileText,
@@ -454,18 +450,6 @@ export default function App() {
       badge: "Item 16a",
       icon: GitBranch,
     },
-    {
-      id: "characteristics",
-      label: "Study Characteristics (Table 1)",
-      badge: "Item 17",
-      icon: Table,
-    },
-    {
-      id: "rob",
-      label: "Methodological Reporting & Appraisal (Table 2)",
-      badge: "Items 11 & 18",
-      icon: ShieldCheck,
-    },
     { id: "descriptive", label: "Descriptive Synthesis", badge: "Study → Finding", icon: BarChart2 },
     { id: "thematic", label: "Thematic Synthesis", badge: "Pattern → Theme", icon: BarChart2 },
     { id: "clusters", label: "Cluster Analysis", badge: "Related Evidence", icon: BarChart2 },
@@ -553,7 +537,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-               16 Stages
+              14 Stages
             </span>
           </div>
 
@@ -690,32 +674,9 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 7: Study Characteristics (Table 1) */}
-          {activeStage === 6 && (
-            <StudyCharacteristicsTable
-              includedRecords={includedRecords}
-              characteristics={characteristics}
-              onUpdateCharacteristics={setCharacteristics}
-              aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(4)}
-            />
-          )}
-
-          {/* Stage 8: Abstract-level methodological reporting appraisal (Table 2) */}
-          {activeStage === 7 && (
-            <AbstractReportingSection
-              includedRecords={includedRecords}
-              assessments={reportingAssessments}
-              onUpdateAssessments={setReportingAssessments}
-              aiConfig={activeAIConfig}
-              protocol={protocol}
-              onNavigateToScreening={() => setActiveStage(4)}
-            />
-          )}
-
           {(["descriptive", "thematic", "clusters", "cross-study", "gaps", "agenda"] as EvidenceSynthesisPhase[]).map(
             (phase, index) =>
-              activeStage === 8 + index && (
+              activeStage === 6 + index && (
                 <React.Fragment key={phase}>
                   <EvidenceSynthesisStage
                     phase={phase}
@@ -731,8 +692,8 @@ export default function App() {
               )
           )}
 
-          {/* Stage 15: Discussion */}
-          {activeStage === 14 && (
+          {/* Stage 13: Discussion */}
+          {activeStage === 12 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -744,8 +705,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 16: Consolidated Manuscript */}
-          {activeStage === 15 && (
+          {/* Stage 14: Consolidated Manuscript */}
+          {activeStage === 13 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
