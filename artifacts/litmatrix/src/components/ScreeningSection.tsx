@@ -93,6 +93,12 @@ export default function ScreeningSection({
   const includedCount = records.filter((r) => screening[r.id]?.agreed === true).length;
   const excludedCount = records.filter((r) => screening[r.id]?.agreed === false).length;
   const pendingCount = records.filter((r) => screening[r.id]?.agreed === undefined).length;
+  const pendingAIInclusionCount = records.filter(
+    (record) => screening[record.id]?.agreed === undefined && screening[record.id]?.recommendation === "include"
+  ).length;
+  const pendingAIExclusionCount = records.filter(
+    (record) => screening[record.id]?.agreed === undefined && screening[record.id]?.recommendation === "exclude"
+  ).length;
   // AI-assisted screening
   const runAIScreening = async () => {
     // State updates are asynchronous; the ref prevents two rapid clicks from
@@ -263,6 +269,40 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
     });
   };
 
+  const confirmAIRecommendations = (recommendation: "include" | "exclude") => {
+    const candidateRecords = records.filter(
+      (record) =>
+        screening[record.id]?.agreed === undefined &&
+        screening[record.id]?.recommendation === recommendation
+    );
+    if (candidateRecords.length === 0) return;
+
+    const actionLabel = recommendation === "include" ? "include" : "exclude";
+    if (
+      !window.confirm(
+        `Confirm ${candidateRecords.length} AI ${actionLabel} recommendation${candidateRecords.length === 1 ? "" : "s"}? You can still change individual decisions afterward.`
+      )
+    ) {
+      return;
+    }
+
+    const nextScreening = { ...screening };
+    candidateRecords.forEach((record) => {
+      const existing = nextScreening[record.id];
+      if (!existing) return;
+      nextScreening[record.id] = {
+        ...existing,
+        agreed: recommendation === "include",
+        decision: recommendation,
+        exclusionReason:
+          recommendation === "exclude"
+            ? existing.exclusionReason || "Out of scope / Criteria not met"
+            : undefined,
+      };
+    });
+    onUpdateScreening(nextScreening);
+  };
+
   const filteredRecords = records.filter((r) => {
     const dec = screening[r.id];
 
@@ -348,16 +388,36 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         {/* Quick bulk actions */}
         {Object.keys(screening).length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 border border-slate-200 rounded-xl">
-            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-mono text-slate-600">
-                AI outputs are suggestions only. Confirm each record manually.
+                  AI outputs are suggestions. Review the results, then confirm eligible recommendations in bulk or individually.
               </span>
             </div>
 
-            <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
-              <span className="text-emerald-700 font-semibold">{includedCount} Included</span>
-              <span className="text-rose-700 font-semibold">{excludedCount} Excluded</span>
-              <span className="text-slate-500">{pendingCount} Pending</span>
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {pendingAIInclusionCount > 0 && (
+                <button
+                  onClick={() => confirmAIRecommendations("include")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-mono font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg cursor-pointer"
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  Confirm {pendingAIInclusionCount} AI inclusions
+                </button>
+              )}
+              {pendingAIExclusionCount > 0 && (
+                <button
+                  onClick={() => confirmAIRecommendations("exclude")}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-mono font-semibold text-rose-800 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-lg cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  Confirm {pendingAIExclusionCount} AI exclusions
+                </button>
+              )}
+              <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
+                <span className="text-emerald-700 font-semibold">{includedCount} Included</span>
+                <span className="text-rose-700 font-semibold">{excludedCount} Excluded</span>
+                <span className="text-slate-500">{pendingCount} Pending</span>
+              </div>
             </div>
           </div>
         )}
