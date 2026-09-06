@@ -127,7 +127,7 @@ ${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}
 Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
 ${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
 
-Apply this recommendation rule: recommend inclusion when the eligibility score is at least 75%, Q1 OR Q2 is Yes, and Q3, Q4, and Q5 are all Yes. A score of exactly 75% qualifies. If any required question is unresolved, recommend Maybe / Unclear. Exclude when Q1 and Q2 are both No, or when Q3, Q4, or Q5 is No. AI recommendations remain pending for reviewer confirmation.
+Apply this recommendation rule: recommend inclusion when the eligibility score is at least 75%. A score of exactly 75% qualifies. Do not downgrade a 75% or higher score to Maybe merely because a question is Unclear. Exclude only when Q1 and Q2 are both No, or when Q3, Q4, or Q5 is No. AI recommendations remain pending for reviewer confirmation.
 
 Keep each reason to no more than 25 words. Do not repeat the title, abstract, criteria, or question text. Use an exclusion reason only when supported: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
 
@@ -193,7 +193,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                 finalScore !== null && finalScore >= ELIGIBILITY_INCLUDE_THRESHOLD;
               const recommendation: AIRecommendation = coreCriteriaExcluded
                 ? "exclude"
-                : scoreSupportsInclusion && coreCriteriaAccepted
+                : scoreSupportsInclusion
                 ? "include"
                 : "maybe";
 
