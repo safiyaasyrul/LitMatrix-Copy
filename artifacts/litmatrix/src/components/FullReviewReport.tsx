@@ -6,7 +6,6 @@ import {
   AbstractReportingAssessment,
   SynthesisResult,
   DiscussionSections,
-  PrismaChecklistItem,
 } from "../types/slr";
 import { Download, Copy, Printer, Check, BookOpen, FileText, CheckCircle2, ShieldAlert, Sparkles, Layers, SlidersHorizontal, Quote } from "lucide-react";
 import PrismaDiagram from "./PrismaDiagram";
@@ -39,7 +38,6 @@ interface FullReviewReportProps {
   reportingAssessments: AbstractReportingAssessment[];
   synthesis: SynthesisResult;
   discussion: DiscussionSections;
-  checklist: PrismaChecklistItem[];
   counts: any;
   aiConfig: AIProviderConfig;
 }
@@ -51,7 +49,6 @@ export default function FullReviewReport({
   reportingAssessments,
   synthesis,
   discussion,
-  checklist,
   counts,
   aiConfig,
 }: FullReviewReportProps) {

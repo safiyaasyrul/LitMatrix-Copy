@@ -402,19 +402,13 @@ export default function App() {
     alert("Records synchronized. Unscreened records remain pending; no inclusion, appraisal, or synthesis results were generated.");
   };
 
-  // Navigation stages mapped to the PRISMA 2020 checklist.
+  // Navigation stages for the review workflow.
   const stages = [
     {
       id: "ai-keys",
       label: "AI Providers & API Keys",
       badge: "OpenAI, Claude, Gemini",
       icon: Key,
-    },
-    {
-      id: "checklist",
-      label: "PRISMA 2020 Checklist",
-      badge: "27 Items",
-      icon: ClipboardCheck,
     },
     {
       id: "protocol",
@@ -478,10 +472,6 @@ export default function App() {
     },
   ];
 
-  // Overall PRISMA compliance count
-  const reportedCount = checklist.filter((c) => c.status === "Reported").length;
-  const compliancePct = Math.round((reportedCount / Math.max(checklist.length, 1)) * 100);
-
   return (
     <div id="prisma-workbench-root" className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
       {/* Top Application Bar */}
@@ -512,15 +502,8 @@ export default function App() {
             </div>
           </div>
 
-          {/* Right Header Status */}
+           {/* Right Header Status */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-              <span className="text-xs font-mono text-slate-500">Checklist completion:</span>
-              <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                {compliancePct}% ({reportedCount}/{checklist.length} entries)
-              </span>
-            </div>
-
             <button
               onClick={handleStartBlankReview}
               title="Start a fresh blank systematic review"
@@ -556,7 +539,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              17 Stages
+               16 Stages
             </span>
           </div>
 
@@ -624,21 +607,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 2: PRISMA 2020 checklist audit */}
-          {activeStage === 1 && (
-            <PrismaChecklistAudit
-              checklist={checklist}
-              onUpdateItem={handleUpdateChecklistItem}
-              prismaSChecklist={prismaSChecklist}
-              onUpdatePrismaSItem={handleUpdatePrismaSItem}
-              rosesChecklist={rosesChecklist}
-              onUpdateRosesItem={handleUpdateRosesItem}
-              onNavigateStage={(idx) => setActiveStage(idx)}
-            />
-          )}
-
-          {/* Stage 3: Protocol & PICO Objectives */}
-          {activeStage === 2 && (
+           {/* Stage 2: Protocol & PICO Objectives */}
+           {activeStage === 1 && (
             <MethodsProtocol
               protocol={protocol}
               onUpdateProtocol={setProtocol}
@@ -646,8 +616,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 4: Information Sources & Search Strings */}
-          {activeStage === 3 && (
+           {/* Stage 3: Information Sources & Search Strings */}
+           {activeStage === 2 && (
             <SearchStringsGenerator
               protocol={protocol}
               onUpdateProtocol={setProtocol}
@@ -655,8 +625,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 5: Records Import & Deduplication */}
-          {activeStage === 4 && (
+           {/* Stage 4: Records Import & Deduplication */}
+           {activeStage === 3 && (
             <RecordsImport
               records={records}
               onUpdateRecords={setRecords}
@@ -668,8 +638,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 6: AI & Dual-Reviewer Screening */}
-          {activeStage === 5 && (
+           {/* Stage 5: AI & Reviewer Screening */}
+           {activeStage === 4 && (
             <ScreeningSection
               records={records}
               screening={screening}
@@ -679,8 +649,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 7: PRISMA 2020 Flow Diagram */}
-          {activeStage === 6 && (
+           {/* Stage 6: PRISMA 2020 Flow Diagram */}
+           {activeStage === 5 && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
@@ -698,32 +668,32 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 8: Study Characteristics (Table 1) */}
-          {activeStage === 7 && (
+           {/* Stage 7: Study Characteristics (Table 1) */}
+           {activeStage === 6 && (
             <StudyCharacteristicsTable
               includedRecords={includedRecords}
               characteristics={characteristics}
               onUpdateCharacteristics={setCharacteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+               onNavigateToScreening={() => setActiveStage(4)}
             />
           )}
 
-          {/* Stage 9: Abstract-level methodological reporting appraisal (Table 2) */}
-          {activeStage === 8 && (
+           {/* Stage 8: Abstract-level methodological reporting appraisal (Table 2) */}
+           {activeStage === 7 && (
             <AbstractReportingSection
               includedRecords={includedRecords}
               assessments={reportingAssessments}
               onUpdateAssessments={setReportingAssessments}
               aiConfig={activeAIConfig}
               protocol={protocol}
-              onNavigateToScreening={() => setActiveStage(5)}
+               onNavigateToScreening={() => setActiveStage(4)}
             />
           )}
 
           {(["descriptive", "thematic", "clusters", "cross-study", "gaps", "agenda"] as EvidenceSynthesisPhase[]).map(
             (phase, index) =>
-              activeStage === 9 + index && (
+               activeStage === 8 + index && (
                 <React.Fragment key={phase}>
                   <EvidenceSynthesisStage
                     phase={phase}
@@ -733,14 +703,14 @@ export default function App() {
                     characteristics={characteristics}
                     protocol={protocol}
                     aiConfig={activeAIConfig}
-                    onNavigateToScreening={() => setActiveStage(5)}
+                     onNavigateToScreening={() => setActiveStage(4)}
                   />
                 </React.Fragment>
               )
           )}
 
-          {/* Stage 16: Discussion */}
-          {activeStage === 15 && (
+           {/* Stage 15: Discussion */}
+           {activeStage === 14 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -752,8 +722,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 17: Consolidated Manuscript */}
-          {activeStage === 16 && (
+           {/* Stage 16: Consolidated Manuscript */}
+           {activeStage === 15 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
@@ -761,7 +731,6 @@ export default function App() {
               reportingAssessments={reportingAssessments}
               synthesis={synthesis}
               discussion={discussion}
-              checklist={checklist}
               counts={prismaCounts}
               aiConfig={activeAIConfig}
             />
