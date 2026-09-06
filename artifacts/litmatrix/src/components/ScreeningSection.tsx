@@ -101,18 +101,20 @@ export default function ScreeningSection({
     setProgress(0);
     setErrorMessage(null);
 
-    const batchSize = 4;
+    const batchSize = 3;
     const totalBatches = Math.ceil(records.length / batchSize);
     const nextScreening = { ...screening };
+    const failedRecordIds = new Set<string>();
+    let generatedCount = 0;
 
     try {
-      for (let b = 0; b < totalBatches; b++) {
-        const batch = records.slice(b * batchSize, (b + 1) * batchSize);
+      const screenBatch = async (batch: SLRRecord[]): Promise<void> => {
         const payload = batch.map((r) => ({
           id: r.id,
           title: r.title,
           abstract: (r.abstract || "").slice(0, 500),
         }));
+        const batchIds = new Set(batch.map((record) => record.id));
 
         const prompt = `Systematic Review Protocol Title: "${protocol.title}"
 Approved inclusion criteria:
@@ -123,17 +125,19 @@ ${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}
 Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
 ${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
 
-Calculate an overall eligibility score (0-100) only as a transparent summary of the answers. Apply this recommendation rule: accept when Q1 OR Q2 is Yes AND Q3 is Yes AND Q4 is Yes. If Q1/Q2/Q3/Q4 is unresolved, or if Q5 is anything other than Yes, recommend Maybe / Unclear. Exclude only when Q1 and Q2 are both No, or Q3 or Q4 is No. AI recommendations remain pending for reviewer confirmation. Use an exclusion reason only when the evidence supports exclusion: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
+Apply this recommendation rule: accept when Q1 OR Q2 is Yes AND Q3 is Yes AND Q4 is Yes. If Q1/Q2/Q3/Q4 is unresolved, or if Q5 is anything other than Yes, recommend Maybe / Unclear. Exclude only when Q1 and Q2 are both No, or Q3 or Q4 is No. AI recommendations remain pending for reviewer confirmation.
+
+Keep each reason to no more than 25 words. Do not repeat the title, abstract, criteria, or question text. Use an exclusion reason only when supported: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
 
 Studies:
 ${JSON.stringify(payload)}
 
-Return ONLY a JSON array:
+Return ONLY a complete JSON array with exactly one object per supplied id:
 [
   {
     "id": "...",
     "score": 90,
-    "reason": "...",
+    "reason": "Maximum 25 words.",
     "criteriaAnswers": {
       "populationContext": "Yes",
       "phenomenon": "Unclear",
@@ -142,20 +146,24 @@ Return ONLY a JSON array:
       "requiredEvidence": "No"
     },
     "recommendation": "maybe",
-    "exclusionReason": "Wrong population" (optional)
+    "exclusionReason": "Wrong population / context"
   }
 ]`;
 
         try {
           const text = await callAI(
             prompt,
-              "You are a systematic review screening methodologist. Apply only the supplied eligibility criteria and distinguish No from Unclear.",
+            "You are a systematic review screening methodologist. Apply only the supplied eligibility criteria, distinguish No from Unclear, and return compact valid JSON.",
             aiConfig,
-            1200
+            batch.length === 1 ? 2400 : 1800
           );
           const parsed = parseJSONLoose(text);
+          const returnedIds = new Set<string>();
+
           if (Array.isArray(parsed)) {
             parsed.forEach((p: any) => {
+              if (!p || typeof p.id !== "string" || !batchIds.has(p.id) || returnedIds.has(p.id)) return;
+              returnedIds.add(p.id);
               const rawAnswers = p.criteriaAnswers || {};
               const normalizeAnswer = (value: unknown): "Yes" | "No" | "Unclear" =>
                 value === "Yes" || value === "No" ? value : "Unclear";
@@ -192,17 +200,43 @@ Return ONLY a JSON array:
                 criteriaAnswers: answers,
                 exclusionReason: recommendation === "exclude" ? p.exclusionReason || "Criteria not met" : undefined,
               };
+              generatedCount += 1;
             });
+          }
+
+          const missingRecords = batch.filter((record) => !returnedIds.has(record.id));
+          if (missingRecords.length === 0) return;
+          if (batch.length > 1) {
+            for (const record of missingRecords) await screenBatch([record]);
+          } else {
+            failedRecordIds.add(batch[0].id);
           }
         } catch (err: any) {
           console.warn("AI screening batch error:", err);
-          if (!errorMessage) {
-            setErrorMessage(`AI provider notice: ${err.message || "Request failed"}. No screening decisions were generated; review the criteria or try again.`);
+          if (batch.length > 1) {
+            const midpoint = Math.ceil(batch.length / 2);
+            await screenBatch(batch.slice(0, midpoint));
+            await screenBatch(batch.slice(midpoint));
+          } else {
+            failedRecordIds.add(batch[0].id);
           }
         }
+      };
+
+      for (let b = 0; b < totalBatches; b++) {
+        const batch = records.slice(b * batchSize, (b + 1) * batchSize);
+        await screenBatch(batch);
 
         setProgress(Math.round(((b + 1) / totalBatches) * 100));
         onUpdateScreening({ ...nextScreening });
+      }
+
+      if (failedRecordIds.size > 0) {
+        setErrorMessage(
+          generatedCount > 0
+            ? `AI generated ${generatedCount} recommendation${generatedCount === 1 ? "" : "s"}. ${failedRecordIds.size} record${failedRecordIds.size === 1 ? "" : "s"} remain pending because the provider could not return complete JSON; retry screening to process them.`
+            : `The AI provider could not return a complete screening response. All ${failedRecordIds.size} record${failedRecordIds.size === 1 ? "" : "s"} remain pending; try again or select another model.`
+        );
       }
     } finally {
       screeningRunRef.current = false;
