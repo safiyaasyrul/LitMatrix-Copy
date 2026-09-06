@@ -157,11 +157,17 @@ export default function FullReviewReport({
       .trim();
 
   const pendingAbstract: StructuredAbstract = {
-    bg: "Generate the abstract after final study selection, extraction, methodological appraisal, and evidence synthesis are complete.",
+    bg: abstractReady
+      ? "The finalized synthesis is ready to be compressed into a structured abstract."
+      : "Generate the abstract after final study selection, extraction, methodological appraisal, and evidence synthesis are complete.",
     obj: "The review objective will be summarized from the approved protocol.",
     meth: "The methods summary will report only recorded search, title/abstract screening, appraisal, and synthesis procedures.",
-    res: "Synthesis-level results are not yet available for abstract generation.",
-    concl: "No abstract conclusion is generated before the finalized synthesis is available.",
+    res: abstractReady
+      ? "Select Generate Abstract to create Results from the finalized RQ findings and cross-study synthesis."
+      : "Synthesis-level results are not yet available for abstract generation.",
+    concl: abstractReady
+      ? "The generated conclusion will compress the finalized patterns, gaps, and cautious implications."
+      : "No abstract conclusion is generated before the finalized synthesis is available.",
     keywords: [protocol.reviewType || "Systematic Review", "Evidence Synthesis"],
   };
 

@@ -57,7 +57,7 @@ export default function SynthesisSection({
   };
 
   // Conservative narrative fallback. It never manufactures quantitative results.
-  const runHeuristicSynthesis = () => {
+  const runHeuristicSynthesis = (clearError = true) => {
     if (includedRecords.length === 0 && characteristics.length === 0) return;
 
     const studies = characteristics.length > 0
@@ -120,7 +120,7 @@ export default function SynthesisSection({
     };
 
     onUpdateSynthesis(generated);
-    setErrorMessage(null);
+    if (clearError) setErrorMessage(null);
   };
 
   const handleGenerateSynthesis = async () => {
@@ -129,7 +129,15 @@ export default function SynthesisSection({
     setErrorMessage(null);
 
     const studiesData = characteristics.length > 0
-      ? characteristics
+      ? characteristics.map((study) => ({
+          recordId: study.recordId,
+          authorYear: study.authorYear,
+          category: study.category || "Uncategorized evidence",
+          interventionOrFocus: study.interventionOrFocus?.slice(0, 240) || "Not reported",
+          primaryOutcome: study.primaryOutcome?.slice(0, 240) || "Not reported",
+          studyDesign: study.studyDesign?.slice(0, 160) || "Not reported",
+          keyFinding: study.keyFinding?.slice(0, 600) || "Not reported",
+        }))
       : includedRecords.map((r) => ({
           recordId: r.id,
           authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "Year not reported"})`,
@@ -143,39 +151,33 @@ export default function SynthesisSection({
           keyFinding: (r.abstract || "").slice(0, 260),
         }));
 
-    const prompt = `Act as a systematic review synthesis methodologist. Produce a two-level evidence synthesis of the ${studiesData.length} reviewer-included citation records and abstracts.
+    const prompt = `Act as a systematic review synthesis methodologist. Produce a concise two-level evidence synthesis of the ${studiesData.length} reviewer-included citation records and abstracts.
 
 Research Questions:
 ${researchQuestions.map((question, index) => `RQ${index + 1}: ${question.replace(/^RQ\\d+:\\s*/i, "")}`).join("\n") || "No approved research questions were supplied."}
 
-Included Studies and Detailed Characteristics:
+Compact study-level evidence:
 ${JSON.stringify(studiesData)}
 
 STRICT WRITING RULES:
 1. Write in strictly third-person objective academic voice. NEVER use first-person pronouns (DO NOT use "we", "our", "us", "in our study", "we observed").
 2. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
 3. DO NOT mention "PRISMA Item", "PRISMA", "Item 20", etc.
-4. Level 1 must preserve each supplied study finding and map it to the research question or questions it can actually inform.
-5. Group the Level 1 findings into evidence-grounded themes. Theme prose may cite included studies for traceability.
+4. Group the supplied study findings into evidence-grounded themes. Theme prose may cite included studies for traceability.
+5. Every theme and RQ answer must use exact supplied recordIds for traceability.
 6. Level 2 must synthesize the evidence by research question, then integrate those RQ answers into overall patterns, contradictions, gaps, and implications.
 7. Results describe what the studies found. Do not add explanations, recommendations, or broader meaning that belong in Discussion.
 8. In rqFindings, crossStudySynthesis, and keyFindingsTable, synthesize across studies without author names, years, citations, reference numbers, DOI links, or individual-study lists.
-9. Group the findings into 3-4 structured themes with descriptive academic titles.
+9. Group the findings into 2-4 structured themes with descriptive academic titles.
 10. Each RQ answer must name its contributing recordIds. Do not claim an answer when no supplied finding addresses that RQ; state that the evidence is insufficient.
 11. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
 12. Do not calculate or report pooled effects, confidence intervals, p-values, I², weights, meta-analysis, or statistical significance.
 13. Treat "Not reported" as missing information, not as evidence of absence.
 
-Generate a JSON object conforming strictly to:
+14. Keep every prose field under 100 words so the complete JSON fits within the provider output limit.
+
+Generate a compact JSON object conforming strictly to:
 {
-  "studyEvidence": [
-    {
-      "recordId": "Exact supplied recordId",
-      "studyLabel": "Supplied authorYear",
-      "finding": "Exact or faithfully condensed supplied key finding",
-      "assignedResearchQuestions": ["RQ1"]
-    }
-  ],
   "subtopics": [
     {
       "title": "Descriptive subtopic grounded in the supplied records",
@@ -213,30 +215,70 @@ Generate a JSON object conforming strictly to:
     try {
       const text = await callAI(
         prompt,
-        "You are an expert systematic review methodologist and biostatistician.",
-        aiConfig
+        "You are an expert systematic review methodologist. Return compact, complete JSON and no commentary.",
+        aiConfig,
+        5000
       );
-      const parsed = parseJSONLoose(text);
-       if (parsed?.subtopics && parsed?.rqFindings && parsed?.crossStudySynthesis) {
+      const rawParsed = parseJSONLoose(text);
+      const parsed = rawParsed?.synthesis || rawParsed;
+      const expectedRqIds = researchQuestions.map((_, index) => `RQ${index + 1}`);
+      const hasCompleteRqSet =
+        Array.isArray(parsed?.rqFindings) &&
+        expectedRqIds.every((rqId) =>
+          parsed.rqFindings.some(
+            (finding: any) =>
+              finding?.rqId === rqId && typeof finding?.synthesizedAnswer === "string"
+          )
+        );
+
+      if (
+        Array.isArray(parsed?.subtopics) &&
+        parsed.subtopics.length > 0 &&
+        hasCompleteRqSet &&
+        parsed?.crossStudySynthesis
+      ) {
+        const studyEvidence = studiesData.map((study) => ({
+          recordId: study.recordId,
+          studyLabel: study.authorYear,
+          finding: study.keyFinding,
+          assignedResearchQuestions: parsed.rqFindings
+            .filter(
+              (finding: any) =>
+                Array.isArray(finding.contributingRecordIds) &&
+                finding.contributingRecordIds.includes(study.recordId)
+            )
+            .map((finding: any) => finding.rqId),
+        }));
+        const keyFindingsTable =
+          Array.isArray(parsed.keyFindingsTable) && parsed.keyFindingsTable.length > 0
+            ? parsed.keyFindingsTable
+            : parsed.subtopics.map((theme: any) => ({
+                topic: theme.title,
+                summary: theme.prose,
+                consistency: "Described narratively",
+                evidenceBase: `${Array.isArray(theme.recordIds) ? theme.recordIds.length : 0} contributing records`,
+              }));
+
         onUpdateSynthesis({
           ...synthesis,
-           status: "finalized",
-           studyEvidence: parsed.studyEvidence || [],
+          status: "finalized",
+          studyEvidence,
           subtopics: parsed.subtopics || synthesis.subtopics,
-           rqFindings: parsed.rqFindings,
-           crossStudySynthesis: parsed.crossStudySynthesis,
-          keyFindingsTable: parsed.keyFindingsTable || synthesis.keyFindingsTable,
+          rqFindings: parsed.rqFindings,
+          crossStudySynthesis: parsed.crossStudySynthesis,
+          keyFindingsTable,
           forestPlotEstimates: [],
           pooledEffectEstimate: undefined,
           heterogeneityDiscussion: "Study differences are described narratively; no statistical heterogeneity analysis was performed.",
         });
+        setErrorMessage(null);
       } else {
-        throw new Error("Could not parse AI response as valid synthesis object.");
+        throw new Error("The AI response was incomplete or did not contain every research-question synthesis.");
       }
     } catch (e: any) {
       console.warn("AI synthesis error:", e);
-      setErrorMessage(`AI Synthesis Notice: ${e.message || "Request failed"}. Automatic structured synthesis was applied as a fallback.`);
-      runHeuristicSynthesis();
+      runHeuristicSynthesis(false);
+      setErrorMessage(`AI Synthesis Notice: ${e.message || "Request failed"}. A reviewable evidence map was preserved, but Discussion and Abstract remain locked until AI synthesis succeeds.`);
     } finally {
       setGenerating(false);
     }
@@ -285,7 +327,7 @@ Generate a JSON object conforming strictly to:
               {generating ? "Synthesizing Findings..." : "AI Synthesize Findings (Grouped Subtopics)"}
             </button>
             <button
-              onClick={runHeuristicSynthesis}
+              onClick={() => runHeuristicSynthesis()}
               disabled={includedRecords.length === 0 && characteristics.length === 0}
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
             >
