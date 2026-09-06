@@ -21,6 +21,17 @@ interface StructuredAbstract {
   keywords: string[];
 }
 
+interface StructuredJournalManuscript {
+  title: string;
+  abstract: StructuredAbstract;
+  introduction: string;
+  methods: string;
+  results: string;
+  discussion: string;
+  conclusion: string;
+  keywords: string[];
+}
+
 interface FullReviewReportProps {
   protocol: SLRProtocol;
   includedRecords: SLRRecord[];
@@ -48,6 +59,9 @@ export default function FullReviewReport({
   const [generatedAbstract, setGeneratedAbstract] = useState<StructuredAbstract | null>(null);
   const [generatingAbstract, setGeneratingAbstract] = useState(false);
   const [abstractError, setAbstractError] = useState<string | null>(null);
+  const [generatedManuscript, setGeneratedManuscript] = useState<StructuredJournalManuscript | null>(null);
+  const [generatingManuscript, setGeneratingManuscript] = useState(false);
+  const [manuscriptError, setManuscriptError] = useState<string | null>(null);
 
   const questions = protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
@@ -161,6 +175,35 @@ export default function FullReviewReport({
       .replace(/\s+([,.;:])/g, "$1")
       .trim();
 
+  const citationKeyByRecordId = new Map(
+    includedRecords.map((record) => [
+      record.id,
+      record.authors?.[0]
+        ? `${record.authors[0]}${record.authors.length > 1 ? " et al." : ""}, ${record.year || "n.d."}`
+        : `${record.id}, ${record.year || "n.d."}`,
+    ])
+  );
+
+  const resolveCitationMarkers = (value: string) =>
+    value.replace(/\{\{([^}]+)\}\}/g, (_, recordId: string) => {
+      const citation = citationKeyByRecordId.get(recordId.trim());
+      return citation ? `(${citation})` : "";
+    });
+
+  const renderJournalText = (value: string) =>
+    resolveCitationMarkers(value)
+      .split(/\n{2,}/)
+      .map((paragraph) => paragraph.trim())
+      .filter(Boolean);
+
+  const escapeHtml = (value: string) =>
+    value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
   const pendingAbstract: StructuredAbstract = {
     bg: abstractReady
       ? "The finalized synthesis is ready to be compressed into a structured abstract."
@@ -181,6 +224,8 @@ export default function FullReviewReport({
   useEffect(() => {
     setGeneratedAbstract(null);
     setAbstractError(null);
+    setGeneratedManuscript(null);
+    setManuscriptError(null);
   }, [synthesis, protocol.primaryResearchQuestions, protocol.title, includedRecords.length]);
 
   const handleGenerateAbstract = async () => {
@@ -302,7 +347,175 @@ Return ONLY JSON:
     }
   };
 
+  const handleGenerateManuscript = async () => {
+    if (!abstractReady || generatingManuscript) return;
+    setGeneratingManuscript(true);
+    setManuscriptError(null);
+
+    const risEvidence = includedRecords.map((record) => ({
+      recordId: record.id,
+      citationKey: citationKeyByRecordId.get(record.id),
+      title: record.title,
+      authors: record.authors,
+      year: record.year,
+      source: record.source,
+      databaseSource: record.databaseSource,
+      doi: record.doi,
+      abstract: record.abstract,
+    }));
+
+    const manuscriptEvidence = {
+      approvedProtocol: {
+        title: protocol.title,
+        reviewType: protocol.reviewType,
+        rationale: protocol.introductionRationale,
+        background: protocol.backgroundContext,
+        knowledgeGap: protocol.knowledgeGap,
+        objectives: protocol.secondaryObjectives,
+        researchQuestions: questions,
+        formulationFramework: protocol.formulationFramework,
+        objectivesPICO: protocol.objectivesPICO,
+        objectivesPICOC: protocol.objectivesPICOC,
+        objectivesPEO: protocol.objectivesPEO,
+        objectivesSPIDER: protocol.objectivesSPIDER,
+        inclusion: protocol.eligibilityCriteria.inclusion,
+        exclusion: protocol.eligibilityCriteria.exclusion,
+        groupingForSynthesis: protocol.eligibilityCriteria.groupingForSynthesis,
+        timeframe: protocol.eligibilityCriteria.timeframe,
+        language: protocol.eligibilityCriteria.language,
+      },
+      executedReviewFlow: {
+        counts,
+        uploadedDatabaseSources: counts.identifiedDbSources || [],
+        includedRecordCount: includedRecords.length,
+        selectionStatement:
+          "Reviewer-confirmed title/abstract inclusions are final in this workflow. Full-text retrieval and eligibility assessment were not performed.",
+        appraisalStatement:
+          "Abstract-level reporting completeness only; Unclear means not reported in the abstract, not high risk of bias.",
+      },
+      risRecords: risEvidence,
+      studyCharacteristics: characteristics,
+      reportingAssessments,
+      finalizedSynthesis: {
+        descriptiveSynthesis: synthesis.descriptiveSynthesis,
+        studyEvidence: synthesis.studyEvidence,
+        subtopics: synthesis.subtopics,
+        researchQuestionFindings: synthesis.rqFindings,
+        clusters: synthesis.clusters,
+        crossStudySynthesis: synthesis.crossStudySynthesis,
+        researchGaps: synthesis.researchGaps,
+        futureResearchAgenda: synthesis.futureResearchAgenda,
+        keyFindingsTable: synthesis.keyFindingsTable,
+      },
+      reviewerDiscussion: discussion,
+    };
+
+    const prompt = `Write a submission-ready full systematic review manuscript for a high-impact peer-reviewed journal.
+
+Return ONLY valid JSON with exactly these fields:
+{
+  "title": "precise scientific title",
+  "abstract": {
+    "bg": "Background",
+    "obj": "Objective",
+    "meth": "Methods",
+    "res": "Results",
+    "concl": "Conclusion",
+    "keywords": ["3 to 6 keywords"]
+  },
+  "introduction": "3 to 6 coherent academic paragraphs",
+  "methods": "6 to 10 coherent academic paragraphs",
+  "results": "8 to 15 coherent academic paragraphs",
+  "discussion": "6 to 10 coherent academic paragraphs",
+  "conclusion": "2 to 3 coherent academic paragraphs",
+  "keywords": ["3 to 6 keywords"]
+}
+
+The supplied evidence bundle contains the approved protocol, the actual uploaded RIS records and abstracts, reviewer-confirmed selection, abstract-level reporting assessments, study characteristics, and the finalized qualitative synthesis.
+
+MANUSCRIPT STANDARD:
+- Write a conventional original systematic review manuscript, not a magazine article, briefing, blog post, evidence report, or list of study summaries.
+- Use formal journal prose with numbered section logic: Introduction; Methods; Results; Discussion; Conclusion.
+- Consolidate the evidence into comparative scientific claims. Do not merely enumerate individual studies.
+- Use paragraphs and normal academic subheadings inside the section text. Do not use bullets, checklists, promotional language, decorative labels, or conversational phrasing.
+- The manuscript must be complete enough for editorial review, while remaining explicit about the abstract-only evidence boundary.
+
+EVIDENCE AND CITATION RULES:
+- Every Methods and Results statement must be directly supported by the supplied protocol, counts, RIS fields/abstracts, reviewer-confirmed decisions, reporting assessments, or finalized synthesis.
+- Use the finalized synthesis to consolidate patterns, contrasts, themes, gaps, and agenda items, but do not add conclusions absent from it.
+- When making a direct claim about one or more included studies in Results or Discussion, append one or more exact citation markers in the form {{recordId}}. Only use recordId values supplied in the RIS bundle. The application will convert valid markers to author-year citations.
+- Do not cite or invent studies that are not in the RIS bundle. Do not invent references, sample sizes, locations, outcomes, validation details, effect estimates, confidence intervals, p-values, heterogeneity statistics, or causal effects.
+- Do not claim full-text retrieval, full-text assessment, duplicate independent review, adjudication, formal risk-of-bias appraisal, GRADE, meta-analysis, pooled effects, or forest plots.
+- Report “Unclear” as “not reported in the available abstract,” never as high risk or poor quality.
+- State clearly that quantitative synthesis was not applicable or not justified because outcome definitions, study designs, and reported measures were not sufficiently comparable.
+- The reference list will be generated from the included RIS records; do not create a separate invented reference list in the prose.
+
+INTRODUCTION EXCEPTION:
+- You may use scientific judgement to improve the rationale, conceptual framing, and motivation in the Introduction. Do not add unsupported numerical prevalence, named prior studies, citations, or claims of effectiveness. Keep the Introduction aligned with the approved topic, framework, objectives, and knowledge gap.
+
+Evidence bundle:
+${JSON.stringify(manuscriptEvidence)}`;
+
+    try {
+      const text = await callAI(
+        prompt,
+        "You are a senior systematic-review author and medical/scientific editor. Produce a rigorous, evidence-traceable journal manuscript, not a magazine-style summary.",
+        aiConfig
+      );
+      const parsed = parseJSONLoose(text);
+      if (!parsed?.introduction || !parsed?.methods || !parsed?.results || !parsed?.discussion || !parsed?.conclusion) {
+        throw new Error("The AI response did not contain all required manuscript sections.");
+      }
+      const normalize = (value: unknown) => resolveCitationMarkers(String(value || "").trim());
+      const normalizedAbstract = {
+        bg: normalize(parsed.abstract?.bg || ""),
+        obj: normalize(parsed.abstract?.obj || ""),
+        meth: normalize(parsed.abstract?.meth || ""),
+        res: normalize(parsed.abstract?.res || ""),
+        concl: normalize(parsed.abstract?.concl || ""),
+        keywords: Array.isArray(parsed.abstract?.keywords)
+          ? parsed.abstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
+          : [],
+      };
+      const normalized: StructuredJournalManuscript = {
+        title: normalize(parsed.title || protocol.title),
+        abstract: normalizedAbstract,
+        introduction: normalize(parsed.introduction),
+        methods: normalize(parsed.methods),
+        results: normalize(parsed.results),
+        discussion: normalize(parsed.discussion),
+        conclusion: normalize(parsed.conclusion),
+        keywords: Array.isArray(parsed.keywords)
+          ? parsed.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
+          : normalizedAbstract.keywords,
+      };
+      setGeneratedManuscript(normalized);
+      setGeneratedAbstract(normalizedAbstract);
+    } catch (error: any) {
+      setManuscriptError(error?.message || "The full journal manuscript could not be generated.");
+    } finally {
+      setGeneratingManuscript(false);
+    }
+  };
+
   const generateFullMarkdown = () => {
+    if (generatedManuscript) {
+      const manuscript = generatedManuscript;
+      let generated = `# ${manuscript.title}\n\n`;
+      generated += `## Abstract\n\n**Background:** ${manuscript.abstract.bg}\n\n**Objective:** ${manuscript.abstract.obj}\n\n**Methods:** ${manuscript.abstract.meth}\n\n**Results:** ${manuscript.abstract.res}\n\n**Conclusion:** ${manuscript.abstract.concl}\n\n**Keywords:** ${manuscript.keywords.join(", ")}\n\n`;
+      generated += `## 1. Introduction\n\n${manuscript.introduction}\n\n`;
+      generated += `## 2. Methods\n\n${manuscript.methods}\n\n`;
+      generated += `## 3. Results\n\n${manuscript.results}\n\n`;
+      generated += `## 4. Discussion\n\n${manuscript.discussion}\n\n`;
+      generated += `## 5. Conclusion\n\n${manuscript.conclusion}\n\n`;
+      generated += `## References\n\n`;
+      includedRecords.forEach((record) => {
+        const authors = (record.authors || []).join(", ") || "Unknown authors";
+        generated += `${authors} (${record.year || "n.d."}). ${record.title}. *${record.source || "Journal"}*${record.doi ? `, https://doi.org/${record.doi}` : ""}.\n\n`;
+      });
+      return generated;
+    }
+
     let md = `# ${protocol.title || "Systematic Literature Review Manuscript"}\n\n`;
     md += `**Methodology:** ${protocol.reviewType}\n`;
     md += `\n---\n\n`;
@@ -447,6 +660,29 @@ Return ONLY JSON:
   };
 
   const handleDownloadDoc = () => {
+    if (generatedManuscript) {
+      const manuscript = generatedManuscript;
+      const paragraphHtml = (value: string) =>
+        renderJournalText(value).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+      const abstractHtml = `
+        <div class="abstract-box">
+          <h2 style="margin-top: 0; border-bottom: none; font-size: 13pt;">Abstract</h2>
+          <p><strong>Background:</strong> ${escapeHtml(manuscript.abstract.bg)}</p>
+          <p><strong>Objective:</strong> ${escapeHtml(manuscript.abstract.obj)}</p>
+          <p><strong>Methods:</strong> ${escapeHtml(manuscript.abstract.meth)}</p>
+          <p><strong>Results:</strong> ${escapeHtml(manuscript.abstract.res)}</p>
+          <p><strong>Conclusion:</strong> ${escapeHtml(manuscript.abstract.concl)}</p>
+          <p><strong>Keywords:</strong> <em>${escapeHtml(manuscript.keywords.join(", "))}</em></p>
+        </div>`;
+      const generatedDocHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(manuscript.title)}</title><style>body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.6;color:#1e293b;margin:40px}h1{font-size:20pt;color:#0f172a}h2{font-size:14pt;color:#1e293b;border-bottom:1.5pt solid #cbd5e1;padding-bottom:4px;margin-top:28px}p{margin-bottom:12px;text-align:justify}.abstract-box{background:#f1f5f9;border-left:3pt solid #4338ca;padding:14px 18px;margin-bottom:24px}</style></head><body><h1>${escapeHtml(manuscript.title)}</h1>${abstractHtml}<h2>1. Introduction</h2>${paragraphHtml(manuscript.introduction)}<h2>2. Methods</h2>${paragraphHtml(manuscript.methods)}<h2>3. Results</h2>${paragraphHtml(manuscript.results)}<h2>4. Discussion</h2>${paragraphHtml(manuscript.discussion)}<h2>5. Conclusion</h2>${paragraphHtml(manuscript.conclusion)}<h2>References</h2>${includedRecords.map((record) => `<p>${escapeHtml((record.authors || []).join(", ") || "Unknown authors")} (${escapeHtml(String(record.year || "n.d."))}). ${escapeHtml(record.title)}. <em>${escapeHtml(record.source || "Journal")}</em>${record.doi ? `, doi:${escapeHtml(record.doi)}` : ""}.</p>`).join("")}</body></html>`;
+      const generatedBlob = new Blob([generatedDocHTML], { type: "application/msword;charset=utf-8" });
+      const generatedLink = document.createElement("a");
+      generatedLink.href = URL.createObjectURL(generatedBlob);
+      generatedLink.download = `${(manuscript.title || "Systematic_Review_Manuscript").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 55)}.doc`;
+      generatedLink.click();
+      return;
+    }
+
     const formatBadge = (val: string) => {
       if (val === "Yes") {
         return `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">Yes</span>`;
@@ -678,9 +914,18 @@ Return ONLY JSON:
 
         <div className="flex items-center gap-2 flex-wrap">
           <button
+            onClick={handleGenerateManuscript}
+            disabled={!abstractReady || generatingManuscript}
+            title={!abstractReady ? "Complete selection, extraction, reporting appraisal, and all synthesis stages first" : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-emerald-700 hover:bg-emerald-800 rounded-lg shadow-xs transition-colors cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            {generatingManuscript ? "Writing Manuscript..." : generatedManuscript ? "Regenerate Journal Manuscript" : "Generate Full Journal Manuscript"}
+          </button>
+          <button
             onClick={handleCopy}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            disabled={!generatedAbstract && !generatedManuscript}
+            title={!generatedAbstract && !generatedManuscript ? "Generate the journal manuscript or abstract before exporting" : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
@@ -688,8 +933,8 @@ Return ONLY JSON:
           </button>
           <button
             onClick={handleDownload}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            disabled={!generatedAbstract && !generatedManuscript}
+            title={!generatedAbstract && !generatedManuscript ? "Generate the journal manuscript or abstract before exporting" : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
           >
             <Download className="w-3.5 h-3.5" />
@@ -697,8 +942,8 @@ Return ONLY JSON:
           </button>
           <button
             onClick={handleDownloadDoc}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            disabled={!generatedAbstract && !generatedManuscript}
+            title={!generatedAbstract && !generatedManuscript ? "Generate the journal manuscript or abstract before exporting" : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-600" />
@@ -706,8 +951,8 @@ Return ONLY JSON:
           </button>
           <button
             onClick={() => window.print()}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
+            disabled={!generatedAbstract && !generatedManuscript}
+            title={!generatedAbstract && !generatedManuscript ? "Generate the journal manuscript or abstract before exporting" : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Printer className="w-3.5 h-3.5" />
@@ -772,6 +1017,11 @@ Return ONLY JSON:
               Abstract generation failed: {abstractError}
             </div>
           )}
+          {manuscriptError && (
+            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+              Full manuscript generation failed: {manuscriptError}
+            </div>
+          )}
 
           <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
             <p>
@@ -801,8 +1051,40 @@ Return ONLY JSON:
           </div>
         </section>
 
+        {generatedManuscript && (
+          <section className="space-y-6 border-t-2 border-emerald-200 pt-8">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/60 p-4 text-xs leading-5 text-emerald-950">
+              This version is structured as a conventional journal manuscript. Methods and Results are constrained to the supplied RIS records, abstracts, reviewer-confirmed decisions, reporting assessments, and finalized synthesis. Citation markers were resolved only when they matched an included RIS record.
+            </div>
+            {[
+              ["1. Introduction", generatedManuscript.introduction],
+              ["2. Methods", generatedManuscript.methods],
+              ["3. Results", generatedManuscript.results],
+              ["4. Discussion", generatedManuscript.discussion],
+              ["5. Conclusion", generatedManuscript.conclusion],
+            ].map(([heading, content]) => (
+              <section key={heading} className="space-y-3">
+                <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">{heading}</h2>
+                <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
+                  {renderJournalText(content).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+                </div>
+              </section>
+            ))}
+            <section className="space-y-3 border-t border-slate-200 pt-6">
+              <h2 className="text-xl font-bold text-slate-900">References</h2>
+              <div className="space-y-2 text-xs text-slate-600 leading-relaxed">
+                {includedRecords.map((record, index) => (
+                  <p key={index} className="text-justify">
+                    {(record.authors || []).join(", ") || "Unknown authors"} ({record.year || "n.d."}). {record.title}. <em>{record.source || "Journal"}</em>{record.doi ? `, doi:${record.doi}` : ""}.
+                  </p>
+                ))}
+              </div>
+            </section>
+          </section>
+        )}
+
         {/* Section 1: Introduction & Objectives */}
-        <section className="space-y-4">
+        <section className={generatedManuscript ? "hidden" : "space-y-4"}>
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
             1. Introduction and Academic Rationale
           </h2>
@@ -833,7 +1115,7 @@ Return ONLY JSON:
         </section>
 
         {/* Section 2: Methods (PICOC in statement paragraph, no bullet points) */}
-        <section className="space-y-4">
+        <section className={generatedManuscript ? "hidden" : "space-y-4"}>
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
             2. Methods
           </h2>
@@ -866,7 +1148,7 @@ Return ONLY JSON:
         </section>
 
         {/* Section 3: Results */}
-        <section className="space-y-6">
+        <section className={generatedManuscript ? "hidden" : "space-y-6"}>
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
             3. Results
           </h2>
@@ -1022,7 +1304,7 @@ Return ONLY JSON:
         </section>
 
         {/* Section 4: interpretation of synthesized results */}
-        <section className="space-y-4">
+        <section className={generatedManuscript ? "hidden" : "space-y-4"}>
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
             4. Discussion
           </h2>
@@ -1052,19 +1334,19 @@ Return ONLY JSON:
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className={generatedManuscript ? "hidden" : "space-y-3"}>
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">5. Limitations</h2>
           <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{discussion.item23bLimitationsOfEvidence}</p>
           <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{discussion.item23cLimitationsOfReviewProcess}</p>
         </section>
 
-        <section className="space-y-3">
+        <section className={generatedManuscript ? "hidden" : "space-y-3"}>
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">6. Conclusion</h2>
           <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{abstract.concl}</p>
         </section>
 
         {/* References */}
-        <section className="space-y-3 border-t border-slate-200 pt-6">
+        <section className={generatedManuscript ? "hidden" : "space-y-3 border-t border-slate-200 pt-6"}>
           <h2 className="text-xl font-bold text-slate-900">
             References of Included Studies
           </h2>

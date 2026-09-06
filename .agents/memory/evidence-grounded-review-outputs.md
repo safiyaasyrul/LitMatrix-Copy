@@ -9,6 +9,8 @@ The required qualitative synthesis chain is study → finding → comparison →
 
 Abstract-level appraisal must be framed as reporting completeness (for example, design, sample, outcome, validation, comparator, uncertainty, implementation, and direct target-outcome reporting). “Unclear” means not reported in the abstract; it must not be converted into a risk-of-bias, overall-quality, or certainty judgment.
 
+The manuscript export should use a conventional journal structure and consolidate the included RIS records, abstracts, reviewer decisions, reporting assessments, and finalized synthesis. Introduction framing may use scientific judgement, but Methods and Results must remain traceable to the supplied evidence; valid study citation markers resolve only to included record IDs.
+
 **Why:** Abstracts provide limited evidence and cannot support claims about unreported methods or results. A single traceable qualitative chain keeps six workflow pages and the manuscript consistent, while clinical certainty tools and quantitative displays would overstate heterogeneous abstract-level evidence.
 
 **How to apply:** Derive counts from stored records and explicit reviewer decisions. Label outputs as abstract-based; use “not reported” for absent fields. Finalize Discussion and Manuscript only when all six qualitative stages exist and remain traceable to record IDs.
