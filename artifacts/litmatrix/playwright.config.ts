@@ -21,5 +21,13 @@ export default defineConfig({
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
     },
+    {
+      name: "firefox",
+      // Keep Firefox in the matrix because Blob-backed downloads can differ
+      // across engines. Its native GTK/X11 libraries are declared in the
+      // workspace .replit file. Install the browser binaries with:
+      // pnpm exec playwright install chromium firefox
+      use: { ...devices["Desktop Firefox"] },
+    },
   ],
 });
