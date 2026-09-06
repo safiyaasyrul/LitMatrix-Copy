@@ -502,6 +502,14 @@ ${JSON.stringify(draft)}`;
         keyFindingsTable: synthesis.keyFindingsTable,
       },
       reviewerDiscussion: discussion,
+      sourceBoundary: {
+        empiricalSource:
+          "Only the uploaded RIS record metadata and abstracts may support empirical facts, study findings, comparisons, gaps, and implications.",
+        protocolUse:
+          "The approved protocol may define the review scope and report the review methods, but it is not evidence of study findings.",
+        synthesisUse:
+          "The finalized synthesis is a derived organizational map. Every empirical statement taken from it must be checked against the RIS records and omitted if the RIS records do not support it.",
+      },
     };
 
     const prompt = `Write a submission-ready full systematic review manuscript for a high-impact peer-reviewed journal.
@@ -525,13 +533,22 @@ Return ONLY valid JSON with exactly these fields:
   "keywords": ["3 to 6 keywords"]
 }
 
-The supplied evidence bundle contains the approved protocol, the actual uploaded RIS records and abstracts, reviewer-confirmed selection, abstract-level reporting assessments, study characteristics, and the finalized qualitative synthesis.
+The supplied evidence bundle contains the approved protocol, the actual uploaded RIS records and abstracts, reviewer-confirmed selection, abstract-level reporting assessments, study characteristics, and a finalized qualitative synthesis map.
+
+SOURCE BOUNDARY — THIS IS NON-NEGOTIABLE:
+- The uploaded RIS records and their abstracts are the sole source of empirical facts and findings. Use no external knowledge, background literature, facts from the reference PDF, named studies, prevalence claims, mechanisms, effectiveness claims, or contextual details that are not present in the RIS records.
+- The approved protocol may be used only to describe the review question, scope, eligibility criteria, workflow, and methods. It cannot be used as evidence that a study found something.
+- Study characteristics, reporting assessments, reviewer discussion, and finalized synthesis are derived annotations. Use them to organize the manuscript, but verify every empirical statement against the matching RIS record or abstract. If a derived statement cannot be verified in the RIS bundle, omit it.
+- When an abstract does not report a detail, say that it was not reported in the available abstract. Never fill the gap with domain knowledge.
 
 MANUSCRIPT STANDARD:
-- Write a conventional original systematic review manuscript, not a magazine article, briefing, blog post, evidence report, or list of study summaries.
+- Write a conventional original systematic review manuscript with a distinct authorial voice, not a magazine article, briefing, blog post, evidence report, or list of study summaries.
 - Use formal journal prose with numbered section logic: Introduction; Methods; Results; Discussion; Conclusion.
 - Consolidate the evidence into comparative scientific claims. Do not merely enumerate individual studies.
 - Use continuous academic paragraphs and normal academic subheadings inside the section text. Do not use bullets, numbered lists, checklists, promotional language, decorative labels, or conversational phrasing.
+- Do not write a fill-in template. Avoid repeating stock openings such as “This review,” “The included studies,” “The literature,” or “Overall” at the start of successive paragraphs. Build a logical argument: establish the review question, explain how the evidence was assembled, compare what the RIS abstracts report, identify where findings converge or diverge, and end with only the implications supported by those records.
+- Write synthesis as interpretation across evidence, not as a sequence of abstracts. Group records by the themes and research questions that are actually supported by their titles and abstracts; compare methods, populations, settings, outcomes, and directions of findings only when those details are reported.
+- Do not force symmetry. If a research question, theme, outcome, or comparison has little or no directly reported evidence in the RIS bundle, state that limitation plainly rather than manufacturing a balanced subsection.
 - The abstract clauses must read as one uninterrupted paragraph when concatenated. Do not prefix them with “Background,” “Objective,” “Methods,” “Results,” or “Conclusion.”
 - Use numbered manuscript subheadings on their own line when the synthesis moves to a new analytical unit. In Results, organize the synthesis as: study selection and flow; characteristics of included evidence; one subsection for each approved research question; integrated cross-study thematic synthesis; evidence gaps; and future research agenda. In Discussion, organize the interpretation as: principal findings; interpretation by research question or theme; contradictions and evidence limitations; review-process limitations; and implications.
 - Each numbered subheading must be followed by one or more continuous prose paragraphs. Do not turn research gaps, future agenda items, themes, or study characteristics into bullet lists.
@@ -539,7 +556,7 @@ MANUSCRIPT STANDARD:
 
 EVIDENCE AND CITATION RULES:
 - Every Methods and Results statement must be directly supported by the supplied protocol, counts, RIS fields/abstracts, reviewer-confirmed decisions, reporting assessments, or finalized synthesis.
-- Use the finalized synthesis to consolidate patterns, contrasts, themes, gaps, and agenda items, but do not add conclusions absent from it.
+- Use the finalized synthesis to locate candidate patterns, contrasts, themes, gaps, and agenda items, but verify each one against the RIS records before writing it and do not add conclusions absent from those records.
 - When making a direct claim about one or more included studies in Results or Discussion, append one or more exact citation markers in the form {{recordId}}. Only use recordId values supplied in the RIS bundle. The application will convert valid markers to author-year citations.
 - Do not cite or invent studies that are not in the RIS bundle. Do not invent references, sample sizes, locations, outcomes, validation details, effect estimates, confidence intervals, p-values, heterogeneity statistics, or causal effects.
 - Do not claim full-text retrieval, full-text assessment, duplicate independent review, adjudication, formal risk-of-bias appraisal, GRADE, meta-analysis, pooled effects, or forest plots.
@@ -547,8 +564,9 @@ EVIDENCE AND CITATION RULES:
 - State clearly that quantitative synthesis was not applicable or not justified because outcome definitions, study designs, and reported measures were not sufficiently comparable.
 - The reference list will be generated from the included RIS records; do not create a separate invented reference list in the prose.
 
-INTRODUCTION EXCEPTION:
-- You may use scientific judgement to improve the rationale, conceptual framing, and motivation in the Introduction. Do not add unsupported numerical prevalence, named prior studies, citations, or claims of effectiveness. Keep the Introduction aligned with the approved topic, framework, objectives, and knowledge gap.
+AUTHORIAL WRITING:
+- You may use your own words to create transitions, conceptual framing, and a coherent rationale, but those words must not introduce factual claims beyond the RIS records and approved protocol. The Introduction may explain why the approved question warrants synthesis, but it must not add external statistics, named prior studies, citations, or effectiveness claims.
+- The Results and Discussion must remain traceable to RIS record IDs. Use citation markers such as {{recordId}} for study-level or comparative claims, and do not use citation markers for general method statements.
 
 Evidence bundle:
 ${JSON.stringify(manuscriptEvidence)}`;
