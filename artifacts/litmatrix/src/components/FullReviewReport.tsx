@@ -316,23 +316,32 @@ export default function FullReviewReport({
       protocol.synthesisMethods?.synthesisModel ||
       protocol.eligibilityCriteria.groupingForSynthesis ||
       "narrative and thematic synthesis";
+    const risAbstractEvidence = includedRecords.map((record) => ({
+      recordId: record.id,
+      title: record.title,
+      authors: record.authors,
+      year: record.year,
+      source: record.source,
+      abstract: record.abstract,
+    }));
 
-    const prompt = `Generate a structured systematic-review abstract from FINALIZED SYNTHESIS-LEVEL EVIDENCE only.
+    const prompt = `Generate a structured systematic-review abstract from the uploaded RIS records and their abstracts.
 
 Review title: ${protocol.title}
 Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
 Approved objectives: ${JSON.stringify(objectives)}
-Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Evidence source: citation metadata and abstracts only. Synthesis approach: ${synthesisApproach}. Appraisal approach: structured abstract-reporting checklist; no formal risk-of-bias judgment.
-Final synthesis: ${JSON.stringify(synthesisEvidence)}
+Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Synthesis approach: ${synthesisApproach}. Appraisal approach: structured abstract-reporting checklist; no formal risk-of-bias judgment.
+Uploaded RIS records and abstracts (sole empirical source): ${JSON.stringify(risAbstractEvidence)}
+Finalized synthesis map to use only for organization, then verify against the RIS records: ${JSON.stringify(synthesisEvidence)}
 Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
 
 STRICT ABSTRACT RULES:
 1. Return Background, Objective, Methods, Results, Conclusion, and Keywords.
-2. Results must answer the approved research questions using the finalized cross-study synthesis. Summarize dominant patterns, approaches, outcomes, consistencies, contradictions, weak evidence, and gaps.
+2. Results must answer the approved research questions by comparing what the uploaded RIS abstracts actually report. Use the finalized synthesis only to locate candidate patterns, then verify every pattern against the RIS records. Summarize approaches, outcomes, consistencies, contradictions, weak reporting, and gaps without inventing details.
 3. Do not list studies or write a sequence of individual-study findings.
 4. Do not include author names, years, citations, reference numbers, DOI links, or URLs anywhere.
 5. Do not derive findings from screening counts, keyword frequencies, titles alone, excluded records, or records with missing abstracts.
-6. Use only the supplied finalized synthesis. If a relationship is not supported there, omit it.
+6. Use only the supplied RIS records and abstracts for empirical content. If a relationship is not directly supported by those records, omit it.
 7. Do not invent numerical values. Use recorded flow counts only in Methods or Results when useful.
 8. Do not report pooled effects, confidence intervals, heterogeneity statistics, GRADE ratings, p-values, or meta-analysis unless present in the supplied finalized synthesis.
 9. The Conclusion must state what the total evidence means, the principal research gap, and cautious implications. It must not turn association, prediction, modelling performance, or theoretical potential into demonstrated real-world effectiveness.
@@ -387,7 +396,7 @@ Return ONLY valid JSON with the exact same structure and fields as the input.
 
 Correct spelling, grammar, punctuation, sentence structure, agreement, tense consistency, word choice, and awkward repetition. Improve transitions and formal journal readability. Keep all sections as continuous academic prose paragraphs. Preserve numbered manuscript subheadings such as “3.1 Study Selection” and “4.1 Principal Findings” on their own lines; do not turn them into bullets, numbered lists, magazine-style labels, promotional language, or decorative formatting.
 
-Do not change the scientific meaning, study counts, dates, methods, results, limitations, evidence strength, citation markers, record identifiers, or conclusions. Do not add facts, citations, studies, numerical results, or interpretations. Do not remove any evidence statement. The abstract segments must remain suitable for one single continuous abstract paragraph when concatenated.
+Do not change the scientific meaning, study counts, dates, methods, results, limitations, evidence strength, citation markers, record identifiers, or conclusions. Do not add facts, citations, studies, numerical results, external context, or interpretations. Do not remove any evidence statement. Treat the uploaded RIS records and abstracts as the only factual source; grammar correction must never turn a derived synthesis phrase into a new factual claim. The abstract segments must remain suitable for one single continuous abstract paragraph when concatenated.
 
 Input manuscript:
 ${JSON.stringify(draft)}`;
