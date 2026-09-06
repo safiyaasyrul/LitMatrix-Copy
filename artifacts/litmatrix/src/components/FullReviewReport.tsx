@@ -10,6 +10,7 @@ import {
 import { Download, Copy, Printer, Check, BookOpen, FileText, CheckCircle2, ShieldAlert, Sparkles, Layers, SlidersHorizontal, Quote } from "lucide-react";
 import PrismaDiagram from "./PrismaDiagram";
 import { AIProviderConfig, callAI, parseJSONLoose } from "../utils/aiClient";
+import { QUALITATIVE_SYNTHESIS_GUARD } from "../utils/synthesisState";
 
 interface StructuredAbstract {
   bg: string;
@@ -1212,6 +1213,9 @@ ${JSON.stringify(manuscriptEvidence)}`;
           </h2>
           <p className="text-xs text-slate-500 mt-1">
             Publication-style manuscript with a single-paragraph abstract, numbered analytical subsections, and narrative cross-study synthesis.
+          </p>
+          <p role="note" className="text-xs text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2 mt-3">
+            {QUALITATIVE_SYNTHESIS_GUARD}
           </p>
         </div>
 

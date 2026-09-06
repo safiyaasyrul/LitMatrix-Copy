@@ -1,5 +1,15 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import {
+  sampleCharacteristics,
+  sampleDiscussion,
+  sampleProtocol,
+  sampleRecords,
+  sampleReportingAssessments,
+  sampleScreening,
+  sampleSynthesis,
+} from "../src/data/sampleDataset";
+import { QUALITATIVE_SYNTHESIS_GUARD } from "../src/utils/synthesisState";
 
 const manuscriptResponse = {
   title: "Stubbed Evidence-Grounded Manuscript",
@@ -53,6 +63,79 @@ function extractWordHeadings(wordHtml: string) {
     ([, level, heading]) => `${level.toLowerCase()}:${heading.replace(/<[^>]+>/g, "").trim()}`,
   );
 }
+
+test("keeps legacy saved synthesis qualitative after reload and report navigation", async ({ page }) => {
+  const legacySynthesis = {
+    ...sampleSynthesis,
+    categories: [{ name: "LEGACY_CATEGORY_OUTPUT" }],
+    gradeCertainty: [{ outcome: "LEGACY_CERTAINTY_OUTPUT", overallCertainty: "High" }],
+    gradeItems: [{ label: "LEGACY_GRADE_OUTPUT" }],
+    metaAnalysisData: { pooledEstimate: "LEGACY_META_ANALYSIS_OUTPUT" },
+    riskOfBias: [{ overall: "LEGACY_RISK_OF_BIAS_OUTPUT" }],
+    riskOfBiasItems: [{ recordId: "LEGACY_APPRAISAL_OUTPUT", overall: "Low" }],
+    forestPlotEstimates: [{ study: "LEGACY_FOREST_PLOT_OUTPUT", effectSize: 0.86 }],
+    pooledEffectEstimate: { effectMeasure: "LEGACY_POOLED_EFFECT_OUTPUT", effectSize: 0.86 },
+    heterogeneityDiscussion: "LEGACY_HETEROGENEITY_OUTPUT",
+  };
+  const persistedState = {
+    slr_protocol_v1: sampleProtocol,
+    slr_records_v1: sampleRecords,
+    slr_dupes_v1: 0,
+    slr_screening_v1: sampleScreening,
+    slr_chars_v1: sampleCharacteristics,
+    slr_reporting_appraisal_v1: sampleReportingAssessments,
+    slr_synthesis_v1: legacySynthesis,
+    slr_discussion_v1: sampleDiscussion,
+  };
+
+  await page.addInitScript((state) => {
+    for (const [key, value] of Object.entries(state)) {
+      localStorage.setItem(key, JSON.stringify(value));
+    }
+  }, persistedState);
+
+  await page.goto("/");
+  await page.reload();
+
+  const body = page.locator("body");
+  const legacyMarkers = [
+    "LEGACY_CATEGORY_OUTPUT",
+    "LEGACY_CERTAINTY_OUTPUT",
+    "LEGACY_GRADE_OUTPUT",
+    "LEGACY_META_ANALYSIS_OUTPUT",
+    "LEGACY_RISK_OF_BIAS_OUTPUT",
+    "LEGACY_APPRAISAL_OUTPUT",
+    "LEGACY_FOREST_PLOT_OUTPUT",
+    "LEGACY_POOLED_EFFECT_OUTPUT",
+    "LEGACY_HETEROGENEITY_OUTPUT",
+  ];
+
+  await page.getByRole("button", { name: "Descriptive Synthesis" }).click();
+  await expect(page.getByRole("heading", { name: "Descriptive Synthesis", exact: true })).toBeVisible();
+  await expect(body).toContainText(QUALITATIVE_SYNTHESIS_GUARD);
+  for (const marker of legacyMarkers) {
+    await expect(body).not.toContainText(marker);
+  }
+
+  for (const stage of [
+    ["Thematic Synthesis", "Thematic Synthesis"],
+    ["Cluster Analysis", "Cluster Analysis"],
+    ["Cross-study Evidence Synthesis", "Cross-study Evidence Synthesis"],
+    ["Research Gap Analysis", "Research Gap Analysis"],
+    ["Future Research Agenda", "Future Research Agenda"],
+  ]) {
+    await page.getByRole("button", { name: stage[0] }).click();
+    await expect(page.getByRole("heading", { name: stage[1], exact: true })).toBeVisible();
+    await expect(body).toContainText(QUALITATIVE_SYNTHESIS_GUARD);
+  }
+
+  await page.getByRole("button", { name: "Consolidated Manuscript" }).click();
+  await expect(page.getByRole("heading", { name: "Full Systematic Review Manuscript", exact: true })).toBeVisible();
+  await expect(body).toContainText(QUALITATIVE_SYNTHESIS_GUARD);
+  for (const marker of legacyMarkers) {
+    await expect(body).not.toContainText(marker);
+  }
+});
 
 test("generates an evidence-grounded manuscript with matching Markdown and Word structure", async ({
   page,

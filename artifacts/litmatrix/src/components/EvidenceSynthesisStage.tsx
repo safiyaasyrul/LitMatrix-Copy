@@ -259,6 +259,9 @@ Return ONLY compact JSON:
         {synthesis.status === "finalized" ? <CheckCircle2 className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
         {synthesis.status === "finalized" ? "Complete evidence chain finalized and available to Discussion and Manuscript." : "This page is awaiting a finalized evidence chain."}
       </div>
+      <div role="note" className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-xs text-indigo-950">
+        {QUALITATIVE_SYNTHESIS_GUARD}
+      </div>
 
       {phase === "descriptive" && <div className="space-y-4">
         <EvidenceCard title="Evidence-base overview" text={synthesis.descriptiveSynthesis?.overview} />
