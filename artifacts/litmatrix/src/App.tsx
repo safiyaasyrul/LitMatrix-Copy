@@ -673,7 +673,7 @@ export default function App() {
                   PRISMA 2020 Flow Diagram Generator
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Abstract-based flow of records through identification, title/abstract screening, and reviewer-confirmed inclusion, with SVG and high-resolution PNG download.
+                  Abstract-based flow of records through identification, title/abstract screening, and AI-finalized inclusion, with SVG and high-resolution PNG download.
                 </p>
               </div>
 

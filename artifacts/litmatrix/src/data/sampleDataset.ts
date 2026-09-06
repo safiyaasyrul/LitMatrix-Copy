@@ -86,7 +86,7 @@ export const BLANK_PROTOCOL: SLRProtocol = {
     toolName: "Abstract-level methodological reporting checklist; no formal risk-of-bias assessment.",
     numReviewers: 1,
     domainsAssessed: "Study design, dataset/sample, outcome definition, validation, comparator/baseline, external validation, uncertainty, implementation, direct target outcome, and abstract reporting completeness.",
-    automationTools: "AI-assisted abstract reporting suggestions; every judgment requires reviewer confirmation.",
+    automationTools: "AI-assisted abstract reporting assessment based on the available abstract.",
   },
   effectMeasures: "Not prespecified. Quantitative pooling requires comparable, extractable effect data.",
   synthesisMethods: {
@@ -201,7 +201,7 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     numReviewers: 2,
     independentScreening: true,
     disputeResolution: "Consensus through joint re-evaluation or adjudication by a third senior reviewer.",
-    automationTools: "AI-assisted title/abstract screening using relevance threshold (>= 80% score) followed by human reviewer confirmation.",
+    automationTools: "AI-assisted title/abstract screening using the approved eligibility threshold (>= 75% score) with automatic final decisions.",
     screeningThreshold: 80,
   },
   dataCollectionProcess: {
@@ -219,7 +219,7 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     toolName: "Abstract-level reporting checklist; formal risk-of-bias tools were not applied because full texts were not retrieved.",
     numReviewers: 2,
     domainsAssessed: "Study design, dataset/sample, outcome definition, validation, comparator/baseline, external validation, uncertainty, implementation, direct target outcome, and abstract reporting completeness.",
-    automationTools: "AI-assisted abstract reporting suggestions; every judgment requires reviewer confirmation.",
+    automationTools: "AI-assisted abstract reporting assessment based on the available abstract.",
   },
   effectMeasures: "Not applicable by default. Quantitative synthesis is not justified unless comparable, extractable effect data and an approved quantitative plan are supplied.",
   synthesisMethods: {
@@ -728,7 +728,7 @@ export const SAMPLE_DISCUSSION_SECTIONS: DiscussionSections = {
   item23bLimitationsOfEvidence:
     "The evidence base reports heterogeneous outcomes and does not consistently describe calibration, uncertainty, external validation, implementation detail, or reproducibility. The variation in study design and population means that reported performance values should not be interpreted as direct head-to-head comparisons or pooled effects.",
   item23cLimitationsOfReviewProcess:
-    "This review is limited to the supplied citation metadata and abstracts. Reviewer-confirmed title/abstract decisions define inclusion in this workflow; full-text retrieval and eligibility assessment were not performed. The review therefore does not claim formal risk-of-bias, certainty, causal, or quantitative meta-analytic conclusions.",
+    "This review is limited to the supplied citation metadata and abstracts. AI-finalized title/abstract decisions define inclusion in this workflow; full-text retrieval and eligibility assessment were not performed. The review therefore does not claim formal risk-of-bias, certainty, causal, or quantitative meta-analytic conclusions.",
   item23dImplications:
     "The findings support prospective, multi-site validation with complete calibration and uncertainty reporting, followed by clinical-utility evaluation that measures workflow, patient, equity, and resource outcomes. They do not by themselves justify deployment or claims of effectiveness across settings.",
 };

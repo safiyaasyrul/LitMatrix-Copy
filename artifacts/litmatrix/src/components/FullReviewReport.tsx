@@ -693,7 +693,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
     md += `${executedSearchNarrative}\n\n`;
 
     md += `### 2.4 Selection Process\n`;
-    md += `Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
+    md += `Eligibility was determined through AI-finalized title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
 
     md += `### 2.5 Methodological Reporting and Evidence Appraisal\n`;
     md += `The included records were assessed with an abstract-level reporting checklist. The checklist records whether study design, sample or dataset, outcomes, validation, comparators, external validation, uncertainty, implementation, and the direct target outcome were reported. “Unclear” means not reported in the available abstract; it is not a risk-of-bias judgment. Formal risk-of-bias and certainty-of-evidence assessments were not performed.\n\n`;
@@ -884,7 +884,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
   <p>${executedSearchNarrative}</p>
 
   <h3>2.4 Selection Process</h3>
-  <p>Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.</p>
+  <p>Eligibility was determined through AI-finalized title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.</p>
 
   <h3>2.5 Methodological Reporting and Evidence Appraisal</h3>
   <p>Included records were assessed with an abstract-level reporting checklist. “Unclear” means that an item was not reported in the available abstract; it is not a high-risk judgment. Formal risk-of-bias and certainty-of-evidence assessments were not performed.</p>
@@ -1259,7 +1259,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              Eligibility was determined through reviewer-confirmed title and abstract screening. {includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.
+              Eligibility was determined through AI-finalized title and abstract screening. {includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Reporting and Evidence Appraisal</h3>
