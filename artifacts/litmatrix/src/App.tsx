@@ -45,7 +45,6 @@ import {
 
 import {
   FileSpreadsheet,
-  Search,
   UploadCloud,
   CheckCircle,
   GitBranch,
@@ -53,9 +52,6 @@ import {
   BookOpen,
   FileText,
   Sparkles,
-  ChevronRight,
-  Menu,
-  X,
   RotateCcw,
   Check,
   Key,
@@ -519,25 +515,26 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* Stage 1: AI Providers & API Keys */}
+          {/* Tab 1: Strategy */}
           {activeStage === 0 && (
-            <ApiKeySection
-              keysConfig={keysConfig}
-              onUpdateKeysConfig={setKeysConfig}
-              onContinueToNext={() => setActiveStage(1)}
-            />
-          )}
-
-          {/* Stage 2: Protocol & PICO Objectives */}
-          {activeStage === 1 && (
             <div className="space-y-6">
+              <ApiKeySection
+                keysConfig={keysConfig}
+                onUpdateKeysConfig={setKeysConfig}
+                onContinueToNext={() => document.getElementById("methods-protocol-container")?.scrollIntoView({ behavior: "smooth" })}
+              />
               <TopicStrategy
                 protocol={protocol}
                 onUpdateProtocol={setProtocol}
                 aiConfig={activeAIConfig}
-                onContinueToSearch={() => setActiveStage(2)}
+                onContinueToSearch={() => document.getElementById("search-strings-container")?.scrollIntoView({ behavior: "smooth" })}
               />
               <MethodsProtocol
+                protocol={protocol}
+                onUpdateProtocol={setProtocol}
+                aiConfig={activeAIConfig}
+              />
+              <SearchStringsGenerator
                 protocol={protocol}
                 onUpdateProtocol={setProtocol}
                 aiConfig={activeAIConfig}
@@ -545,17 +542,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 3: Information Sources & Search Strings */}
-          {activeStage === 2 && (
-            <SearchStringsGenerator
-              protocol={protocol}
-              onUpdateProtocol={setProtocol}
-              aiConfig={activeAIConfig}
-            />
-          )}
-
-          {/* Stage 4: Records Import & Deduplication */}
-          {activeStage === 3 && (
+          {/* Tab 2: Data Import */}
+          {activeStage === 1 && (
             <RecordsImport
               records={records}
               onUpdateRecords={setRecords}
@@ -567,20 +555,16 @@ export default function App() {
             />
           )}
 
-          {/* Stage 5: Study Selection & Eligibility Criteria */}
-          {activeStage === 4 && (
-            <ScreeningSection
-              records={records}
-              screening={screening}
-              onUpdateScreening={setScreening}
-              protocol={protocol}
-              aiConfig={activeAIConfig}
-            />
-          )}
-
-          {/* Stage 6: PRISMA 2020 Flow Diagram */}
-          {activeStage === 5 && (
+          {/* Tab 3: Screening */}
+          {activeStage === 2 && (
             <div className="space-y-4">
+              <ScreeningSection
+                records={records}
+                screening={screening}
+                onUpdateScreening={setScreening}
+                protocol={protocol}
+                aiConfig={activeAIConfig}
+              />
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
                   PRISMA 2020 Item 16a
@@ -597,26 +581,30 @@ export default function App() {
             </div>
           )}
 
-          {(["descriptive", "thematic", "clusters", "cross-study", "gaps", "agenda"] as EvidenceSynthesisPhase[]).map(
-            (phase, index) =>
-              activeStage === 6 + index && (
-                <React.Fragment key={phase}>
-                  <EvidenceSynthesisStage
-                    phase={phase}
-                    synthesis={synthesis}
-                    onUpdateSynthesis={setSynthesis}
-                    includedRecords={includedRecords}
-                    characteristics={characteristics}
-                    protocol={protocol}
-                    aiConfig={activeAIConfig}
-                    onNavigateToScreening={() => setActiveStage(4)}
-                  />
-                </React.Fragment>
-              )
+          {/* Tab 4: Clustering */}
+          {activeStage === 3 && (
+            <div className="space-y-6">
+              {(["descriptive", "thematic", "clusters", "cross-study", "gaps", "agenda"] as EvidenceSynthesisPhase[]).map(
+                (phase) => (
+                  <React.Fragment key={phase}>
+                    <EvidenceSynthesisStage
+                      phase={phase}
+                      synthesis={synthesis}
+                      onUpdateSynthesis={setSynthesis}
+                      includedRecords={includedRecords}
+                      characteristics={characteristics}
+                      protocol={protocol}
+                      aiConfig={activeAIConfig}
+                      onNavigateToScreening={() => setActiveStage(2)}
+                    />
+                  </React.Fragment>
+                )
+              )}
+            </div>
           )}
 
-          {/* Stage 13: Discussion */}
-          {activeStage === 12 && (
+          {/* Tab 5: Drafting */}
+          {activeStage === 4 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -628,8 +616,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 14: Consolidated Manuscript */}
-          {activeStage === 13 && (
+          {/* Tab 6: Paper Assembly */}
+          {activeStage === 5 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
