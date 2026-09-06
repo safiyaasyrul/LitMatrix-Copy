@@ -20,7 +20,7 @@ export interface ScreeningDecision {
   reason: string;
   decision: "include" | "exclude";
   recommendation?: "include" | "exclude" | "maybe";
-  agreed?: boolean; // human confirmation
+  agreed?: boolean; // final AI decision; undefined only while screening is incomplete
   criteriaAnswers?: {
     populationContext: "Yes" | "No" | "Unclear";
     phenomenon: "Yes" | "No" | "Unclear";

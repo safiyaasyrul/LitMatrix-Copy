@@ -328,7 +328,7 @@ export default function FullReviewReport({
 Review title: ${protocol.title}
 Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
 Approved objectives: ${JSON.stringify(objectives)}
-Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Synthesis approach: ${synthesisApproach}. Appraisal approach: structured abstract-reporting checklist; no formal risk-of-bias judgment.
+Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. AI-finalized included records: ${includedRecords.length}. Synthesis approach: ${synthesisApproach}. Appraisal approach: structured abstract-reporting checklist; no formal risk-of-bias judgment.
 Uploaded RIS records and abstracts (sole empirical source): ${JSON.stringify(risAbstractEvidence)}
 Finalized synthesis map to use only for organization, then verify against the RIS records: ${JSON.stringify(synthesisEvidence)}
 Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
@@ -490,7 +490,7 @@ ${JSON.stringify(draft)}`;
         uploadedDatabaseSources: counts.identifiedDbSources || [],
         includedRecordCount: includedRecords.length,
         selectionStatement:
-          "Reviewer-confirmed title/abstract inclusions are final in this workflow. Full-text retrieval and eligibility assessment were not performed.",
+          "AI-finalized title/abstract inclusions are final in this workflow. Full-text retrieval and eligibility assessment were not performed.",
         appraisalStatement:
           "Abstract-level reporting completeness only; Unclear means not reported in the abstract, not high risk of bias.",
       },
@@ -540,7 +540,7 @@ Return ONLY valid JSON with exactly these fields:
   "keywords": ["3 to 6 keywords"]
 }
 
-The supplied evidence bundle contains the approved protocol, the actual uploaded RIS records and abstracts, reviewer-confirmed selection, abstract-level reporting assessments, study characteristics, and a finalized qualitative synthesis map.
+The supplied evidence bundle contains the approved protocol, the actual uploaded RIS records and abstracts, AI-finalized selection, abstract-level reporting assessments, study characteristics, and a finalized qualitative synthesis map.
 
 SOURCE BOUNDARY — THIS IS NON-NEGOTIABLE:
 - The uploaded RIS records and their abstracts are the sole source of empirical facts and findings. Use no external knowledge, background literature, facts from the reference PDF, named studies, prevalence claims, mechanisms, effectiveness claims, or contextual details that are not present in the RIS records.
@@ -562,7 +562,7 @@ MANUSCRIPT STANDARD:
 - The manuscript must be complete enough for editorial review, while remaining explicit about the abstract-only evidence boundary.
 
 EVIDENCE AND CITATION RULES:
-- Every Methods and Results statement must be directly supported by the supplied protocol, counts, RIS fields/abstracts, reviewer-confirmed decisions, reporting assessments, or finalized synthesis.
+- Every Methods and Results statement must be directly supported by the supplied protocol, counts, RIS fields/abstracts, AI-finalized decisions, reporting assessments, or finalized synthesis.
 - Use the finalized synthesis to locate candidate patterns, contrasts, themes, gaps, and agenda items, but verify each one against the RIS records before writing it and do not add conclusions absent from those records.
 - When making a direct claim about one or more included studies in Results or Discussion, append one or more exact citation markers in the form {{recordId}}. Only use recordId values supplied in the RIS bundle. The application will convert valid markers to author-year citations.
 - Do not cite or invent studies that are not in the RIS bundle. Do not invent references, sample sizes, locations, outcomes, validation details, effect estimates, confidence intervals, p-values, heterogeneity statistics, or causal effects.

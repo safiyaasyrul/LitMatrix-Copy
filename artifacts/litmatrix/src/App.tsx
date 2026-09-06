@@ -101,6 +101,18 @@ export default function App() {
           if (decision?.recommendation === "exclude") {
             return [recordId, { ...decision, agreed: false, decision: "exclude" }];
           }
+          if (decision?.recommendation === "maybe") {
+            return [
+              recordId,
+              {
+                ...decision,
+                recommendation: "exclude",
+                decision: "exclude",
+                agreed: false,
+                exclusionReason: decision.exclusionReason || "Insufficient evidence in record",
+              },
+            ];
+          }
           return [recordId, decision];
         })
       );
@@ -240,7 +252,7 @@ export default function App() {
     return getActiveAIConfig(keysConfig);
   }, [keysConfig]);
 
-  // Reviewer-confirmed title/abstract decisions define final inclusion for this
+  // AI-finalized title/abstract decisions define final inclusion for this
   // abstract-based review workflow.
   const includedRecords = useMemo(() => {
     return records.filter((r) => screening[r.id]?.agreed === true);
@@ -262,7 +274,7 @@ export default function App() {
   }, [excludedRecords, screening]);
 
   // PRISMA flow counts are derived from the current record library and recorded
-  // reviewer decisions. A record can be present in the library before screening,
+  // AI decisions. A record can be present in the library before screening,
   // so deduplicated and screened counts must remain separate.
   const prismaCounts = useMemo(() => {
     const totalIdentified = records.length + (dupesRemoved || 0);
