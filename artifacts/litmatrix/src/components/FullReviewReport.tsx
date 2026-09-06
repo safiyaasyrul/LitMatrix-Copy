@@ -62,6 +62,8 @@ export default function FullReviewReport({
   const [generatedManuscript, setGeneratedManuscript] = useState<StructuredJournalManuscript | null>(null);
   const [generatingManuscript, setGeneratingManuscript] = useState(false);
   const [manuscriptError, setManuscriptError] = useState<string | null>(null);
+  const [grammarChecking, setGrammarChecking] = useState(false);
+  const [grammarChecked, setGrammarChecked] = useState(false);
 
   const questions = protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
@@ -192,9 +194,16 @@ export default function FullReviewReport({
 
   const renderJournalText = (value: string) =>
     resolveCitationMarkers(value)
+      .replace(/(^|\n)\s*(?:[-*•]|\d+[.)])\s+/g, "$1")
       .split(/\n{2,}/)
       .map((paragraph) => paragraph.trim())
       .filter(Boolean);
+
+  const abstractStatement = (value: StructuredAbstract) =>
+    [value.bg, value.obj, value.meth, value.res, value.concl]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(" ");
 
   const escapeHtml = (value: string) =>
     value
@@ -226,6 +235,7 @@ export default function FullReviewReport({
     setAbstractError(null);
     setGeneratedManuscript(null);
     setManuscriptError(null);
+    setGrammarChecked(false);
   }, [synthesis, protocol.primaryResearchQuestions, protocol.title, includedRecords.length]);
 
   const handleGenerateAbstract = async () => {
@@ -344,6 +354,67 @@ Return ONLY JSON:
       );
     } finally {
       setGeneratingAbstract(false);
+    }
+  };
+
+  const runGrammarCheck = async (draft: StructuredJournalManuscript) => {
+    const grammarPrompt = `Perform a publication-grade grammar and academic-style check on the supplied systematic-review manuscript.
+
+Return ONLY valid JSON with the exact same structure and fields as the input.
+
+Correct spelling, grammar, punctuation, sentence structure, agreement, tense consistency, word choice, and awkward repetition. Improve transitions and formal journal readability. Keep all sections as continuous academic prose paragraphs; do not add bullets, numbered lists, magazine-style labels, promotional language, or decorative formatting.
+
+Do not change the scientific meaning, study counts, dates, methods, results, limitations, evidence strength, citation markers, record identifiers, or conclusions. Do not add facts, citations, studies, numerical results, or interpretations. Do not remove any evidence statement. The abstract segments must remain suitable for one single continuous abstract paragraph when concatenated.
+
+Input manuscript:
+${JSON.stringify(draft)}`;
+    const text = await callAI(
+      grammarPrompt,
+      "You are a senior scientific copy editor. Correct language only; preserve every evidence-grounded claim exactly.",
+      aiConfig
+    );
+    const parsed = parseJSONLoose(text);
+    if (!parsed?.introduction || !parsed?.methods || !parsed?.results || !parsed?.discussion || !parsed?.conclusion) {
+      throw new Error("The grammar checker did not return a complete manuscript.");
+    }
+    const normalize = (value: unknown) => resolveCitationMarkers(String(value || "").trim());
+    const normalizedAbstract = {
+      bg: normalize(parsed.abstract?.bg || draft.abstract.bg),
+      obj: normalize(parsed.abstract?.obj || draft.abstract.obj),
+      meth: normalize(parsed.abstract?.meth || draft.abstract.meth),
+      res: normalize(parsed.abstract?.res || draft.abstract.res),
+      concl: normalize(parsed.abstract?.concl || draft.abstract.concl),
+      keywords: Array.isArray(parsed.abstract?.keywords)
+        ? parsed.abstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
+        : draft.abstract.keywords,
+    };
+    return {
+      title: normalize(parsed.title || draft.title),
+      abstract: normalizedAbstract,
+      introduction: normalize(parsed.introduction),
+      methods: normalize(parsed.methods),
+      results: normalize(parsed.results),
+      discussion: normalize(parsed.discussion),
+      conclusion: normalize(parsed.conclusion),
+      keywords: Array.isArray(parsed.keywords)
+        ? parsed.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
+        : normalizedAbstract.keywords,
+    } satisfies StructuredJournalManuscript;
+  };
+
+  const handleGrammarCheck = async () => {
+    if (!generatedManuscript || grammarChecking) return;
+    setGrammarChecking(true);
+    setManuscriptError(null);
+    try {
+      const checked = await runGrammarCheck(generatedManuscript);
+      setGeneratedManuscript(checked);
+      setGeneratedAbstract(checked.abstract);
+      setGrammarChecked(true);
+    } catch (error: any) {
+      setManuscriptError(error?.message || "The grammar check could not be completed.");
+    } finally {
+      setGrammarChecking(false);
     }
   };
 
@@ -489,8 +560,20 @@ ${JSON.stringify(manuscriptEvidence)}`;
           ? parsed.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
           : normalizedAbstract.keywords,
       };
-      setGeneratedManuscript(normalized);
-      setGeneratedAbstract(normalizedAbstract);
+      try {
+        setGrammarChecking(true);
+        const checked = await runGrammarCheck(normalized);
+        setGeneratedManuscript(checked);
+        setGeneratedAbstract(checked.abstract);
+        setGrammarChecked(true);
+      } catch (grammarError: any) {
+        setGeneratedManuscript(normalized);
+        setGeneratedAbstract(normalized.abstract);
+        setGrammarChecked(false);
+        setManuscriptError(`Manuscript generated, but grammar checking failed: ${grammarError?.message || "unknown error"}`);
+      } finally {
+        setGrammarChecking(false);
+      }
     } catch (error: any) {
       setManuscriptError(error?.message || "The full journal manuscript could not be generated.");
     } finally {
