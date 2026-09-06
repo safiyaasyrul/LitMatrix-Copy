@@ -28,6 +28,8 @@ type AIRecommendation = NonNullable<ScreeningDecision["recommendation"]>;
 const getRecommendationLabel = (recommendation: AIRecommendation) =>
   recommendation === "include" ? "Accept" : recommendation === "exclude" ? "Exclude" : "Maybe / Unclear";
 
+const ELIGIBILITY_INCLUDE_THRESHOLD = 75;
+
 export default function ScreeningSection({
   records,
   screening,
@@ -125,7 +127,7 @@ ${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}
 Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
 ${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
 
-Apply this recommendation rule: accept only when Q1 OR Q2 is Yes, Q3 is Yes, Q4 is Yes, and Q5 is Yes. If any required question is unresolved, recommend Maybe / Unclear. Exclude when Q1 and Q2 are both No, or when Q3, Q4, or Q5 is No. AI recommendations remain pending for reviewer confirmation.
+Apply this recommendation rule: recommend inclusion when the eligibility score is at least 75%, Q1 OR Q2 is Yes, and Q3, Q4, and Q5 are all Yes. A score of exactly 75% qualifies. If any required question is unresolved, recommend Maybe / Unclear. Exclude when Q1 and Q2 are both No, or when Q3, Q4, or Q5 is No. AI recommendations remain pending for reviewer confirmation.
 
 Keep each reason to no more than 25 words. Do not repeat the title, abstract, criteria, or question text. Use an exclusion reason only when supported: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
 
@@ -176,6 +178,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
               };
               const q1OrQ2Yes =
                 answers.populationContext === "Yes" || answers.phenomenon === "Yes";
+              const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
               const coreCriteriaAccepted =
                 q1OrQ2Yes &&
                 answers.researchContribution === "Yes" &&
@@ -186,12 +189,13 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                 answers.researchContribution === "No" ||
                 answers.studyType === "No" ||
                 answers.requiredEvidence === "No";
+              const scoreSupportsInclusion =
+                finalScore !== null && finalScore >= ELIGIBILITY_INCLUDE_THRESHOLD;
               const recommendation: AIRecommendation = coreCriteriaExcluded
                 ? "exclude"
-                : coreCriteriaAccepted
+                : scoreSupportsInclusion && coreCriteriaAccepted
                 ? "include"
                 : "maybe";
-              const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
 
               nextScreening[p.id] = {
                 score: finalScore,
@@ -327,7 +331,9 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         )}
 
         <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-950">
-          <div className="font-mono font-bold">Five eligibility questions derived from the approved criteria</div>
+          <div className="font-mono font-bold">
+            Five eligibility questions derived from the approved criteria · Include recommendation threshold: {ELIGIBILITY_INCLUDE_THRESHOLD}%
+          </div>
           <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
             {screeningQuestions.map((question) => (
               <div key={question.key} className="bg-white/80 border border-indigo-100 rounded-lg p-2">
@@ -424,7 +430,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                       {s?.score !== undefined && s.score !== null && (
                         <span
                           className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
-                            s.score >= 80
+                            s.score >= ELIGIBILITY_INCLUDE_THRESHOLD
                               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                               : "bg-rose-50 border-rose-200 text-rose-800"
                           }`}
