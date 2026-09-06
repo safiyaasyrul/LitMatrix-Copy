@@ -70,6 +70,28 @@ export default function FullReviewReport({
   const cleanProtocolList = (values: unknown) =>
     Array.isArray(values) ? values.map(stripProtocolDraftLanguage).filter(Boolean) : [];
 
+  const unwrapManuscriptPayload = (parsed: any) => {
+    if (!parsed || typeof parsed !== "object") return {};
+    const candidates = [
+      parsed.manuscript,
+      parsed.data?.manuscript,
+      parsed.data,
+      parsed.result,
+      parsed,
+    ];
+    return candidates.find(
+      (candidate) =>
+        candidate &&
+        typeof candidate === "object" &&
+        ["title", "introduction", "methods", "results", "discussion", "conclusion"].some((key) => key in candidate)
+    ) || {};
+  };
+
+  const manuscriptSection = (payload: any, key: keyof StructuredJournalManuscript, fallback: string) => {
+    const value = payload?.[key];
+    return typeof value === "string" && value.trim() ? value : fallback;
+  };
+
   const [copied, setCopied] = useState(false);
   const [generatedAbstract, setGeneratedAbstract] = useState<StructuredAbstract | null>(null);
   const [generatingAbstract, setGeneratingAbstract] = useState(false);
@@ -516,30 +538,28 @@ ${JSON.stringify(draft)}`;
       aiConfig,
       12000
     );
-    const parsed = parseJSONLoose(text);
-    if (!parsed?.introduction || !parsed?.methods || !parsed?.results || !parsed?.discussion || !parsed?.conclusion) {
-      throw new Error("The grammar checker did not return a complete manuscript.");
-    }
+      const parsed = unwrapManuscriptPayload(parseJSONLoose(text));
     const normalize = (value: unknown) =>
       stripProtocolDraftLanguage(resolveCitationMarkers(String(value || "").trim()));
+      const parsedAbstract = parsed.abstract || parsed.structuredAbstract || {};
     const normalizedAbstract = {
-      bg: normalize(parsed.abstract?.bg || draft.abstract.bg),
-      obj: normalize(parsed.abstract?.obj || draft.abstract.obj),
-      meth: normalize(parsed.abstract?.meth || draft.abstract.meth),
-      res: normalize(parsed.abstract?.res || draft.abstract.res),
-      concl: normalize(parsed.abstract?.concl || draft.abstract.concl),
-      keywords: Array.isArray(parsed.abstract?.keywords)
-        ? parsed.abstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
+        bg: normalize(parsedAbstract.bg || draft.abstract.bg),
+        obj: normalize(parsedAbstract.obj || draft.abstract.obj),
+        meth: normalize(parsedAbstract.meth || draft.abstract.meth),
+        res: normalize(parsedAbstract.res || draft.abstract.res),
+        concl: normalize(parsedAbstract.concl || draft.abstract.concl),
+        keywords: Array.isArray(parsedAbstract.keywords)
+          ? parsedAbstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
         : draft.abstract.keywords,
     };
     return {
-      title: normalize(parsed.title || draft.title),
+        title: normalize(manuscriptSection(parsed, "title", draft.title)),
       abstract: normalizedAbstract,
-      introduction: normalize(parsed.introduction),
-      methods: normalize(parsed.methods),
-      results: normalize(parsed.results),
-      discussion: normalize(parsed.discussion),
-      conclusion: normalize(parsed.conclusion),
+        introduction: normalize(manuscriptSection(parsed, "introduction", draft.introduction)),
+        methods: normalize(manuscriptSection(parsed, "methods", draft.methods)),
+        results: normalize(manuscriptSection(parsed, "results", draft.results)),
+        discussion: normalize(manuscriptSection(parsed, "discussion", draft.discussion)),
+        conclusion: normalize(manuscriptSection(parsed, "conclusion", draft.conclusion)),
       keywords: Array.isArray(parsed.keywords)
         ? parsed.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
         : normalizedAbstract.keywords,
@@ -699,10 +719,11 @@ ${JSON.stringify(manuscriptEvidence)}`;
         aiConfig,
         12000
       );
-      const parsed = parseJSONLoose(text);
+      const parsed = unwrapManuscriptPayload(parseJSONLoose(text));
       const fallback = getFallbackManuscript();
       const normalize = (value: unknown) =>
         stripProtocolDraftLanguage(resolveCitationMarkers(String(value || "").trim()));
+      const parsedAbstract = parsed.abstract || parsed.structuredAbstract || {};
       const candidateTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
       const usableTitle =
         candidateTitle.length >= 16 &&
@@ -710,23 +731,23 @@ ${JSON.stringify(manuscriptEvidence)}`;
           ? candidateTitle
           : fallback.title;
       const normalizedAbstract = {
-        bg: normalize(parsed?.abstract?.bg || fallback.abstract.bg),
-        obj: normalize(parsed?.abstract?.obj || fallback.abstract.obj),
-        meth: normalize(parsed?.abstract?.meth || fallback.abstract.meth),
-        res: normalize(parsed?.abstract?.res || fallback.abstract.res),
-        concl: normalize(parsed?.abstract?.concl || fallback.abstract.concl),
-        keywords: Array.isArray(parsed?.abstract?.keywords)
-          ? parsed.abstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
+        bg: normalize(parsedAbstract.bg || fallback.abstract.bg),
+        obj: normalize(parsedAbstract.obj || fallback.abstract.obj),
+        meth: normalize(parsedAbstract.meth || fallback.abstract.meth),
+        res: normalize(parsedAbstract.res || fallback.abstract.res),
+        concl: normalize(parsedAbstract.concl || fallback.abstract.concl),
+        keywords: Array.isArray(parsedAbstract.keywords)
+          ? parsedAbstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
           : fallback.abstract.keywords,
       };
       const normalized: StructuredJournalManuscript = {
-        title: normalize(usableTitle),
+        title: normalize(manuscriptSection(parsed, "title", usableTitle)),
         abstract: normalizedAbstract,
-        introduction: normalize(parsed?.introduction || fallback.introduction),
-        methods: normalize(parsed?.methods || fallback.methods),
-        results: normalize(parsed?.results || fallback.results),
-        discussion: normalize(parsed?.discussion || fallback.discussion),
-        conclusion: normalize(parsed?.conclusion || fallback.conclusion),
+        introduction: normalize(manuscriptSection(parsed, "introduction", fallback.introduction)),
+        methods: normalize(manuscriptSection(parsed, "methods", fallback.methods)),
+        results: normalize(manuscriptSection(parsed, "results", fallback.results)),
+        discussion: normalize(manuscriptSection(parsed, "discussion", fallback.discussion)),
+        conclusion: normalize(manuscriptSection(parsed, "conclusion", fallback.conclusion)),
         keywords: Array.isArray(parsed?.keywords)
           ? parsed.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
           : fallback.keywords,

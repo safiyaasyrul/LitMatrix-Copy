@@ -14,3 +14,9 @@ The manuscript export should use a conventional journal structure and consolidat
 **Why:** Abstracts provide limited evidence and cannot support claims about unreported methods or results. A single traceable qualitative chain keeps six workflow pages and the manuscript consistent, while clinical certainty tools and quantitative displays would overstate heterogeneous abstract-level evidence.
 
 **How to apply:** Derive counts from stored records and explicit reviewer decisions. Label outputs as abstract-based; use “not reported” for absent fields. Finalize Discussion and Manuscript only when all six qualitative stages exist and remain traceable to record IDs.
+
+Manuscript and grammar-provider responses may be partial or wrapped in an envelope such as `manuscript` or `data`. Always unwrap known envelopes and merge missing sections from the grounded fallback rather than failing the whole manuscript.
+
+**Why:** Managed providers can return valid content with one omitted section or a different JSON wrapper; rejecting that response makes manuscript generation fail even when the supplied evidence is sufficient for a complete fallback.
+
+**How to apply:** Validate and normalize each section independently, preserve valid provider prose, and use the evidence-grounded fallback for missing title, abstract clauses, or manuscript sections.
