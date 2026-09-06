@@ -24,6 +24,20 @@ const manuscriptResponse = {
   keywords: ["systematic review", "evidence synthesis"],
 };
 
+const abstractResponse = {
+  background:
+    "The review addresses a defined question, as reported by Smith et al. (2024) {{rec-01}}.",
+  objective:
+    "The objective was to map the supplied evidence without unsupported interpretation.",
+  methods:
+    "Reviewer-confirmed records were synthesized narratively, with details available at https://example.test/methods.",
+  results:
+    "The included abstracts showed a coherent reported pattern {{rec-01}} and no supported claim {{missing-record}}.",
+  conclusion:
+    "The findings support cautious interpretation (Jones et al., 2023) and a bounded evidence gap.",
+  keywords: ["systematic review", "evidence synthesis", "{{missing-record}}"],
+};
+
 function extractMarkdownHeadings(markdown: string) {
   return markdown
     .split(/\r?\n/)
@@ -85,4 +99,81 @@ test("generates an evidence-grounded manuscript with matching Markdown and Word 
   expect(wordHtml).toContain("(Chen, L. et al., 2023)");
   expect(wordHtml).not.toContain("missing-record");
   expect(extractWordHeadings(wordHtml)).toEqual(extractMarkdownHeadings(markdown));
+});
+
+test("exports a generated abstract before a manuscript with clean content and matching headings", async ({
+  page,
+}) => {
+  await page.route("**/prisma-api/openai/generate", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ text: JSON.stringify(abstractResponse) }),
+    });
+  });
+
+  await page.goto("/");
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: /Load Demo/i }).click();
+  await page.getByRole("button", { name: /Consolidated Manuscript/i }).click();
+
+  const generateButton = page.getByRole("button", { name: "Generate Abstract" });
+  await expect(generateButton).toBeEnabled();
+  await generateButton.click();
+
+  await expect(page.getByText("Synthesis Abstract Ready", { exact: true })).toBeVisible();
+  await expect(page.locator("body")).toContainText(
+    "The review addresses a defined question, as reported by.",
+  );
+  await expect(page.locator("body")).not.toContainText("Smith et al.");
+  await expect(page.locator("body")).not.toContainText("Jones et al.");
+  await expect(page.locator("body")).not.toContainText("example.test");
+  await expect(page.locator("body")).not.toContainText("missing-record");
+  await expect(page.locator("body")).not.toContainText("{{");
+
+  const markdownDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download Markdown (.md)" }).click();
+  const markdownPath = await (await markdownDownload).path();
+  expect(markdownPath).toBeTruthy();
+  const markdown = await readFile(markdownPath!, "utf8");
+
+  const wordDownload = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download Word (.doc)" }).click();
+  const wordPath = await (await wordDownload).path();
+  expect(wordPath).toBeTruthy();
+  const wordHtml = await readFile(wordPath!, "utf8");
+
+  const expectedHeadings = [
+    "h1:Machine Learning for Early Type 2 Diabetes Risk Prediction: An Abstract-Level Systematic Review with Narrative and Thematic Synthesis",
+    "h2:Abstract",
+    "h2:1. Introduction and Academic Rationale",
+    "h2:2. Methods",
+    "h2:3. Results",
+    "h3:3.7 Cross-study Synthesis",
+    "h2:4. Discussion",
+    "h2:5. Limitations",
+    "h2:6. Conclusion",
+    "h2:References of Included Studies",
+  ];
+
+  expect(markdown).toContain("## Abstract");
+  expect(markdown).toContain("The review addresses a defined question, as reported by.");
+  expect(markdown).not.toContain("Smith et al.");
+  expect(markdown).not.toContain("Jones et al.");
+  expect(markdown).not.toContain("example.test");
+  expect(markdown).not.toContain("missing-record");
+  expect(markdown).not.toContain("{{");
+  const markdownHeadings = extractMarkdownHeadings(markdown);
+  expect(markdownHeadings).toEqual(expect.arrayContaining(expectedHeadings));
+
+  expect(wordHtml).toContain("The review addresses a defined question, as reported by.");
+  expect(wordHtml).not.toContain("Smith et al.");
+  expect(wordHtml).not.toContain("Jones et al.");
+  expect(wordHtml).not.toContain("example.test");
+  expect(wordHtml).not.toContain("missing-record");
+  expect(wordHtml).not.toContain("{{");
+  const wordHeadings = extractWordHeadings(wordHtml);
+  expect(wordHeadings).toEqual(expect.arrayContaining(expectedHeadings));
+  expect(wordHeadings).toEqual(markdownHeadings);
 });

@@ -169,6 +169,7 @@ export default function FullReviewReport({
       .replace(/\b[A-ZÀ-ÖØ-Þ][\p{L}'’-]+(?:\s+(?:and|&)\s+[A-ZÀ-ÖØ-Þ][\p{L}'’-]+)?\s+et\s+al\.?,?\s*\(?\d{4}[a-z]?\)?/giu, "")
       .replace(/\([^)]*(?:19|20)\d{2}[a-z]?[^)]*\)/gi, "")
       .replace(/\[(?:\d+\s*[,–-]?\s*)+\]/g, "")
+      .replace(/\{\{[^}]+\}\}/g, "")
       .replace(/https?:\/\/\S+|doi:\s*\S+/gi, "")
       .replace(/\s{2,}/g, " ")
       .replace(/\s+([,.;:])/g, "$1")
@@ -691,7 +692,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
     md += `### 2.3 Information Sources and Search Strategy\n`;
     md += `${executedSearchNarrative}\n\n`;
 
-    md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
+    md += `### 2.4 Selection Process\n`;
     md += `Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
 
     md += `### 2.5 Methodological Reporting and Evidence Appraisal\n`;
@@ -701,7 +702,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
     md += `${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.\n\n`;
 
-    md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
+    md += `### 3.2 Characteristics of Included Studies (Table 1)\n\n`;
     if (hasCountryData || hasSampleData) {
       md += `| Study | Evidence Category | ${hasCountryData ? "Location | " : ""}${hasSampleData ? "Sample / Evidence Base | " : ""}Intervention / Exposure / Phenomenon | Comparator | Reported Outcome | Study Design | Key Finding |\n`;
       md += `| --- | --- | ${hasCountryData ? "--- | " : ""}${hasSampleData ? "--- | " : ""}--- | --- | --- | --- | --- |\n`;
