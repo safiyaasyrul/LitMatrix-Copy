@@ -70,6 +70,7 @@ export default function EvidenceSynthesisStage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const meta = phaseMeta[phase];
   const researchQuestions = (protocol.primaryResearchQuestions || []).filter((item) => item.trim());
+  const recordById = new Map(includedRecords.map((record) => [record.id, record]));
 
   const evidenceRows = characteristics.length
     ? characteristics.map((study) => ({
@@ -80,6 +81,7 @@ export default function EvidenceSynthesisStage({
         outcome: study.primaryOutcome?.slice(0, 240) || "Not reported",
         design: study.studyDesign?.slice(0, 160) || "Not reported",
         finding: study.keyFinding?.slice(0, 650) || "Not reported",
+        sourceAbstract: recordById.get(study.recordId)?.abstract || "",
       }))
     : includedRecords.map((record) => ({
         recordId: record.id,
@@ -87,8 +89,9 @@ export default function EvidenceSynthesisStage({
         category: "Uncategorized evidence",
         focus: record.title,
         outcome: "Not reported",
-        design: "Not established from citation metadata",
-        finding: record.abstract?.slice(0, 650) || "No abstract available",
+        design: "Not yet extracted from the complete abstract",
+        finding: "Structured extraction is pending for this record.",
+        sourceAbstract: record.abstract || "",
       }));
 
   const createEvidenceMap = (clearError = true) => {
@@ -103,8 +106,8 @@ export default function EvidenceSynthesisStage({
         finding: row.finding,
         assignedResearchQuestions: [],
       })),
-      descriptiveSynthesis: {
-        overview: `${evidenceRows.length} reviewer-included abstracts are mapped for comparison. Cross-study patterns require finalized synthesis.`,
+       descriptiveSynthesis: {
+         overview: `${evidenceRows.length} included abstracts are mapped for comparison. Cross-study patterns require finalized synthesis.`,
         comparisons: [],
       },
       subtopics: Array.from(byCategory.entries()).map(([title, rows]) => ({
@@ -134,13 +137,13 @@ export default function EvidenceSynthesisStage({
 Research questions:
 ${researchQuestions.map((question, index) => `RQ${index + 1}: ${question.replace(/^RQ\\d+:\\s*/i, "")}`).join("\n")}
 
-Study evidence:
+Study evidence. The sourceAbstract field contains each complete abstract and is the authoritative evidence source; extracted fields are only an aid:
 ${JSON.stringify(evidenceRows)}
 
 Required reasoning chain: Study -> finding -> comparison -> pattern -> theme -> overall conclusion -> research gaps -> future research agenda.
 
 Rules:
-1. Use only supplied evidence. Treat "Not reported" as missing information.
+1. Use only supplied evidence. Treat "Not reported" as missing information, not as an evidence-quality deficiency.
 2. Results state what studies found. Do not invent methods, outcomes, causal effects, numbers, or full-text evidence.
 3. Discussion-style meaning and recommendations belong only in implications and the future agenda.
 4. Use exact supplied recordIds in comparisons, themes, clusters, RQ findings, and gaps.

@@ -52,6 +52,24 @@ export default function FullReviewReport({
   counts,
   aiConfig,
 }: FullReviewReportProps) {
+  const stripProtocolDraftLanguage = (value: unknown) => {
+    if (typeof value !== "string") return "";
+    return value
+      .split(/\n+|(?<=[.!?])\s+/)
+      .filter(
+        (sentence) =>
+          !/(?:proposed\s+(?:gap|criterion|criteria)|(?:gap|criterion|criteria)\s+for\s+researcher\s+approval|researcher\s+approval)/i.test(
+            sentence
+          )
+      )
+      .join(" ")
+      .replace(/\s{2,}/g, " ")
+      .trim();
+  };
+
+  const cleanProtocolList = (values: unknown) =>
+    Array.isArray(values) ? values.map(stripProtocolDraftLanguage).filter(Boolean) : [];
+
   const [copied, setCopied] = useState(false);
   const [generatedAbstract, setGeneratedAbstract] = useState<StructuredAbstract | null>(null);
   const [generatingAbstract, setGeneratingAbstract] = useState(false);
@@ -62,57 +80,89 @@ export default function FullReviewReport({
   const [grammarChecking, setGrammarChecking] = useState(false);
   const [grammarChecked, setGrammarChecked] = useState(false);
 
-  const questions = protocol.primaryResearchQuestions || [
+  const questions = (protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
     "RQ2: What methods, settings, and outcomes are reported?",
     "RQ3: What evidence gaps remain?",
-  ];
+  ]).map(stripProtocolDraftLanguage);
 
-  const objectives = protocol.secondaryObjectives || [
+  const objectives = (protocol.secondaryObjectives || [
     "Describe the evidence by themes grounded in the included records",
     "Appraise methodological quality using criteria appropriate to the study designs",
-  ];
+  ]).map(stripProtocolDraftLanguage);
+  const publicationRationale = stripProtocolDraftLanguage(protocol.introductionRationale);
+  const publicationBackground = stripProtocolDraftLanguage(protocol.backgroundContext);
+  const publicationKnowledgeGap = stripProtocolDraftLanguage(protocol.knowledgeGap);
+  const publicationInclusion = cleanProtocolList(protocol.eligibilityCriteria.inclusion);
+  const publicationExclusion = cleanProtocolList(protocol.eligibilityCriteria.exclusion);
+  const publicationGrouping =
+    stripProtocolDraftLanguage(protocol.eligibilityCriteria.groupingForSynthesis) || "the approved synthesis grouping";
 
   // Helper for generating PICOC narrative paragraph in Methods
   const getFrameworkNarrative = () => {
     const fw = protocol.formulationFramework || "PICOC";
     if (fw === "PICOC") {
-      const p = protocol.objectivesPICOC?.population || protocol.objectivesPICO.population || "the defined population or unit of analysis";
-      const i = protocol.objectivesPICOC?.intervention || protocol.objectivesPICO.intervention || "the intervention, method, policy, technology, or exposure of interest";
-      const c = protocol.objectivesPICOC?.comparison || protocol.objectivesPICO.comparator || "any explicitly defined comparator";
-      const o = protocol.objectivesPICOC?.outcomes || protocol.objectivesPICO.outcomes || "the prespecified outcomes or phenomena";
-      const ctx = protocol.objectivesPICOC?.context || "the defined operational or geographical context";
-      const s = protocol.objectivesPICOC?.studyDesigns || protocol.objectivesPICO.studyDesigns || "eligible empirical study designs";
+      const p = stripProtocolDraftLanguage(protocol.objectivesPICOC?.population || protocol.objectivesPICO.population) || "the defined population or unit of analysis";
+      const i = stripProtocolDraftLanguage(protocol.objectivesPICOC?.intervention || protocol.objectivesPICO.intervention) || "the intervention, method, policy, technology, or exposure of interest";
+      const c = stripProtocolDraftLanguage(protocol.objectivesPICOC?.comparison || protocol.objectivesPICO.comparator) || "any explicitly defined comparator";
+      const o = stripProtocolDraftLanguage(protocol.objectivesPICOC?.outcomes || protocol.objectivesPICO.outcomes) || "the prespecified outcomes or phenomena";
+      const ctx = stripProtocolDraftLanguage(protocol.objectivesPICOC?.context) || "the defined operational or geographical context";
+      const s = stripProtocolDraftLanguage(protocol.objectivesPICOC?.studyDesigns || protocol.objectivesPICO.studyDesigns) || "eligible empirical study designs";
       return `The review scope was structured using PICOC: population or unit of analysis, ${p}; intervention or focus, ${i}; comparison, ${c}; outcomes, ${o}; context, ${ctx}; and study designs, ${s}.`;
     }
     if (fw === "PEO") {
-      const p = protocol.objectivesPEO?.population || protocol.objectivesPICO.population;
-      const e = protocol.objectivesPEO?.exposure || protocol.objectivesPICO.intervention;
-      const o = protocol.objectivesPEO?.outcomes || protocol.objectivesPICO.outcomes;
+      const p = stripProtocolDraftLanguage(protocol.objectivesPEO?.population || protocol.objectivesPICO.population);
+      const e = stripProtocolDraftLanguage(protocol.objectivesPEO?.exposure || protocol.objectivesPICO.intervention);
+      const o = stripProtocolDraftLanguage(protocol.objectivesPEO?.outcomes || protocol.objectivesPICO.outcomes);
       const s = protocol.objectivesPEO?.setting || "the defined setting or context";
-      const d = protocol.objectivesPEO?.studyDesigns || protocol.objectivesPICO.studyDesigns;
+      const d = stripProtocolDraftLanguage(protocol.objectivesPEO?.studyDesigns || protocol.objectivesPICO.studyDesigns);
       return `The review scope was structured around the PEO framework. The population or context (P) is ${p}. The exposure or phenomenon (E) is ${e}. The outcomes (O) are ${o}. The setting (S) is ${s}, with eligible study designs defined as ${d}.`;
     }
     if (fw === "SPIDER") {
-      const s = protocol.objectivesSPIDER?.sample || protocol.objectivesPICO.population;
-      const pi = protocol.objectivesSPIDER?.phenomenonOfInterest || protocol.objectivesPICO.intervention;
-      const d = protocol.objectivesSPIDER?.design || "the approved study designs";
-      const e = protocol.objectivesSPIDER?.evaluation || protocol.objectivesPICO.outcomes;
-      const r = protocol.objectivesSPIDER?.researchType || "the approved research types";
+      const s = stripProtocolDraftLanguage(protocol.objectivesSPIDER?.sample || protocol.objectivesPICO.population);
+      const pi = stripProtocolDraftLanguage(protocol.objectivesSPIDER?.phenomenonOfInterest || protocol.objectivesPICO.intervention);
+      const d = stripProtocolDraftLanguage(protocol.objectivesSPIDER?.design) || "the approved study designs";
+      const e = stripProtocolDraftLanguage(protocol.objectivesSPIDER?.evaluation || protocol.objectivesPICO.outcomes);
+      const r = stripProtocolDraftLanguage(protocol.objectivesSPIDER?.researchType) || "the approved research types";
       return `The review was formulated using SPIDER. The sample (S) is ${s}. The phenomenon of interest (PI) is ${pi}. The design (D) is ${d}. The evaluation (E) is ${e}, and the research types (R) are ${r}.`;
     }
     // Default PICO
-    const p = protocol.objectivesPICO.population;
-    const i = protocol.objectivesPICO.intervention;
-    const c = protocol.objectivesPICO.comparator;
-    const o = protocol.objectivesPICO.outcomes;
-    const s = protocol.objectivesPICO.studyDesigns;
+    const p = stripProtocolDraftLanguage(protocol.objectivesPICO.population);
+    const i = stripProtocolDraftLanguage(protocol.objectivesPICO.intervention);
+    const c = stripProtocolDraftLanguage(protocol.objectivesPICO.comparator);
+    const o = stripProtocolDraftLanguage(protocol.objectivesPICO.outcomes);
+    const s = stripProtocolDraftLanguage(protocol.objectivesPICO.studyDesigns);
     return `The systematic review protocol was formulated using PICO. The population or unit of analysis (P) is ${p}. The intervention or focal concept (I) is ${i}. The comparator (C) is ${c}. The outcomes (O) are ${o}, with eligible study designs defined as ${s}.`;
   };
 
+  const recordById = new Map(includedRecords.map((record) => [record.id, record]));
+  const publicationCharacteristics = characteristics.map((characteristic) => {
+    const sourceAbstract = (recordById.get(characteristic.recordId)?.abstract || "").replace(/\s+/g, " ").trim();
+    const keyFinding = stripProtocolDraftLanguage(characteristic.keyFinding);
+    const looksLikeAbstractDump =
+      keyFinding.length > 520 ||
+      keyFinding.endsWith("...") ||
+      (sourceAbstract.length > 120 && keyFinding.slice(0, 120) === sourceAbstract.slice(0, 120));
+    return {
+      ...characteristic,
+      category: stripProtocolDraftLanguage(characteristic.category) || "Not reported",
+      country: stripProtocolDraftLanguage(characteristic.country) || "Not reported",
+      sampleSize: stripProtocolDraftLanguage(characteristic.sampleSize) || "Not reported",
+      population: stripProtocolDraftLanguage(characteristic.population) || "Not reported",
+      interventionOrFocus: stripProtocolDraftLanguage(characteristic.interventionOrFocus) || "Not reported",
+      comparator: stripProtocolDraftLanguage(characteristic.comparator) || "Not reported",
+      primaryOutcome: stripProtocolDraftLanguage(characteristic.primaryOutcome) || "Not reported",
+      studyDesign: stripProtocolDraftLanguage(characteristic.studyDesign) || "Not reported",
+      keyFinding:
+        !keyFinding || looksLikeAbstractDump
+          ? "No concise finding was extracted from the available abstract."
+          : keyFinding,
+    };
+  });
+
   // Group characteristics by category
   const categoriesMap = new Map<string, StudyCharacteristic[]>();
-  characteristics.forEach((c) => {
+  publicationCharacteristics.forEach((c) => {
     const cat = c.category || "Uncategorized evidence";
     if (!categoriesMap.has(cat)) {
       categoriesMap.set(cat, []);
@@ -121,8 +171,8 @@ export default function FullReviewReport({
   });
 
   // Check if any study has country or sample size populated
-  const hasCountryData = characteristics.some((c) => c.country && c.country !== "Not reported" && c.country !== "N/A");
-  const hasSampleData = characteristics.some((c) => c.sampleSize && c.sampleSize !== "N/A" && c.sampleSize !== "Not reported");
+  const hasCountryData = publicationCharacteristics.some((c) => c.country && c.country !== "Not reported" && c.country !== "N/A");
+  const hasSampleData = publicationCharacteristics.some((c) => c.sampleSize && c.sampleSize !== "N/A" && c.sampleSize !== "Not reported");
   const uploadedDatabaseNames = (counts.identifiedDbSources || []).filter(Boolean);
   const executedSearchNarrative = uploadedDatabaseNames.length > 0
     ? `The uploaded records identify ${uploadedDatabaseNames.join(", ")} as the database source${uploadedDatabaseNames.length === 1 ? "" : "s"} represented in this review. This report does not list planned databases as searched unless their records are represented in the uploaded provenance.`
@@ -130,7 +180,7 @@ export default function FullReviewReport({
 
   const includedIds = new Set(includedRecords.map((record) => record.id));
   const extractedIds = new Set(
-    characteristics.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
+    publicationCharacteristics.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
   );
   const appraisedIds = new Set(
     reportingAssessments.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
@@ -286,7 +336,7 @@ export default function FullReviewReport({
       title: getSuggestedManuscriptTitle(),
       abstract: generatedAbstract || abstractFallback,
       introduction:
-        [protocol.introductionRationale, protocol.backgroundContext, protocol.knowledgeGap]
+        [publicationRationale, publicationBackground, publicationKnowledgeGap]
           .filter(Boolean)
           .join("\n\n") || `This review addresses ${reviewTopic} using a protocol-defined evidence synthesis.`,
       methods: [
@@ -388,7 +438,7 @@ export default function FullReviewReport({
     const prompt = `Generate a structured systematic-review abstract from the uploaded RIS records and their abstracts.
 
 Review title: ${protocol.title}
-Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
+Approved rationale: ${publicationRationale || publicationBackground || "Not provided"}
 Approved objectives: ${JSON.stringify(objectives)}
 Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. AI-finalized included records: ${includedRecords.length}. Synthesis approach: ${synthesisApproach}. Appraisal approach: structured abstract-reporting checklist; no formal risk-of-bias judgment.
 Uploaded RIS records and abstracts (sole empirical source): ${JSON.stringify(risAbstractEvidence)}
@@ -428,13 +478,13 @@ Return ONLY JSON:
         throw new Error("The AI response did not contain a complete structured abstract.");
       }
       setGeneratedAbstract({
-        bg: removeCitationArtifacts(String(parsed.background || "")),
-        obj: removeCitationArtifacts(String(parsed.objective || "")),
-        meth: removeCitationArtifacts(String(parsed.methods || "")),
-        res: removeCitationArtifacts(String(parsed.results || "")),
-        concl: removeCitationArtifacts(String(parsed.conclusion || "")),
+        bg: stripProtocolDraftLanguage(removeCitationArtifacts(String(parsed.background || ""))),
+        obj: stripProtocolDraftLanguage(removeCitationArtifacts(String(parsed.objective || ""))),
+        meth: stripProtocolDraftLanguage(removeCitationArtifacts(String(parsed.methods || ""))),
+        res: stripProtocolDraftLanguage(removeCitationArtifacts(String(parsed.results || ""))),
+        concl: stripProtocolDraftLanguage(removeCitationArtifacts(String(parsed.conclusion || ""))),
         keywords: Array.isArray(parsed.keywords)
-          ? parsed.keywords.map((item: unknown) => removeCitationArtifacts(String(item))).filter(Boolean).slice(0, 6)
+          ? parsed.keywords.map((item: unknown) => stripProtocolDraftLanguage(removeCitationArtifacts(String(item)))).filter(Boolean).slice(0, 6)
           : ["Systematic Review", "Evidence Synthesis"],
       });
     } catch (error: any) {
@@ -470,7 +520,8 @@ ${JSON.stringify(draft)}`;
     if (!parsed?.introduction || !parsed?.methods || !parsed?.results || !parsed?.discussion || !parsed?.conclusion) {
       throw new Error("The grammar checker did not return a complete manuscript.");
     }
-    const normalize = (value: unknown) => resolveCitationMarkers(String(value || "").trim());
+    const normalize = (value: unknown) =>
+      stripProtocolDraftLanguage(resolveCitationMarkers(String(value || "").trim()));
     const normalizedAbstract = {
       bg: normalize(parsed.abstract?.bg || draft.abstract.bg),
       obj: normalize(parsed.abstract?.obj || draft.abstract.obj),
@@ -532,19 +583,19 @@ ${JSON.stringify(draft)}`;
       approvedProtocol: {
         title: protocol.title,
         reviewType: protocol.reviewType,
-        rationale: protocol.introductionRationale,
-        background: protocol.backgroundContext,
-        knowledgeGap: protocol.knowledgeGap,
-        objectives: protocol.secondaryObjectives,
+        rationale: publicationRationale,
+        background: publicationBackground,
+        knowledgeGap: publicationKnowledgeGap,
+        objectives,
         researchQuestions: questions,
         formulationFramework: protocol.formulationFramework,
         objectivesPICO: protocol.objectivesPICO,
         objectivesPICOC: protocol.objectivesPICOC,
         objectivesPEO: protocol.objectivesPEO,
         objectivesSPIDER: protocol.objectivesSPIDER,
-        inclusion: protocol.eligibilityCriteria.inclusion,
-        exclusion: protocol.eligibilityCriteria.exclusion,
-        groupingForSynthesis: protocol.eligibilityCriteria.groupingForSynthesis,
+        inclusion: publicationInclusion,
+        exclusion: publicationExclusion,
+        groupingForSynthesis: publicationGrouping,
         timeframe: protocol.eligibilityCriteria.timeframe,
         language: protocol.eligibilityCriteria.language,
       },
@@ -558,7 +609,7 @@ ${JSON.stringify(draft)}`;
           "Abstract-level reporting completeness only; Unclear means not reported in the abstract, not high risk of bias.",
       },
       risRecords: risEvidence,
-      studyCharacteristics: characteristics,
+        studyCharacteristics: publicationCharacteristics,
       reportingAssessments,
       finalizedSynthesis: {
         descriptiveSynthesis: synthesis.descriptiveSynthesis,
@@ -650,7 +701,8 @@ ${JSON.stringify(manuscriptEvidence)}`;
       );
       const parsed = parseJSONLoose(text);
       const fallback = getFallbackManuscript();
-      const normalize = (value: unknown) => resolveCitationMarkers(String(value || "").trim());
+      const normalize = (value: unknown) =>
+        stripProtocolDraftLanguage(resolveCitationMarkers(String(value || "").trim()));
       const candidateTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
       const usableTitle =
         candidateTitle.length >= 16 &&
@@ -733,14 +785,14 @@ ${JSON.stringify(manuscriptEvidence)}`;
 
     md += `## 1. Introduction and Academic Rationale\n\n`;
     md += `### 1.1 Scientific Rationale and Motivation for Conducting the Review\n`;
-    md += `${protocol.introductionRationale || "No review rationale has been approved by the researcher."}\n\n`;
+    md += `${publicationRationale || "No review rationale has been supplied."}\n\n`;
 
-    if (protocol.backgroundContext) {
-      md += `In theoretical and domain context, ${protocol.backgroundContext}\n\n`;
+    if (publicationBackground) {
+      md += `In theoretical and domain context, ${publicationBackground}\n\n`;
     }
 
-    if (protocol.knowledgeGap) {
-      md += `Regarding the existing literature gap, ${protocol.knowledgeGap}\n\n`;
+    if (publicationKnowledgeGap) {
+      md += `Regarding the existing literature gap, ${publicationKnowledgeGap}\n\n`;
     }
 
     md += `### 1.2 Review Objectives and Research Questions\n`;
@@ -753,9 +805,9 @@ ${JSON.stringify(manuscriptEvidence)}`;
     md += `${getFrameworkNarrative()}\n\n`;
 
     md += `### 2.2 Eligibility Criteria\n`;
-    const incText = protocol.eligibilityCriteria.inclusion.join(", ");
-    const excText = protocol.eligibilityCriteria.exclusion.join(", ");
-    md += `Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Records were excluded when they met ${excText}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.\n\n`;
+    const incText = publicationInclusion.join(", ");
+    const excText = publicationExclusion.join(", ");
+    md += `Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Records were excluded when they met ${excText}. The synthesis grouping strategy follows ${publicationGrouping}.\n\n`;
 
     md += `### 2.3 Information Sources and Search Strategy\n`;
     md += `${executedSearchNarrative}\n\n`;
@@ -768,19 +820,19 @@ ${JSON.stringify(manuscriptEvidence)}`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.\n\n`;
+    md += `${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received AI-finalized title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.\n\n`;
 
     md += `### 3.2 Characteristics of Included Studies (Table 1)\n\n`;
     if (hasCountryData || hasSampleData) {
       md += `| Study | Evidence Category | ${hasCountryData ? "Location | " : ""}${hasSampleData ? "Sample / Evidence Base | " : ""}Intervention / Exposure / Phenomenon | Comparator | Reported Outcome | Study Design | Key Finding |\n`;
       md += `| --- | --- | ${hasCountryData ? "--- | " : ""}${hasSampleData ? "--- | " : ""}--- | --- | --- | --- | --- |\n`;
-      characteristics.forEach((c) => {
+      publicationCharacteristics.forEach((c) => {
         md += `| ${c.authorYear} | ${c.category || "Not categorized"} | ${hasCountryData ? `${c.country || "Not reported"} | ` : ""}${hasSampleData ? `${c.sampleSize || "Not reported"} | ` : ""}${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Not reported").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Not reported").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
       });
     } else {
       md += `| Study | Evidence Category | Intervention / Exposure / Phenomenon | Comparator | Reported Outcome | Study Design | Key Finding |\n`;
       md += `| --- | --- | --- | --- | --- | --- | --- |\n`;
-      characteristics.forEach((c) => {
+      publicationCharacteristics.forEach((c) => {
         md += `| ${c.authorYear} | ${c.category || "Not categorized"} | ${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Not reported").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Not reported").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
       });
     }
@@ -932,10 +984,10 @@ ${JSON.stringify(manuscriptEvidence)}`;
   <h2>1. Introduction and Academic Rationale</h2>
   
   <h3>1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
-   <p>${protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}</p>
+   <p>${publicationRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}</p>
   
-  ${protocol.backgroundContext ? `<p>In theoretical and domain context, ${protocol.backgroundContext}</p>` : ""}
-  ${protocol.knowledgeGap ? `<p>Regarding the existing literature gap, ${protocol.knowledgeGap}</p>` : ""}
+  ${publicationBackground ? `<p>In theoretical and domain context, ${publicationBackground}</p>` : ""}
+  ${publicationKnowledgeGap ? `<p>Regarding the existing literature gap, ${publicationKnowledgeGap}</p>` : ""}
 
   <h3>1.2 Review Objectives and Research Questions</h3>
   <p>The overarching objective of this investigation is ${objectives.map((obj) => `to ${obj.toLowerCase().replace(/^to\s+/, "")}`).join(", as well as ")}. In addressing this mandate, the systematic review addresses three core research questions: ${questions.map((q, i) => `Research question ${i + 1} investigates ${q.replace(/^RQ\d+:\s*/, "")}`).join(". Furthermore, ")}.</p>
@@ -946,7 +998,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
   <p>${getFrameworkNarrative()}</p>
 
   <h3>2.2 Eligibility Criteria</h3>
-  <p>Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded when they met ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.</p>
+  <p>Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${publicationInclusion.join(", ")}. Records were excluded when they met ${publicationExclusion.join(", ")}. The synthesis grouping strategy follows ${publicationGrouping}.</p>
 
   <h3>2.3 Information Sources and Search Strategy</h3>
   <p>${executedSearchNarrative}</p>
@@ -960,7 +1012,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.</p>
+  <p>${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received AI-finalized title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.</p>
 
   <h3>3.2 Characteristics of Included Studies (Table 1)</h3>
   <div class="table-caption">Table 1: Characteristics of Included Studies Grouped by Category</div>
@@ -979,7 +1031,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
       </tr>
     </thead>
     <tbody>
-      ${characteristics.map((c) => `
+      ${publicationCharacteristics.map((c) => `
         <tr>
           <td><strong>${c.authorYear}</strong></td>
           <td>${c.category || "Empirical"}</td>
@@ -1282,16 +1334,16 @@ ${JSON.stringify(manuscriptEvidence)}`;
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-sm font-mono">1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-              {protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}
+              {publicationRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}
             </p>
-            {protocol.backgroundContext && (
+            {publicationBackground && (
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-                In theoretical and domain context, {protocol.backgroundContext}
+                In theoretical and domain context, {publicationBackground}
               </p>
             )}
-            {protocol.knowledgeGap && (
+            {publicationKnowledgeGap && (
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-                Regarding the existing literature gap, {protocol.knowledgeGap}
+                Regarding the existing literature gap, {publicationKnowledgeGap}
               </p>
             )}
           </div>
@@ -1317,7 +1369,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.2 Eligibility Criteria</h3>
             <p className="text-justify">
-              Studies were eligible for inclusion if they satisfied predefined criteria encompassing {protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded when they met {protocol.eligibilityCriteria.exclusion.join(", ")}. Synthesis grouping was structured around {protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.
+              Studies were eligible for inclusion if they satisfied predefined criteria encompassing {publicationInclusion.join(", ")}. Records were excluded when they met {publicationExclusion.join(", ")}. Synthesis grouping was structured around {publicationGrouping}.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.3 Information Sources and Search Strategy</h3>
@@ -1346,7 +1398,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The workspace contains {counts.identifiedDb || 0} identified records. After removing {counts.duplicatesRemoved || 0} duplicates, {counts.recordsAfterDuplicatesRemoved || 0} records remained. {counts.screened || 0} records received reviewer title/abstract decisions, {counts.recordsNotScreened || 0} remain pending, {counts.screenedExcluded || 0} were excluded, and {includedRecords.length} were included for abstract-based synthesis.
+              The workspace contains {counts.identifiedDb || 0} identified records. After removing {counts.duplicatesRemoved || 0} duplicates, {counts.recordsAfterDuplicatesRemoved || 0} records remained. {counts.screened || 0} records received AI-finalized title/abstract decisions, {counts.recordsNotScreened || 0} remain pending, {counts.screenedExcluded || 0} were excluded, and {includedRecords.length} were included for abstract-based synthesis.
             </p>
 
             {/* Illustrated Flow Diagram */}
@@ -1362,7 +1414,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
                 Table 1: Characteristics of Included Studies Grouped by Category
               </div>
               <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                {characteristics.length} Primary Studies
+                {publicationCharacteristics.length} Primary Studies
               </span>
             </div>
 
@@ -1382,7 +1434,7 @@ ${JSON.stringify(manuscriptEvidence)}`;
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {characteristics.map((c, i) => (
+                  {publicationCharacteristics.map((c, i) => (
                     <tr key={i} className="hover:bg-slate-50/50">
                       <td className="p-2.5 font-mono font-semibold text-slate-900 whitespace-nowrap">{c.authorYear}</td>
                       <td className="p-2.5 font-mono text-indigo-900">{c.category || "Not categorized"}</td>
