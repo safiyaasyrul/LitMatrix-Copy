@@ -1,4 +1,4 @@
-import { SLRRecord, ScreeningDecision, StudyCharacteristic, RiskOfBiasItem, SynthesisCategory, GradeCertaintyItem, SynthesisResult, DiscussionSections, SLRProtocol } from "../types/slr";
+import { SLRRecord, ScreeningDecision, StudyCharacteristic, AbstractReportingAssessment, RiskOfBiasItem, SynthesisCategory, GradeCertaintyItem, SynthesisResult, DiscussionSections, SLRProtocol } from "../types/slr";
 
 export const BLANK_PROTOCOL: SLRProtocol = {
   title: "Abstract-Level Systematic Review of [Topic]: Narrative and Thematic Synthesis",
@@ -474,6 +474,49 @@ export const SAMPLE_CHARACTERISTICS: StudyCharacteristic[] = [
   },
 ];
 
+/**
+ * A completed abstract-level appraisal fixture for the nine reviewer-included
+ * records above. It deliberately records reporting completeness, not risk of
+ * bias or certainty, so the demo can exercise the manuscript gate without
+ * manufacturing evidence beyond the supplied abstracts.
+ */
+export const SAMPLE_REPORTING_ASSESSMENTS: AbstractReportingAssessment[] =
+  SAMPLE_RECORDS.slice(0, 9).map((record) => {
+    const text = `${record.title}\n${record.abstract || ""}`;
+    const yes = (pattern: RegExp) => pattern.test(text);
+    const assessment = {
+      recordId: record.id,
+      authorYear: `${record.authors[0]?.split(",")[0] || "Author"} (${record.year || "n.d."})`,
+      studyDesignIdentifiable: "Yes" as const,
+      datasetSampleDescribed: "Yes" as const,
+      outcomeClearlyDefined: "Yes" as const,
+      validationDescribed: yes(/validat|compared|outperform|surpass|decision curve/i) ? "Yes" as const : "Unclear" as const,
+      comparatorBaselineDescribed: yes(/compared|versus|\bvs\.?\b|outperform|surpass|baseline|standard/i) ? "Yes" as const : "Unclear" as const,
+      externalValidation: yes(/external|independent cohort|multi-center|multi-hospital/i) ? "Yes" as const : "Unclear" as const,
+      uncertaintyReported: yes(/95% CI|confidence|calibration|p\s*[<=>]/i) ? "Yes" as const : "Unclear" as const,
+      realWorldImplementation: yes(/clinical|primary care|community|screening|outpatient|practice|healthcare|diagnostic|prevention/i) ? "Yes" as const : "Unclear" as const,
+      directTargetOutcome: yes(/diabetes|glucose|glycemic|metabolic/i) ? "Yes" as const : "Unclear" as const,
+      abstractReportingCompleteness: "Moderate" as const,
+      evidenceNotes:
+        "Completed demo fixture based only on the supplied title and abstract. Unclear means not reported in the available abstract.",
+    };
+    const definite = [
+      assessment.studyDesignIdentifiable,
+      assessment.datasetSampleDescribed,
+      assessment.outcomeClearlyDefined,
+      assessment.validationDescribed,
+      assessment.comparatorBaselineDescribed,
+      assessment.externalValidation,
+      assessment.uncertaintyReported,
+      assessment.realWorldImplementation,
+      assessment.directTargetOutcome,
+    ].filter((value) => value === "Yes").length;
+    return {
+      ...assessment,
+      abstractReportingCompleteness: definite >= 7 ? "High" : definite >= 4 ? "Moderate" : "Low",
+    };
+  });
+
 export const SAMPLE_RISK_OF_BIAS: RiskOfBiasItem[] = [
   {
     recordId: "rec-01",
@@ -759,72 +802,211 @@ export const SAMPLE_GRADE_CERTAINTY: GradeCertaintyItem[] = [
 ];
 
 export const SAMPLE_SYNTHESIS: SynthesisResult = {
+  status: "finalized",
+  descriptiveSynthesis: {
+    overview:
+      "Nine reviewer-included abstracts were mapped to study findings, methods, reported outcomes, and evidence limitations. The records cover tree-based models, neural and graph models, a support-vector classifier, and a decision-analytic screening model. Because the records differ in design, population, outcome definition, and reported metrics, the completed review uses qualitative comparison rather than quantitative pooling.",
+    comparisons: [
+      {
+        recordIds: ["rec-01", "rec-03", "rec-05", "rec-07", "rec-09"],
+        findingComparison:
+          "The tree-based studies report useful discrimination or screening and implementation signals across EHR, primary-care, community, survival, and decision-model settings.",
+        sharedPattern: "All report a model-based approach to early diabetes risk or screening.",
+        differences:
+          "The populations, outcomes, validation descriptions, and outcome measures are not sufficiently uniform for a single pooled estimate.",
+      },
+      {
+        recordIds: ["rec-02", "rec-04", "rec-08"],
+        findingComparison:
+          "The deep and graph-model studies report gains from combining longitudinal, genomic, clinical, or comorbidity information.",
+        sharedPattern: "Each uses structured high-dimensional or longitudinal information.",
+        differences:
+          "The input modalities and reported validation details differ across the three records.",
+      },
+      {
+        recordIds: ["rec-06"],
+        findingComparison:
+          "The support-vector study reports a lower-cost classifier based on routine laboratory indices.",
+        sharedPattern: "It addresses risk identification using routinely available clinical data.",
+        differences: "Its cross-sectional setting and surrogate signals limit direct comparison with longitudinal prediction studies.",
+      },
+    ],
+  },
+  studyEvidence: SAMPLE_CHARACTERISTICS.slice(0, 9).map((study) => ({
+    recordId: study.recordId,
+    studyLabel: study.authorYear,
+    finding: study.keyFinding,
+    assignedResearchQuestions: ["RQ1", "RQ2", "RQ3"],
+  })),
   subtopics: [
     {
-      title: "Tree-Based Gradient Boosting Ensembles (XGBoost, LightGBM, CatBoost)",
+      title: "Tree-based models across clinical and screening settings",
       prose:
-        "Tree-based gradient boosting models demonstrated consistently high discriminative capacity for Type 2 Diabetes prediction across general outpatient and community cohorts. Chen et al. (2023) established that XGBoost achieved an AUC-ROC of 0.892 (95% CI 0.884-0.900) in 124,500 EHR records, outperforming traditional logistic regression (AUC 0.781). Similarly, Williams et al. (2022) found LightGBM superior to standard clinical risk tools (FINDRISC AUC 0.724 vs LightGBM AUC 0.841), eliminating 34% of unnecessary confirmatory blood draws. Al-Mansoori et al. (2024) integrated CatBoost with explainable TreeSHAP values, raising clinician trust from 42% to 88%.",
+        "The included tree-based records report model performance or implementation-related findings across EHR, primary-care, community, survival, and decision-analytic settings. The evidence consistently concerns early risk identification, but the settings and target measures differ enough that the pattern is best interpreted as a recurring direction of evidence rather than a common effect estimate.",
+      recordIds: ["rec-01", "rec-03", "rec-05", "rec-07", "rec-09"],
     },
     {
-      title: "Deep Neural Networks & Longitudinal Temporal Trajectories",
+      title: "High-dimensional and longitudinal representation learning",
       prose:
-        "Deep learning architectures excelled in capturing multi-year continuous temporal trajectories. Zhao et al. (2023) developed LSTM recurrent neural networks on 5-year laboratory sequences, achieving an AUC of 0.905 and detecting dysglycemia 2.8 years earlier than point-in-time fasting blood glucose thresholds. Rodriguez et al. (2024) combined whole-genome polygenic risk scores (PRS) with longitudinal EHR phenotype embeddings in a multimodal deep network (AUC 0.914), confirming substantial synergy between genetic predisposition and clinical metabolic drift.",
+        "The genomic-clinical, longitudinal recurrent, and comorbidity-graph records describe approaches that represent information beyond a single baseline measurement. Together they support a theme of richer representation of patient history, while leaving transportability and implementation questions unresolved in the available abstracts.",
+      recordIds: ["rec-02", "rec-04", "rec-08"],
     },
     {
-      title: "Low-Cost Routine Biomarkers & Health Economic Impact",
+      title: "Routine biomarkers and resource-sensitive screening",
       prose:
-        "In resource-constrained settings, Fischer et al. (2021) demonstrated that Support Vector Machines utilizing routine complete blood count indices and lipid panels achieved an AUC of 0.814, with neutrophil-to-lymphocyte ratio acting as a surrogate for subclinical inflammation. Henderson et al. (2023) established cost-effectiveness ($14,250/QALY), supporting implementation in primary care screening programs.",
+        "The routine-laboratory classifier illustrates a complementary theme: models may use accessible biomarkers when specialized testing is constrained. This finding is informative for the review scope but comes from one cross-sectional record and should not be generalized beyond the supplied abstract.",
+      recordIds: ["rec-06"],
+    },
+  ],
+  rqFindings: [
+    {
+      rqId: "RQ1",
+      question: SAMPLE_PROTOCOL.primaryResearchQuestions[0],
+      synthesizedAnswer:
+        "The included abstracts report supervised tree, neural, graph, and support-vector approaches using EHR, clinical, genomic, longitudinal, comorbidity, and routine laboratory inputs. Reported outcomes include discrimination, classification, screening efficiency, cost-effectiveness, and clinical trust.",
+      dominantPatterns:
+        "The studies generally emphasize model performance using structured clinical or longitudinal information.",
+      contradictions:
+        "The evidence spans prediction, screening, survival, and decision-analytic outcomes rather than one common endpoint.",
+      evidenceGaps:
+        "Several records do not describe all validation and implementation details in the available abstract.",
+      contributingRecordIds: ["rec-01", "rec-02", "rec-03", "rec-04", "rec-05", "rec-06", "rec-07", "rec-08", "rec-09"],
+    },
+    {
+      rqId: "RQ2",
+      question: SAMPLE_PROTOCOL.primaryResearchQuestions[1],
+      synthesizedAnswer:
+        "Across the records, richer inputs and temporal or relational representations recur as methodological strategies. Differences in setting, population, comparator, follow-up, and reported metric shape the observed results and prevent a direct ranking of model families.",
+      dominantPatterns:
+        "Model families are adapted to the structure of the data, including trajectories, multimodal inputs, graphs, and routine biomarkers.",
+      contradictions:
+        "The records differ in design and outcome definition, so apparent performance differences cannot be treated as head-to-head comparisons.",
+      evidenceGaps:
+        "Transportability, calibration, and real-world utility are not reported consistently across the evidence base.",
+      contributingRecordIds: ["rec-01", "rec-02", "rec-03", "rec-04", "rec-05", "rec-06", "rec-07", "rec-08", "rec-09"],
+    },
+    {
+      rqId: "RQ3",
+      question: SAMPLE_PROTOCOL.primaryResearchQuestions[2],
+      synthesizedAnswer:
+        "The main unresolved issues are external validation across diverse settings, consistent calibration and uncertainty reporting, reproducible implementation detail, and prospective evaluation of clinical utility. These gaps limit interpretation beyond the populations and outcomes described in the abstracts.",
+      dominantPatterns:
+        "Reporting completeness varies across validation, uncertainty, and implementation domains.",
+      contradictions:
+        "Some records describe independent, multi-site, or practical settings, whereas others provide narrower or indirect evidence.",
+      evidenceGaps:
+        "The abstract-only workflow cannot establish full-text eligibility, internal validity, or causal effectiveness.",
+      contributingRecordIds: ["rec-01", "rec-02", "rec-03", "rec-04", "rec-05", "rec-06", "rec-07", "rec-08", "rec-09"],
+    },
+  ],
+  clusters: [
+    {
+      title: "Clinical prediction and screening models",
+      description: "These records evaluate model-based early risk identification in clinical or community-oriented settings.",
+      sharedPattern: "They report prediction or screening outcomes using structured health data.",
+      differences: "Cohort design, population, comparator, and reported endpoint differ.",
+      recordIds: ["rec-01", "rec-03", "rec-05", "rec-06", "rec-07", "rec-08"],
+    },
+    {
+      title: "Representation-rich models",
+      description: "These records use multimodal, longitudinal, or relational representations to model risk.",
+      sharedPattern: "They extend beyond a single static feature set.",
+      differences: "The representations and validation descriptions are not interchangeable.",
+      recordIds: ["rec-02", "rec-04", "rec-08"],
+    },
+    {
+      title: "Implementation and policy-facing evidence",
+      description: "These records connect model use with clinician interpretation or screening decisions.",
+      sharedPattern: "They address a consequence of deploying or applying prediction.",
+      differences: "The records report trust, screening efficiency, or simulation outcomes rather than a shared clinical endpoint.",
+      recordIds: ["rec-03", "rec-05", "rec-09"],
+    },
+  ],
+  crossStudySynthesis: {
+    overallPatterns:
+      "Across the nine included abstracts, machine-learning approaches are repeatedly positioned as ways to represent complex clinical information for earlier diabetes risk identification. The most stable cross-study theme is methodological rather than causal: model inputs and representations are tailored to the data structure, while reported performance and implementation signals remain context-specific.",
+    contradictions:
+      "The evidence does not support a single best algorithm. Differences in cohort, outcome, comparator, follow-up, and validation mean that reported performance values should not be read as direct head-to-head comparisons.",
+    evidenceGaps:
+      "External transportability, calibration, uncertainty, reproducibility, and prospective clinical utility are incompletely reported across the available abstracts. The abstract-only workflow also cannot establish full-text eligibility or formal internal validity.",
+    implications:
+      "The findings support further evidence collection and prospective validation, not a claim that any model is clinically effective across settings.",
+  },
+  researchGaps: [
+    {
+      gap: "Inconsistent external validation and transportability reporting",
+      evidenceBasis: "Only some abstracts explicitly describe independent, external, or multi-site validation.",
+      affectedResearchQuestions: ["RQ2", "RQ3"],
+      recordIds: ["rec-01", "rec-02", "rec-03", "rec-04", "rec-05", "rec-06", "rec-07", "rec-08", "rec-09"],
+    },
+    {
+      gap: "Incomplete calibration, uncertainty, and implementation reporting",
+      evidenceBasis: "The records emphasize discrimination or model outputs, but these reporting domains are not consistently described.",
+      affectedResearchQuestions: ["RQ1", "RQ3"],
+      recordIds: ["rec-01", "rec-02", "rec-03", "rec-04", "rec-05", "rec-06", "rec-07", "rec-08", "rec-09"],
+    },
+    {
+      gap: "Limited evidence for prospective clinical utility",
+      evidenceBasis: "The available records include prediction studies and a decision model, but do not establish broad real-world effectiveness.",
+      affectedResearchQuestions: ["RQ2", "RQ3"],
+      recordIds: ["rec-03", "rec-05", "rec-09"],
+    },
+  ],
+  futureResearchAgenda: [
+    {
+      priority: "Prospective, multi-site validation",
+      rationale: "Address the transportability gap across populations and care settings.",
+      suggestedApproach: "Predefine target populations, outcomes, calibration measures, and external validation cohorts.",
+      linkedGap: "Inconsistent external validation and transportability reporting",
+    },
+    {
+      priority: "Complete reporting of calibration and uncertainty",
+      rationale: "Make model outputs interpretable beyond discrimination metrics.",
+      suggestedApproach: "Report calibration, uncertainty, missing-data handling, and reproducible evaluation procedures.",
+      linkedGap: "Incomplete calibration, uncertainty, and implementation reporting",
+    },
+    {
+      priority: "Prospective clinical-utility evaluation",
+      rationale: "Test whether model-supported screening improves care rather than only model performance.",
+      suggestedApproach: "Evaluate workflow, patient outcomes, equity, and resource use in appropriately designed prospective studies.",
+      linkedGap: "Limited evidence for prospective clinical utility",
     },
   ],
   keyFindingsTable: [
     {
-      topic: "Gradient Boosted Tree Ensembles",
-      summary: "Pooled AUC 0.864 (0.850-0.878); superior to FINDRISC & ADA risk calculators across all tested datasets.",
-      consistency: "High (5 studies)",
-      evidenceBase: "N = 200,000+ EHR & community records",
+      topic: "Data-adapted model representations",
+      summary: "Tree, neural, graph, and support-vector approaches were adapted to different clinical data structures.",
+      consistency: "Recurring qualitative theme across nine records",
+      evidenceBase: "Nine reviewer-included abstracts",
     },
     {
-      topic: "Multimodal Deep Learning (Genomics + EHR)",
-      summary: "Pooled AUC 0.898 (0.886-0.910); captures nonlinear temporal laboratory velocity and genetic risk.",
-      consistency: "High (3 studies)",
-      evidenceBase: "N = 165,000+ multi-center cohort records",
+      topic: "Context-specific reported outcomes",
+      summary: "The records report discrimination, classification, screening, trust, or economic outcomes that are not directly interchangeable.",
+      consistency: "Consistent limitation across the evidence base",
+      evidenceBase: "Nine reviewer-included abstracts",
     },
     {
-      topic: "Clinical Efficiency in Primary Care",
-      summary: "34% reduction in unnecessary oral glucose tolerance tests and early identification 2.8 years prior to clinical onset.",
-      consistency: "Moderate (2 studies)",
-      evidenceBase: "Primary care practice registries",
+      topic: "Validation and implementation gaps",
+      summary: "External validation, calibration, uncertainty, reproducibility, and clinical utility are incompletely reported.",
+      consistency: "Cross-study evidence gap",
+      evidenceBase: "Abstract-level reporting assessment",
     },
   ],
-  forestPlotEstimates: [
-    { study: "Chen et al. (2023)", effectMeasure: "AUC", effectSize: 0.892, ciLower: 0.884, ciUpper: 0.900, weight: 18.2 },
-    { study: "Rodriguez et al. (2024)", effectMeasure: "AUC", effectSize: 0.914, ciLower: 0.902, ciUpper: 0.926, weight: 14.5 },
-    { study: "Zhao et al. (2023)", effectMeasure: "AUC", effectSize: 0.905, ciLower: 0.891, ciUpper: 0.919, weight: 13.8 },
-    { study: "Williams et al. (2022)", effectMeasure: "AUC", effectSize: 0.841, ciLower: 0.826, ciUpper: 0.856, weight: 15.4 },
-    { study: "Al-Mansoori et al. (2024)", effectMeasure: "AUC", effectSize: 0.872, ciLower: 0.855, ciUpper: 0.889, weight: 12.6 },
-    { study: "Larsson et al. (2022)", effectMeasure: "AUC", effectSize: 0.838, ciLower: 0.820, ciUpper: 0.856, weight: 13.0 },
-    { study: "Fischer et al. (2021)", effectMeasure: "AUC", effectSize: 0.814, ciLower: 0.793, ciUpper: 0.835, weight: 12.5 },
-  ],
-  pooledEffectEstimate: {
-    effectMeasure: "Pooled Random-Effects AUC",
-    effectSize: 0.876,
-    ciLower: 0.858,
-    ciUpper: 0.894,
-    heterogeneityI2: "62.4%",
-  },
+  forestPlotEstimates: [],
+  pooledEffectEstimate: undefined,
   heterogeneityDiscussion:
-    "Moderate between-study heterogeneity (I² = 62.4%, p = 0.008) was predominantly accounted for by differences in predictor modalities (models fusing multimodal polygenic scores consistently achieved AUC > 0.90, whereas standard EHR-only models clustered around AUC 0.84-0.89) and differences in baseline population diabetes prevalence across geographic healthcare systems.",
+    "Study differences are synthesized qualitatively; no statistical pooling or forest plot is produced.",
 };
 
 export const SAMPLE_DISCUSSION_SECTIONS: DiscussionSections = {
   item23aGeneralInterpretation:
-    "This systematic review and meta-analysis synthesizes current evidence on machine learning algorithms for early Type 2 Diabetes prediction across 9 primary studies comprising over 350,000 participants. Our findings demonstrate that modern machine learning models—particularly gradient boosted trees (pooled AUC 0.864) and multimodal deep neural networks (pooled AUC 0.898)—consistently and substantially outperform conventional questionnaire-based clinical risk tools like FINDRISC (AUC ~0.72) and the ADA score (AUC ~0.71). The primary clinical advantage lies in capturing non-linear multi-variable biomarker trajectories and integrating high-dimensional polygenic scores, allowing identification of prediabetic individuals up to 3 to 5 years prior to clinical symptom manifestation.",
+    "The completed abstract-level review suggests a recurring methodological pattern: machine-learning models are adapted to structured clinical, longitudinal, genomic, relational, or routine laboratory data to support earlier diabetes risk identification. The evidence is informative about reported approaches and outcomes, but it does not establish a single best algorithm or broad clinical effectiveness because the records differ in design, population, comparator, validation, and outcome definition.",
   item23bLimitationsOfEvidence:
-    "Several limitations inherent in the primary evidence base warrant consideration. First, while discrimination (AUC-ROC) is widely reported, calibration metrics (e.g., calibration curves, Brier scores) were omitted in 33% of included studies, raising potential concerns regarding probability overconfidence when applied to different baseline disease prevalences. Second, true external geographic validation was conducted in only 4 out of 9 studies; models trained on integrated health system data in high-income nations may underperform in racially and socioeconomically diverse cohorts. Third, the majority of deep learning architectures lack standardized reporting on computational complexity.",
+    "The evidence base reports heterogeneous outcomes and does not consistently describe calibration, uncertainty, external validation, implementation detail, or reproducibility. The variation in study design and population means that reported performance values should not be interpreted as direct head-to-head comparisons or pooled effects.",
   item23cLimitationsOfReviewProcess:
-    "Limitations of our review methodology include restricting searches to English-language peer-reviewed publications, which may have excluded pertinent regional validation studies in non-English medical journals. Furthermore, grey literature and unpublished proprietary commercial algorithms deployed in commercial EHR systems were not accessible for formal risk of bias assessment. Meta-analytic pooling of AUCs required variance approximations for studies that did not report exact standard errors.",
+    "This review is limited to the supplied citation metadata and abstracts. Reviewer-confirmed title/abstract decisions define inclusion in this workflow; full-text retrieval and eligibility assessment were not performed. The review therefore does not claim formal risk-of-bias, certainty, causal, or quantitative meta-analytic conclusions.",
   item23dImplications:
-    "For clinical practice: Implementing machine learning risk calculators within automated electronic health record systems can enable proactive, automated triage and reduce unnecessary invasive diagnostic tests by up to 34%. For health policy: Targeted ML screening exhibits favorable cost-effectiveness ($14,250/QALY), supporting implementation in public health prevention programs. For future research: Priorities should focus on prospective randomized clinical utility trials, open-source model weight repositories, explainable AI (SHAP/LIME) interfaces, and external validation across diverse global populations to prevent health disparities.",
+    "The findings support prospective, multi-site validation with complete calibration and uncertainty reporting, followed by clinical-utility evaluation that measures workflow, patient, equity, and resource outcomes. They do not by themselves justify deployment or claims of effectiveness across settings.",
 };
 
 // Aliases for convenient importing
@@ -832,6 +1014,7 @@ export const sampleProtocol = SAMPLE_PROTOCOL;
 export const sampleRecords = SAMPLE_RECORDS;
 export const sampleScreening = SAMPLE_SCREENING;
 export const sampleCharacteristics = SAMPLE_CHARACTERISTICS;
+export const sampleReportingAssessments = SAMPLE_REPORTING_ASSESSMENTS;
 export const sampleRiskOfBias = SAMPLE_RISK_OF_BIAS;
 export const sampleSynthesis = SAMPLE_SYNTHESIS;
 export const sampleGradeItems = SAMPLE_GRADE_CERTAINTY;

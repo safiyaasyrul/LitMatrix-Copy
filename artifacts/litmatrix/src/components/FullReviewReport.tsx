@@ -634,13 +634,17 @@ ${JSON.stringify(manuscriptEvidence)}`;
   const generateFullMarkdown = () => {
     if (generatedManuscript) {
       const manuscript = generatedManuscript;
+      const markdownJournalText = (value: string) =>
+        renderJournalBlocks(value)
+          .map((block) => block.kind === "heading" ? `### ${block.text}` : block.text)
+          .join("\n\n");
       let generated = `# ${manuscript.title}\n\n`;
       generated += `## Abstract\n\n${abstractStatement(manuscript.abstract)}\n\n**Keywords:** ${manuscript.keywords.join(", ")}\n\n`;
-      generated += `## 1. Introduction\n\n${manuscript.introduction}\n\n`;
-      generated += `## 2. Methods\n\n${manuscript.methods}\n\n`;
-      generated += `## 3. Results\n\n${manuscript.results}\n\n`;
-      generated += `## 4. Discussion\n\n${manuscript.discussion}\n\n`;
-      generated += `## 5. Conclusion\n\n${manuscript.conclusion}\n\n`;
+      generated += `## 1. Introduction\n\n${markdownJournalText(manuscript.introduction)}\n\n`;
+      generated += `## 2. Methods\n\n${markdownJournalText(manuscript.methods)}\n\n`;
+      generated += `## 3. Results\n\n${markdownJournalText(manuscript.results)}\n\n`;
+      generated += `## 4. Discussion\n\n${markdownJournalText(manuscript.discussion)}\n\n`;
+      generated += `## 5. Conclusion\n\n${markdownJournalText(manuscript.conclusion)}\n\n`;
       generated += `## References\n\n`;
       includedRecords.forEach((record) => {
         const authors = (record.authors || []).join(", ") || "Unknown authors";
