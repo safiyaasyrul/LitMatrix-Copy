@@ -88,7 +88,25 @@ export default function App() {
 
   const [screening, setScreening] = useState<Record<string, ScreeningDecision>>(() => {
     const saved = localStorage.getItem("slr_screening_v1");
-    return saved ? JSON.parse(saved) : {};
+    if (!saved) return {};
+
+    try {
+      const parsed = JSON.parse(saved) as Record<string, ScreeningDecision>;
+      return Object.fromEntries(
+        Object.entries(parsed).map(([recordId, decision]) => {
+          if (decision?.agreed !== undefined) return [recordId, decision];
+          if (decision?.recommendation === "include") {
+            return [recordId, { ...decision, agreed: true, decision: "include" }];
+          }
+          if (decision?.recommendation === "exclude") {
+            return [recordId, { ...decision, agreed: false, decision: "exclude" }];
+          }
+          return [recordId, decision];
+        })
+      );
+    } catch {
+      return {};
+    }
   });
 
   const [characteristics, setCharacteristics] = useState<StudyCharacteristic[]>(() => {
