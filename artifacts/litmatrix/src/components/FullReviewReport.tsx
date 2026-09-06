@@ -194,10 +194,33 @@ export default function FullReviewReport({
 
   const renderJournalText = (value: string) =>
     resolveCitationMarkers(value)
-      .replace(/(^|\n)\s*(?:[-*•]|\d+[.)])\s+/g, "$1")
+      .replace(/(^|\n)\s*(?:[-*•]|\d+[.)](?!\d))\s+/g, "$1")
       .split(/\n{2,}/)
       .map((paragraph) => paragraph.trim())
       .filter(Boolean);
+
+  const renderJournalBlocks = (value: string) => {
+    const normalized = resolveCitationMarkers(value)
+      .replace(/(^|\n)\s*(?:[-*•]|\d+[.)](?!\d))\s+/g, "$1")
+      .split(/\n{2,}/)
+      .map((block) => block.trim())
+      .filter(Boolean);
+    const headingPattern = /^\d+(?:\.\d+)+\s+[^.!?]+$/;
+
+    return normalized.flatMap((block) => {
+      const lines = block.split("\n").map((line) => line.trim()).filter(Boolean);
+      if (lines.length > 1 && headingPattern.test(lines[0])) {
+        return [
+          { kind: "heading" as const, text: lines[0] },
+          { kind: "paragraph" as const, text: lines.slice(1).join(" ") },
+        ];
+      }
+      if (lines.length === 1 && headingPattern.test(lines[0])) {
+        return [{ kind: "heading" as const, text: lines[0] }];
+      }
+      return [{ kind: "paragraph" as const, text: lines.join(" ") }];
+    });
+  };
 
   const abstractStatement = (value: StructuredAbstract) =>
     [value.bg, value.obj, value.meth, value.res, value.concl]
@@ -362,7 +385,7 @@ Return ONLY JSON:
 
 Return ONLY valid JSON with the exact same structure and fields as the input.
 
-Correct spelling, grammar, punctuation, sentence structure, agreement, tense consistency, word choice, and awkward repetition. Improve transitions and formal journal readability. Keep all sections as continuous academic prose paragraphs; do not add bullets, numbered lists, magazine-style labels, promotional language, or decorative formatting.
+Correct spelling, grammar, punctuation, sentence structure, agreement, tense consistency, word choice, and awkward repetition. Improve transitions and formal journal readability. Keep all sections as continuous academic prose paragraphs. Preserve numbered manuscript subheadings such as “3.1 Study Selection” and “4.1 Principal Findings” on their own lines; do not turn them into bullets, numbered lists, magazine-style labels, promotional language, or decorative formatting.
 
 Do not change the scientific meaning, study counts, dates, methods, results, limitations, evidence strength, citation markers, record identifiers, or conclusions. Do not add facts, citations, studies, numerical results, or interpretations. Do not remove any evidence statement. The abstract segments must remain suitable for one single continuous abstract paragraph when concatenated.
 
@@ -510,6 +533,8 @@ MANUSCRIPT STANDARD:
 - Consolidate the evidence into comparative scientific claims. Do not merely enumerate individual studies.
 - Use continuous academic paragraphs and normal academic subheadings inside the section text. Do not use bullets, numbered lists, checklists, promotional language, decorative labels, or conversational phrasing.
 - The abstract clauses must read as one uninterrupted paragraph when concatenated. Do not prefix them with “Background,” “Objective,” “Methods,” “Results,” or “Conclusion.”
+- Use numbered manuscript subheadings on their own line when the synthesis moves to a new analytical unit. In Results, organize the synthesis as: study selection and flow; characteristics of included evidence; one subsection for each approved research question; integrated cross-study thematic synthesis; evidence gaps; and future research agenda. In Discussion, organize the interpretation as: principal findings; interpretation by research question or theme; contradictions and evidence limitations; review-process limitations; and implications.
+- Each numbered subheading must be followed by one or more continuous prose paragraphs. Do not turn research gaps, future agenda items, themes, or study characteristics into bullet lists.
 - The manuscript must be complete enough for editorial review, while remaining explicit about the abstract-only evidence boundary.
 
 EVIDENCE AND CITATION RULES:
@@ -744,11 +769,17 @@ ${JSON.stringify(manuscriptEvidence)}`;
       const manuscript = generatedManuscript;
       const paragraphHtml = (value: string) =>
         renderJournalText(value).map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`).join("");
+      const journalHtml = (value: string) =>
+        renderJournalBlocks(value).map((block) =>
+          block.kind === "heading"
+            ? `<h3>${escapeHtml(block.text)}</h3>`
+            : `<p>${escapeHtml(block.text)}</p>`
+        ).join("");
       const abstractHtml = `
         <h2 style="margin-top: 0; border-bottom: none; font-size: 13pt;">Abstract</h2>
         <p>${escapeHtml(abstractStatement(manuscript.abstract))}</p>
         <p><strong>Keywords:</strong> <em>${escapeHtml(manuscript.keywords.join(", "))}</em></p>`;
-      const generatedDocHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(manuscript.title)}</title><style>body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.6;color:#1e293b;margin:40px}h1{font-size:20pt;color:#0f172a}h2{font-size:14pt;color:#1e293b;border-bottom:1.5pt solid #cbd5e1;padding-bottom:4px;margin-top:28px}p{margin-bottom:12px;text-align:justify}</style></head><body><h1>${escapeHtml(manuscript.title)}</h1>${abstractHtml}<h2>1. Introduction</h2>${paragraphHtml(manuscript.introduction)}<h2>2. Methods</h2>${paragraphHtml(manuscript.methods)}<h2>3. Results</h2>${paragraphHtml(manuscript.results)}<h2>4. Discussion</h2>${paragraphHtml(manuscript.discussion)}<h2>5. Conclusion</h2>${paragraphHtml(manuscript.conclusion)}<h2>References</h2>${includedRecords.map((record) => `<p>${escapeHtml((record.authors || []).join(", ") || "Unknown authors")} (${escapeHtml(String(record.year || "n.d."))}). ${escapeHtml(record.title)}. <em>${escapeHtml(record.source || "Journal")}</em>${record.doi ? `, doi:${escapeHtml(record.doi)}` : ""}.</p>`).join("")}</body></html>`;
+      const generatedDocHTML = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>${escapeHtml(manuscript.title)}</title><style>body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.6;color:#1e293b;margin:40px}h1{font-size:20pt;color:#0f172a;line-height:1.25}h2{font-size:14pt;color:#1e293b;margin-top:28px;margin-bottom:10px}h3{font-size:11pt;font-style:italic;color:#334155;margin-top:18px;margin-bottom:6px}p{margin-bottom:12px;text-align:justify}</style></head><body><p><em>Systematic Review</em></p><h1>${escapeHtml(manuscript.title)}</h1><p>${escapeHtml(protocol.reviewType)} · PRISMA 2020 reporting · ${includedRecords.length} included records</p>${abstractHtml}<h2>1. Introduction</h2>${journalHtml(manuscript.introduction)}<h2>2. Methods</h2>${journalHtml(manuscript.methods)}<h2>3. Results</h2>${journalHtml(manuscript.results)}<h2>4. Discussion</h2>${journalHtml(manuscript.discussion)}<h2>5. Conclusion</h2>${journalHtml(manuscript.conclusion)}<h2>References</h2>${includedRecords.map((record) => `<p>${escapeHtml((record.authors || []).join(", ") || "Unknown authors")} (${escapeHtml(String(record.year || "n.d."))}). ${escapeHtml(record.title)}. <em>${escapeHtml(record.source || "Journal")}</em>${record.doi ? `, doi:${escapeHtml(record.doi)}` : ""}.</p>`).join("")}</body></html>`;
       const generatedBlob = new Blob([generatedDocHTML], { type: "application/msword;charset=utf-8" });
       const generatedLink = document.createElement("a");
       generatedLink.href = URL.createObjectURL(generatedBlob);
@@ -975,10 +1006,10 @@ ${JSON.stringify(manuscriptEvidence)}`;
             Consolidated SLR Manuscript
           </div>
           <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-            Full Systematic Review Manuscript & Evidence Report
+            Full Systematic Review Manuscript
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Authoritative, publication-grade systematic review manuscript with a structured academic abstract, continuous paragraph statements without bullet points, categorized study characteristics, and cross-author synthesis.
+            Publication-style manuscript with a single-paragraph abstract, numbered analytical subsections, and narrative cross-study synthesis.
           </p>
         </div>
 
@@ -1042,26 +1073,26 @@ ${JSON.stringify(manuscriptEvidence)}`;
       </div>
 
       {/* Formatted Manuscript Card */}
-      <article className="bg-white border border-slate-200 p-8 sm:p-12 rounded-xl shadow-xs font-sans space-y-8 max-w-4xl mx-auto print:border-none print:shadow-none print:p-0">
+      <article className="bg-white p-8 sm:p-12 rounded-none shadow-none font-serif space-y-8 max-w-4xl mx-auto print:p-0">
         {/* Title Header */}
         <header className="border-b border-slate-200 pb-6 space-y-2">
-          <div className="font-mono text-[10px] text-indigo-600 uppercase font-bold tracking-wider">
-            Systematic Literature Review Manuscript
+          <div className="font-serif text-xs italic text-slate-600">
+            Systematic Review
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-            {protocol.title || "Systematic Review Title"}
+            {generatedManuscript?.title || protocol.title || "Systematic Review Title"}
           </h1>
-          <div className="text-xs font-mono text-slate-500 pt-1 space-y-1">
-            <div>Methodology: <span className="font-semibold text-slate-800">{protocol.reviewType}</span></div>
+          <div className="text-xs text-slate-500 pt-1 space-y-1">
+            <div>{protocol.reviewType} · PRISMA 2020 reporting · {includedRecords.length} included records</div>
           </div>
         </header>
 
         {/* Structured Academic Abstract */}
-        <section className="bg-white border border-slate-200 p-6 sm:p-8 rounded-xl space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
-            <h2 className="text-base font-bold text-slate-900 font-mono flex items-center gap-2 uppercase tracking-wide">
-              <BookOpen className="w-4 h-4 text-indigo-600" />
-              Structured Academic Abstract
+        <section className="border-y border-slate-300 py-6 sm:py-8 space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-slate-600" />
+              Abstract
             </h2>
             <div className="flex items-center gap-2">
               <span className={`text-[10px] font-mono border px-2 py-0.5 rounded ${
@@ -1103,9 +1134,9 @@ ${JSON.stringify(manuscriptEvidence)}`;
             </div>
           )}
 
-          <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
+          <div className="space-y-3 text-sm sm:text-base text-slate-800 leading-relaxed text-justify">
             <p>{abstractStatement(abstract)}</p>
-            <div className="pt-2 border-t border-slate-200 text-xs font-mono text-slate-600">
+            <div className="pt-2 text-xs sm:text-sm text-slate-600">
               <strong className="text-slate-900 mr-1.5 font-bold">Keywords:</strong>
               <span className="text-slate-700 italic">{abstract.keywords.join(", ")}</span>
             </div>
@@ -1121,10 +1152,14 @@ ${JSON.stringify(manuscriptEvidence)}`;
               ["4. Discussion", generatedManuscript.discussion],
               ["5. Conclusion", generatedManuscript.conclusion],
             ].map(([heading, content]) => (
-              <section key={heading} className="space-y-3">
-                <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">{heading}</h2>
-                <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-                  {renderJournalText(content).map((paragraph, index) => <p key={index}>{paragraph}</p>)}
+              <section key={heading} className="space-y-4">
+                <h2 className="text-xl font-bold text-slate-900">{heading}</h2>
+                <div className="space-y-3 text-sm sm:text-base text-slate-800 leading-relaxed text-justify">
+                  {renderJournalBlocks(content).map((block, index) =>
+                    block.kind === "heading"
+                      ? <h3 key={index} className="pt-3 text-base sm:text-lg font-semibold italic text-slate-900">{block.text}</h3>
+                      : <p key={index}>{block.text}</p>
+                  )}
                 </div>
               </section>
             ))}
