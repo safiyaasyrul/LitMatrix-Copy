@@ -311,6 +311,20 @@ export interface ObjectivesSPIDER {
   researchType: string;
 }
 
+export interface TopicDecomposition {
+  topic: string;
+  fieldOfStudy: string;
+  problemStatement: string;
+  context: string;
+}
+
+export interface CuratedSearchKeyword {
+  id: string;
+  term: string;
+  category: "Concept 1 (Population / Domain)" | "Concept 2 (Intervention / Technology)" | "Concept 3 (Outcome / Comparator)" | "MeSH & Controlled Vocabulary" | "General / Synonym";
+  selected: boolean;
+}
+
 export interface SLRProtocol {
   // Items 1, 3 & 4 (Title, Rationale & Objectives)
   title: string;
@@ -319,6 +333,9 @@ export interface SLRProtocol {
   introductionRationale?: string;
   backgroundContext?: string;
   knowledgeGap?: string;
+  topicDecomposition?: TopicDecomposition;
+  curatedKeywords?: CuratedSearchKeyword[];
+  titleSuggestions?: string[];
   primaryResearchQuestions?: string[];
   secondaryObjectives?: string[];
   protocolRegistration?: string;

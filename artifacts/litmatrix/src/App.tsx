@@ -20,6 +20,7 @@ import {
 } from "./data/sampleDataset";
 
 import MethodsProtocol from "./components/MethodsProtocol";
+import TopicStrategy from "./components/TopicStrategy";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
@@ -425,7 +426,7 @@ export default function App() {
     },
     {
       id: "protocol",
-      label: "Protocol & Review Questions",
+      label: "Topic Strategy & Protocol",
       badge: "Items 4, 5, 8–15",
       icon: FileSpreadsheet,
     },
@@ -622,11 +623,19 @@ export default function App() {
 
           {/* Stage 2: Protocol & PICO Objectives */}
           {activeStage === 1 && (
-            <MethodsProtocol
-              protocol={protocol}
-              onUpdateProtocol={setProtocol}
-              aiConfig={activeAIConfig}
-            />
+            <div className="space-y-6">
+              <TopicStrategy
+                protocol={protocol}
+                onUpdateProtocol={setProtocol}
+                aiConfig={activeAIConfig}
+                onContinueToSearch={() => setActiveStage(2)}
+              />
+              <MethodsProtocol
+                protocol={protocol}
+                onUpdateProtocol={setProtocol}
+                aiConfig={activeAIConfig}
+              />
+            </div>
           )}
 
           {/* Stage 3: Information Sources & Search Strings */}
