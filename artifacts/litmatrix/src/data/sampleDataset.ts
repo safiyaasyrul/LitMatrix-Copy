@@ -105,7 +105,7 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
   reviewType: "Systematic Review and Quantitative Meta-Analysis",
   introductionRationale: "Type 2 Diabetes Mellitus (T2DM) represents a escalating global health crisis affecting over 530 million adults worldwide, associated with substantial macrovascular and microvascular morbidity. Early detection during asymptomatic dysglycemic or prediabetic stages permits timely lifestyle interventions and pharmacotherapy that significantly delay or prevent disease progression. Although conventional risk scores (such as FINDRISC and the ADA Risk Tool) provide accessible baseline screening, their discriminative performance is constrained when processing complex, non-linear interactions across high-dimensional clinical registers, metabolic panels, and longitudinal EHR trajectories. Recent advances in supervised machine learning—including tree-based ensembles (XGBoost, LightGBM, Random Forest) and deep neural architectures—demonstrate superior capacity to capture complex temporal risk profiles. However, published studies vary widely in model architectures, validation protocols, cohort demographics, and risk-of-bias controls. A rigorous, PRISMA 2020-compliant systematic review and quantitative meta-analysis is urgently warranted to consolidate pooled diagnostic discrimination (AUC-ROC), compare model families against conventional risk scores, appraise methodological risk of bias via PROBAST, and evaluate the overall certainty of cumulative evidence using the GRADE framework.",
   backgroundContext: "T2DM accounts for >90% of global diabetes cases, imposing an estimated $966 billion annual economic burden. Routine clinical risk calculators frequently suffer from moderate discrimination (AUC ~0.70-0.76) and suboptimal calibration when deployed across multi-ethnic cohorts. Machine learning models leveraging multimodal electronic health record features offer a promising paradigm for personalized predictive stratification.",
-  knowledgeGap: "Existing literature is fragmented across disparate algorithm implementations, heterogeneous feature sets, and inconsistent reporting of calibration and external validation. No recent systematic meta-analysis has quantitatively synthesized pooled discrimination across distinct machine learning families while systematically grading certainty under PRISMA 2020 and GRADE standards.",
+  knowledgeGap: "Existing literature is fragmented across disparate algorithm implementations, heterogeneous feature sets, and inconsistent reporting of calibration and external validation. A qualitative cross-study synthesis is needed to compare recurring findings, contradictions, methodological limitations, and evidence gaps.",
   primaryResearchQuestions: [
     "RQ1 (Discrimination): What is the pooled diagnostic and predictive discrimination (AUC-ROC / C-index) of supervised machine learning algorithms in predicting incident Type 2 Diabetes?",
     "RQ2 (Comparative Superiority): Do tree-based gradient boosted ensembles (XGBoost/LightGBM) demonstrate statistically superior predictive accuracy compared to traditional multivariable logistic regression and clinical risk scores?",
@@ -114,7 +114,7 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
   secondaryObjectives: [
     "Quantify between-study heterogeneity (I²) across cohort sample sizes and validation methods (cross-validation vs. external cohorts)",
     "Identify top consistent predictive feature rankings (e.g., fasting plasma glucose, HbA1c, BMI, lipid ratios) across model architectures",
-    "Formulate evidence-based clinical implementation guidelines based on GRADE certainty ratings",
+    "Develop an evidence-grounded future research agenda from identified gaps and methodological limitations",
   ],
   formulationFramework: "PICO",
   objectivesPICO: {
@@ -216,13 +216,13 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
   synthesisMethods: {
     criteriaForEligibility: "Studies providing validated predictive performance metrics in general adult cohorts.",
     dataPreparation: "Conversion of ROC confidence bounds into standard error using Wilson score / Hanley-McNeil variance formulas.",
-    visualDisplays: "Forest plots of discrimination AUC, traffic-light Risk of Bias charts, and GRADE Summary of Findings tables.",
+    visualDisplays: "Study-characteristics tables, adaptive study-quality summaries, thematic clusters, and cross-study evidence tables.",
     synthesisModel: "DerSimonian-Laird random-effects meta-analysis model with inverse-variance weighting; statistical heterogeneity quantified via I² statistic and Cochran's Q test (p < 0.10).",
     heterogeneityExploration: "Subgroup analysis comparing algorithm type (Tree ensemble vs Deep Learning vs Logistic regression) and validation type (internal vs external cohort).",
     sensitivityAnalysis: "Leave-one-out sensitivity analysis and restriction to low Risk of Bias studies.",
   },
   reportingBiasMethods: "Visual inspection of funnel plot asymmetry and Egger's linear regression test for funnel asymmetry (significance threshold p < 0.05).",
-  certaintyMethods: "GRADE (Grading of Recommendations Assessment, Development and Evaluation) framework assessing risk of bias, inconsistency, indirectness, imprecision, and publication bias.",
+  certaintyMethods: "Qualitative confidence is interpreted from adaptive study-quality judgments, consistency, directness, reporting completeness, and identified evidence gaps.",
 };
 
 export const SAMPLE_RECORDS: SLRRecord[] = [

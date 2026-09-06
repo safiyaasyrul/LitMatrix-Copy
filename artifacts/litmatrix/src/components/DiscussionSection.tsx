@@ -28,8 +28,12 @@ export default function DiscussionSection({
 
   const synthesisReady =
     synthesis.status === "finalized" &&
+    Boolean(synthesis.descriptiveSynthesis?.overview) &&
+    (synthesis.clusters?.length || 0) > 0 &&
     (synthesis.rqFindings?.length || 0) > 0 &&
-    Boolean(synthesis.crossStudySynthesis);
+    Boolean(synthesis.crossStudySynthesis) &&
+    (synthesis.researchGaps?.length || 0) > 0 &&
+    (synthesis.futureResearchAgenda?.length || 0) > 0;
 
   // Conservative discussion fallback interprets only the finalized synthesis.
   const runHeuristicDiscussion = () => {

@@ -324,7 +324,7 @@ Return ONLY valid JSON matching this exact structure:
         ],
         secondaryObjectives: [
           `Evaluate geographic and spatial subgroup variations across biomes, catchment areas, and demographic strata`,
-          `Grade the certainty of evidence for primary environmental/health endpoints using the GRADE/ROSES certainty matrix`,
+          `Appraise study quality using a domain-appropriate framework and synthesize limitations without imposing a clinical certainty scale`,
         ],
         objectivesPEO: {
           population: `Target ecosystems, biotas, catchments, communities, or observational human cohorts subject to ${t}.`,
@@ -402,7 +402,7 @@ Return ONLY valid JSON matching this exact structure:
         ],
         secondaryObjectives: [
           `Evaluate subgroup variations across demographic and methodological strata`,
-          `Grade the certainty of evidence for primary outcomes using the GRADE framework`,
+          `Appraise study quality using a domain-appropriate framework and incorporate its limitations into the qualitative synthesis`,
         ],
         objectivesPICO: {
           population: `Target patient population, demographic cohort, or clinical condition evaluated in ${t}.`,

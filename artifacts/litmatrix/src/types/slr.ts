@@ -117,6 +117,15 @@ export interface SynthesisCategory {
 
 export interface SynthesisResult {
   status?: "evidence_map" | "finalized";
+  descriptiveSynthesis?: {
+    overview: string;
+    comparisons: {
+      recordIds: string[];
+      findingComparison: string;
+      sharedPattern: string;
+      differences: string;
+    }[];
+  };
   studyEvidence?: {
     recordId: string;
     studyLabel: string;
@@ -143,6 +152,25 @@ export interface SynthesisResult {
     evidenceGaps: string;
     implications: string;
   };
+  clusters?: {
+    title: string;
+    description: string;
+    sharedPattern: string;
+    differences: string;
+    recordIds: string[];
+  }[];
+  researchGaps?: {
+    gap: string;
+    evidenceBasis: string;
+    affectedResearchQuestions: string[];
+    recordIds: string[];
+  }[];
+  futureResearchAgenda?: {
+    priority: string;
+    rationale: string;
+    suggestedApproach: string;
+    linkedGap: string;
+  }[];
   keyFindingsTable: {
     topic: string;
     summary: string;

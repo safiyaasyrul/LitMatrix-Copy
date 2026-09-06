@@ -5,7 +5,6 @@ import {
   StudyCharacteristic,
   RiskOfBiasItem,
   SynthesisResult,
-  GradeCertaintyItem,
   DiscussionSections,
   PrismaChecklistItem,
 } from "../types/slr";
@@ -28,7 +27,6 @@ interface FullReviewReportProps {
   characteristics: StudyCharacteristic[];
   riskOfBias: RiskOfBiasItem[];
   synthesis: SynthesisResult;
-  gradeItems: GradeCertaintyItem[];
   discussion: DiscussionSections;
   checklist: PrismaChecklistItem[];
   counts: any;
@@ -41,7 +39,6 @@ export default function FullReviewReport({
   characteristics,
   riskOfBias,
   synthesis,
-  gradeItems,
   discussion,
   checklist,
   counts,
@@ -138,11 +135,15 @@ export default function FullReviewReport({
     );
   const synthesisComplete =
     synthesis.status === "finalized" &&
+    Boolean(synthesis.descriptiveSynthesis?.overview?.trim()) &&
     (synthesis.studyEvidence?.length || 0) > 0 &&
     (synthesis.subtopics?.length || 0) > 0 &&
+    (synthesis.clusters?.length || 0) > 0 &&
     rqSynthesisComplete &&
     Boolean(synthesis.crossStudySynthesis?.overallPatterns?.trim()) &&
-    Boolean(synthesis.crossStudySynthesis?.evidenceGaps?.trim());
+    Boolean(synthesis.crossStudySynthesis?.evidenceGaps?.trim()) &&
+    (synthesis.researchGaps?.length || 0) > 0 &&
+    (synthesis.futureResearchAgenda?.length || 0) > 0;
   const abstractReady =
     selectionComplete && extractionComplete && appraisalComplete && synthesisComplete;
 
@@ -210,6 +211,8 @@ export default function FullReviewReport({
             implications: removeCitationArtifacts(synthesis.crossStudySynthesis.implications),
           }
         : null,
+      researchGaps: synthesis.researchGaps || [],
+      futureResearchAgenda: synthesis.futureResearchAgenda || [],
       heterogeneity: removeCitationArtifacts(synthesis.heterogeneityDiscussion || ""),
     };
     const appraisalSummary = {
@@ -388,19 +391,15 @@ Return ONLY JSON:
       md += `**Principal evidence gaps:** ${synthesis.crossStudySynthesis.evidenceGaps}\n\n`;
     }
 
-    if (gradeItems.length > 0) {
-      md += `### 3.5 Optional Certainty of Evidence Assessment\n\n`;
-      md += `A certainty assessment was included only because it was explicitly populated by the reviewer. It was not generated automatically.\n\n`;
-      md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
-      md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
-      gradeItems.forEach((g) => {
-        md += `| ${g.outcome} | ${g.numStudies} | ${g.riskOfBias} | ${g.inconsistency} | ${g.indirectness} | ${g.imprecision} | ${g.publicationBias} | ${g.overallCertainty} | ${g.explanation.replace(/\|/g, "/")} |\n`;
-      });
-      md += `\n`;
-    } else {
-      md += `### 3.5 Certainty Assessment\n\n`;
-      md += `GRADE was not applied. Methodological quality was considered using the researcher-approved appraisal approach appropriate to the available study designs.\n\n`;
-    }
+    md += `### 3.${crossStudySectionNumber + 1} Research Gap Analysis\n\n`;
+    (synthesis.researchGaps || []).forEach((item) => {
+      md += `**${item.gap}:** ${item.evidenceBasis}\n\n`;
+    });
+
+    md += `### 3.${crossStudySectionNumber + 2} Future Research Agenda\n\n`;
+    (synthesis.futureResearchAgenda || []).forEach((item) => {
+      md += `**${item.priority}:** ${item.rationale} Suggested approach: ${item.suggestedApproach}\n\n`;
+    });
 
     md += `## 4. Discussion\n\n`;
     md += `### 4.1 Principal Findings\n${discussion.item23aGeneralInterpretation}\n\n`;
@@ -602,6 +601,15 @@ Return ONLY JSON:
     <p><strong>Cross-cutting contradictions:</strong> ${synthesis.crossStudySynthesis.contradictions}</p>
     <p><strong>Principal evidence gaps:</strong> ${synthesis.crossStudySynthesis.evidenceGaps}</p>
   ` : ""}
+  <h3>3.${rqFindings.length + 5} Research Gap Analysis</h3>
+  ${(synthesis.researchGaps || []).map((item) => `
+    <p><strong>${item.gap}:</strong> ${item.evidenceBasis}</p>
+  `).join("")}
+
+  <h3>3.${rqFindings.length + 6} Future Research Agenda</h3>
+  ${(synthesis.futureResearchAgenda || []).map((item) => `
+    <p><strong>${item.priority}:</strong> ${item.rationale} Suggested approach: ${item.suggestedApproach}</p>
+  `).join("")}
 
   <h2>4. Discussion</h2>
   <h3>4.1 Principal Findings</h3>
@@ -976,34 +984,27 @@ Return ONLY JSON:
             )}
           </div>
 
-          {/* Optional Table 3: reviewer-populated certainty assessment */}
-          {gradeItems.length > 0 && <div className="space-y-2 pt-4">
-            <div className="text-xs font-mono font-bold text-slate-900">
-              Table 3: Certainty of Evidence and Summary of Findings
+          <div className="grid md:grid-cols-2 gap-4 pt-4">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
+              <h3 className="font-bold text-sm text-amber-950">Research Gap Analysis</h3>
+              {(synthesis.researchGaps || []).map((item, index) => (
+                <div key={index} className="mt-3">
+                  <div className="text-xs font-bold text-amber-900">{item.gap}</div>
+                  <p className="text-xs text-amber-900 mt-1">{item.evidenceBasis}</p>
+                </div>
+              ))}
             </div>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-left text-[11px] font-sans">
-                <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
-                  <tr>
-                    <th className="p-2 font-bold">Outcome</th>
-                    <th className="p-2 font-bold">Studies (N)</th>
-                    <th className="p-2 font-bold">Certainty Rating</th>
-                    <th className="p-2 font-bold">Synthesis Explanation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {gradeItems.map((g, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="p-2 font-mono font-semibold">{g.outcome}</td>
-                      <td className="p-2 font-mono">{g.numStudies}</td>
-                      <td className="p-2 font-mono font-bold text-emerald-800">{g.overallCertainty}</td>
-                      <td className="p-2 text-slate-600">{g.explanation}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
+              <h3 className="font-bold text-sm text-indigo-950">Future Research Agenda</h3>
+              {(synthesis.futureResearchAgenda || []).map((item, index) => (
+                <div key={index} className="mt-3">
+                  <div className="text-xs font-bold text-indigo-900">{item.priority}</div>
+                  <p className="text-xs text-indigo-900 mt-1">{item.rationale}</p>
+                  <p className="text-xs text-indigo-800 mt-1"><strong>Suggested approach:</strong> {item.suggestedApproach}</p>
+                </div>
+              ))}
             </div>
-          </div>}
+          </div>
         </section>
 
         {/* Section 4: interpretation of synthesized results */}

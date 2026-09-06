@@ -6,7 +6,6 @@ import {
   StudyCharacteristic,
   RiskOfBiasItem,
   SynthesisResult,
-  GradeCertaintyItem,
   DiscussionSections,
   PrismaChecklistItem,
   PrismaSChecklistItem,
@@ -24,7 +23,6 @@ import {
   sampleCharacteristics,
   sampleRiskOfBias,
   sampleSynthesis,
-  sampleGradeItems,
   sampleDiscussion,
   BLANK_PROTOCOL,
 } from "./data/sampleDataset";
@@ -37,8 +35,7 @@ import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
 import RiskOfBiasSection from "./components/RiskOfBiasSection";
-import SynthesisSection from "./components/SynthesisSection";
-import CertaintyGradeSection from "./components/CertaintyGradeSection";
+import EvidenceSynthesisStage, { EvidenceSynthesisPhase } from "./components/EvidenceSynthesisStage";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
@@ -62,7 +59,6 @@ import {
   Table,
   ShieldCheck,
   BarChart2,
-  Award,
   BookOpen,
   FileText,
   Sparkles,
@@ -120,12 +116,6 @@ export default function App() {
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion: parsed.heterogeneityDiscussion?.replace(/I²|p\s*=|pooled/gi, "") || "",
     };
-  });
-
-  const [gradeItems, setGradeItems] = useState<GradeCertaintyItem[]>(() => {
-    // GRADE is optional and is not appropriate by default for heterogeneous
-    // engineering evidence. Existing auto-generated rows are not trusted.
-    return [];
   });
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
@@ -244,10 +234,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("slr_synthesis_v1", JSON.stringify(synthesis));
   }, [synthesis]);
-
-  useEffect(() => {
-    localStorage.setItem("slr_grade_v1", JSON.stringify(gradeItems));
-  }, [gradeItems]);
 
   useEffect(() => {
     localStorage.setItem("slr_discussion_v1", JSON.stringify(discussion));
@@ -373,7 +359,6 @@ export default function App() {
       setCharacteristics(sampleCharacteristics);
       setRiskOfBias(sampleRiskOfBias);
       setSynthesis(sampleSynthesis);
-      setGradeItems([]);
       setDiscussion(sampleDiscussion);
       setChecklist(initialPrismaChecklist);
       setPrismaSChecklist(initialPrismaSChecklist);
@@ -395,13 +380,20 @@ export default function App() {
       setCharacteristics([]);
       setRiskOfBias([]);
       setSynthesis({
-        characteristicsTable: [],
-        metaAnalysisCategories: [],
+        status: undefined,
+        descriptiveSynthesis: undefined,
+        studyEvidence: [],
+        subtopics: [],
+        clusters: [],
+        rqFindings: [],
+        crossStudySynthesis: undefined,
+        researchGaps: [],
+        futureResearchAgenda: [],
+        keyFindingsTable: [],
         forestPlotEstimates: [],
         pooledEffectEstimate: undefined,
         heterogeneityDiscussion: "",
       });
-      setGradeItems([]);
       setDiscussion({
         item23aGeneralInterpretation: "",
         item23bLimitationsOfEvidence: "",
@@ -429,13 +421,20 @@ export default function App() {
     setCharacteristics((current) => current.filter((item) => recordIds.has(item.recordId)));
     setRiskOfBias((current) => current.filter((item) => recordIds.has(item.recordId)));
     setSynthesis({
+      status: undefined,
+      descriptiveSynthesis: undefined,
+      studyEvidence: [],
       subtopics: [],
+      clusters: [],
+      rqFindings: [],
+      crossStudySynthesis: undefined,
+      researchGaps: [],
+      futureResearchAgenda: [],
       keyFindingsTable: [],
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion: "",
     });
-    setGradeItems([]);
     setDiscussion({
       item23aGeneralInterpretation: "",
       item23bLimitationsOfEvidence: "",
@@ -501,18 +500,12 @@ export default function App() {
       badge: "Items 11 & 18",
       icon: ShieldCheck,
     },
-    {
-      id: "synthesis",
-      label: "RQ-Based Evidence Synthesis",
-      badge: "Items 13a–f",
-      icon: BarChart2,
-    },
-    {
-      id: "grade",
-      label: "Optional Evidence Certainty",
-      badge: "Items 15 & 22",
-      icon: Award,
-    },
+    { id: "descriptive", label: "Descriptive Synthesis", badge: "Study → Finding", icon: BarChart2 },
+    { id: "thematic", label: "Thematic Synthesis", badge: "Pattern → Theme", icon: BarChart2 },
+    { id: "clusters", label: "Cluster Analysis", badge: "Related Evidence", icon: BarChart2 },
+    { id: "cross-study", label: "Cross-study Evidence Synthesis", badge: "Items 13a–f", icon: BarChart2 },
+    { id: "gaps", label: "Research Gap Analysis", badge: "Evidence Gaps", icon: BarChart2 },
+    { id: "agenda", label: "Future Research Agenda", badge: "Research Priorities", icon: BarChart2 },
     {
       id: "discussion",
       label: "Discussion & Interpretation",
@@ -605,7 +598,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              13 Stages
+              17 Stages
             </span>
           </div>
 
@@ -771,33 +764,26 @@ export default function App() {
             />
           )}
 
-          {/* Stage 10: Narrative / Thematic Synthesis */}
-          {activeStage === 9 && (
-            <SynthesisSection
-              synthesis={synthesis}
-              onUpdateSynthesis={setSynthesis}
-              includedRecords={includedRecords}
-              characteristics={characteristics}
-              protocol={protocol}
-              aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
-            />
+          {(["descriptive", "thematic", "clusters", "cross-study", "gaps", "agenda"] as EvidenceSynthesisPhase[]).map(
+            (phase, index) =>
+              activeStage === 9 + index && (
+                <React.Fragment key={phase}>
+                  <EvidenceSynthesisStage
+                    phase={phase}
+                    synthesis={synthesis}
+                    onUpdateSynthesis={setSynthesis}
+                    includedRecords={includedRecords}
+                    characteristics={characteristics}
+                    protocol={protocol}
+                    aiConfig={activeAIConfig}
+                    onNavigateToScreening={() => setActiveStage(5)}
+                  />
+                </React.Fragment>
+              )
           )}
 
-          {/* Stage 11: Optional certainty assessment */}
-          {activeStage === 10 && (
-            <CertaintyGradeSection
-              gradeItems={gradeItems}
-              onUpdateGrade={setGradeItems}
-              includedRecords={includedRecords}
-              characteristics={characteristics}
-              aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
-            />
-          )}
-
-          {/* Stage 12: Discussion */}
-          {activeStage === 11 && (
+          {/* Stage 16: Discussion */}
+          {activeStage === 15 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -809,15 +795,14 @@ export default function App() {
             />
           )}
 
-          {/* Stage 13: Consolidated Manuscript */}
-          {activeStage === 12 && (
+          {/* Stage 17: Consolidated Manuscript */}
+          {activeStage === 16 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
               characteristics={characteristics}
               riskOfBias={riskOfBias}
               synthesis={synthesis}
-              gradeItems={gradeItems}
               discussion={discussion}
               checklist={checklist}
               counts={prismaCounts}
