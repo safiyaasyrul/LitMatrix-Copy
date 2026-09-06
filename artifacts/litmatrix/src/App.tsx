@@ -7,15 +7,7 @@ import {
   AbstractReportingAssessment,
   SynthesisResult,
   DiscussionSections,
-  PrismaChecklistItem,
-  PrismaSChecklistItem,
-  RosesChecklistItem,
 } from "./types/slr";
-import {
-  initialPrismaChecklist,
-  initialPrismaSChecklist,
-  initialRosesChecklist,
-} from "./data/prismaChecklistData";
 import {
   sampleProtocol,
   sampleRecords,
@@ -26,7 +18,6 @@ import {
   BLANK_PROTOCOL,
 } from "./data/sampleDataset";
 
-import PrismaChecklistAudit from "./components/PrismaChecklistAudit";
 import MethodsProtocol from "./components/MethodsProtocol";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
@@ -49,7 +40,6 @@ import {
 } from "./utils/aiClient";
 
 import {
-  ClipboardCheck,
   FileSpreadsheet,
   Search,
   UploadCloud,
@@ -121,21 +111,6 @@ export default function App() {
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
     const saved = localStorage.getItem("slr_discussion_v1");
     return saved ? JSON.parse(saved) : sampleDiscussion;
-  });
-
-  const [checklist, setChecklist] = useState<PrismaChecklistItem[]>(() => {
-    const saved = localStorage.getItem("slr_checklist_v1");
-    return saved ? JSON.parse(saved) : initialPrismaChecklist;
-  });
-
-  const [prismaSChecklist, setPrismaSChecklist] = useState<PrismaSChecklistItem[]>(() => {
-    const saved = localStorage.getItem("slr_prisma_s_checklist_v1");
-    return saved ? JSON.parse(saved) : initialPrismaSChecklist;
-  });
-
-  const [rosesChecklist, setRosesChecklist] = useState<RosesChecklistItem[]>(() => {
-    const saved = localStorage.getItem("slr_roses_checklist_v1");
-    return saved ? JSON.parse(saved) : initialRosesChecklist;
   });
 
   const [keysConfig, setKeysConfig] = useState<UserAIKeysConfig>(() => {
@@ -240,18 +215,6 @@ export default function App() {
   }, [discussion]);
 
   useEffect(() => {
-    localStorage.setItem("slr_checklist_v1", JSON.stringify(checklist));
-  }, [checklist]);
-
-  useEffect(() => {
-    localStorage.setItem("slr_prisma_s_checklist_v1", JSON.stringify(prismaSChecklist));
-  }, [prismaSChecklist]);
-
-  useEffect(() => {
-    localStorage.setItem("slr_roses_checklist_v1", JSON.stringify(rosesChecklist));
-  }, [rosesChecklist]);
-
-  useEffect(() => {
     localStorage.setItem("slr_ai_keys_v1", JSON.stringify(keysConfig));
   }, [keysConfig]);
 
@@ -330,25 +293,6 @@ export default function App() {
     exclusionReasonsBreakdown,
   ]);
 
-  // Checklist item update helpers
-  const handleUpdateChecklistItem = (itemNumber: string, updates: Partial<PrismaChecklistItem>) => {
-    setChecklist((prev) =>
-      prev.map((c) => (c.itemNumber === itemNumber ? { ...c, ...updates } : c))
-    );
-  };
-
-  const handleUpdatePrismaSItem = (itemNumber: string, updates: Partial<PrismaSChecklistItem>) => {
-    setPrismaSChecklist((prev) =>
-      prev.map((c) => (c.itemNumber === itemNumber ? { ...c, ...updates } : c))
-    );
-  };
-
-  const handleUpdateRosesItem = (itemNumber: string, updates: Partial<RosesChecklistItem>) => {
-    setRosesChecklist((prev) =>
-      prev.map((c) => (c.itemNumber === itemNumber ? { ...c, ...updates } : c))
-    );
-  };
-
   // Reset to full sample dataset
   const handleResetSample = () => {
     if (window.confirm("Reload complete PRISMA 2020 systematic review dataset (Type 2 Diabetes demo)?")) {
@@ -380,9 +324,6 @@ export default function App() {
         item23cLimitationsOfReviewProcess: "",
         item23dImplications: "",
       });
-      setChecklist(initialPrismaChecklist);
-      setPrismaSChecklist(initialPrismaSChecklist);
-      setRosesChecklist(initialRosesChecklist);
     }
   };
 
@@ -420,9 +361,6 @@ export default function App() {
         item23cLimitationsOfReviewProcess: "",
         item23dImplications: "",
       });
-      setChecklist(initialPrismaChecklist);
-      setPrismaSChecklist(initialPrismaSChecklist);
-      setRosesChecklist(initialRosesChecklist);
     }
   };
 
