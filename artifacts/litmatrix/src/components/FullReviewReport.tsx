@@ -251,6 +251,68 @@ export default function FullReviewReport({
 
   const abstract = generatedAbstract || pendingAbstract;
 
+  const getSuggestedManuscriptTitle = () => {
+    const rawTitle = (protocol.title || "").replace(/\s+/g, " ").trim();
+    const topic = rawTitle
+      .replace(/^abstract[- ]level\s+/i, "")
+      .replace(/^(?:a\s+)?systematic(?:\s+literature)?\s+review\s+(?:of|on)\s+/i, "")
+      .trim();
+    if (!topic || /^\[?topic\]?$/i.test(topic)) {
+      return "A PRISMA 2020 Systematic Review and Narrative Thematic Synthesis of the Available Evidence";
+    }
+    if (/systematic review/i.test(rawTitle)) return rawTitle;
+    return `${topic}: A PRISMA 2020 Systematic Review and Narrative Thematic Synthesis`;
+  };
+
+  const getFallbackManuscript = (): StructuredJournalManuscript => {
+    const reviewTopic = protocol.title || "the approved review topic";
+    const overview =
+      synthesis.descriptiveSynthesis?.overview ||
+      synthesis.crossStudySynthesis?.overallPatterns ||
+      "The finalized evidence was synthesized narratively and thematically.";
+    const evidenceGaps =
+      synthesis.crossStudySynthesis?.evidenceGaps ||
+      (synthesis.researchGaps || []).map((item) => item.gap).filter(Boolean).join("; ") ||
+      "Evidence gaps were recorded in the finalized synthesis.";
+    const abstractFallback: StructuredAbstract = {
+      bg: `The review examined ${reviewTopic} within an abstract-only evidence boundary.`,
+      obj: questions[0] || `The review investigated ${reviewTopic}.`,
+      meth: `The review used the recorded RIS metadata and abstracts, AI-finalized title and abstract screening, and a narrative and thematic synthesis of ${includedRecords.length} included records.`,
+      res: overview,
+      concl: `The findings should be interpreted as an abstract-level synthesis, with ${evidenceGaps}`,
+      keywords: [reviewTopic, "Systematic Review", "Narrative Synthesis", "PRISMA 2020"].slice(0, 6),
+    };
+    return {
+      title: getSuggestedManuscriptTitle(),
+      abstract: generatedAbstract || abstractFallback,
+      introduction:
+        [protocol.introductionRationale, protocol.backgroundContext, protocol.knowledgeGap]
+          .filter(Boolean)
+          .join("\n\n") || `This review addresses ${reviewTopic} using a protocol-defined evidence synthesis.`,
+      methods: [
+        getFrameworkNarrative(),
+        `Studies were screened against the approved inclusion and exclusion criteria using the recorded title and abstract evidence. ${includedRecords.length} records were included for abstract-based synthesis.`,
+        executedSearchNarrative,
+        "Abstract-level reporting completeness was described without assigning risk of bias, certainty, or overall study quality.",
+      ].join("\n\n"),
+      results: [
+        `${counts.screened || 0} records were screened, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.`,
+        overview,
+        `The principal evidence gaps were ${evidenceGaps}`,
+      ].join("\n\n"),
+      discussion: [
+        discussion.item23aGeneralInterpretation,
+        discussion.item23bLimitationsOfEvidence,
+        discussion.item23cLimitationsOfReviewProcess,
+        discussion.item23dImplications,
+      ].filter(Boolean).join("\n\n"),
+      conclusion:
+        discussion.item23dImplications ||
+        `The review provides a narrative and thematic account of the available abstract-level evidence on ${reviewTopic}. Conclusions remain limited by what the supplied abstracts report.`,
+      keywords: abstractFallback.keywords,
+    };
+  };
+
   useEffect(() => {
     setGeneratedAbstract(null);
     setAbstractError(null);
@@ -401,7 +463,8 @@ ${JSON.stringify(draft)}`;
     const text = await callAI(
       grammarPrompt,
       "You are a senior scientific copy editor. Correct language only; preserve every evidence-grounded claim exactly.",
-      aiConfig
+      aiConfig,
+      12000
     );
     const parsed = parseJSONLoose(text);
     if (!parsed?.introduction || !parsed?.methods || !parsed?.results || !parsed?.discussion || !parsed?.conclusion) {
@@ -582,34 +645,39 @@ ${JSON.stringify(manuscriptEvidence)}`;
       const text = await callAI(
         prompt,
         "You are a senior systematic-review author and medical/scientific editor. Produce a rigorous, evidence-traceable journal manuscript, not a magazine-style summary.",
-        aiConfig
+        aiConfig,
+        12000
       );
       const parsed = parseJSONLoose(text);
-      if (!parsed?.introduction || !parsed?.methods || !parsed?.results || !parsed?.discussion || !parsed?.conclusion) {
-        throw new Error("The AI response did not contain all required manuscript sections.");
-      }
+      const fallback = getFallbackManuscript();
       const normalize = (value: unknown) => resolveCitationMarkers(String(value || "").trim());
+      const candidateTitle = typeof parsed?.title === "string" ? parsed.title.trim() : "";
+      const usableTitle =
+        candidateTitle.length >= 16 &&
+        !/^(?:untitled|title|precise scientific title|systematic review manuscript)$/i.test(candidateTitle)
+          ? candidateTitle
+          : fallback.title;
       const normalizedAbstract = {
-        bg: normalize(parsed.abstract?.bg || ""),
-        obj: normalize(parsed.abstract?.obj || ""),
-        meth: normalize(parsed.abstract?.meth || ""),
-        res: normalize(parsed.abstract?.res || ""),
-        concl: normalize(parsed.abstract?.concl || ""),
-        keywords: Array.isArray(parsed.abstract?.keywords)
+        bg: normalize(parsed?.abstract?.bg || fallback.abstract.bg),
+        obj: normalize(parsed?.abstract?.obj || fallback.abstract.obj),
+        meth: normalize(parsed?.abstract?.meth || fallback.abstract.meth),
+        res: normalize(parsed?.abstract?.res || fallback.abstract.res),
+        concl: normalize(parsed?.abstract?.concl || fallback.abstract.concl),
+        keywords: Array.isArray(parsed?.abstract?.keywords)
           ? parsed.abstract.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
-          : [],
+          : fallback.abstract.keywords,
       };
       const normalized: StructuredJournalManuscript = {
-        title: normalize(parsed.title || protocol.title),
+        title: normalize(usableTitle),
         abstract: normalizedAbstract,
-        introduction: normalize(parsed.introduction),
-        methods: normalize(parsed.methods),
-        results: normalize(parsed.results),
-        discussion: normalize(parsed.discussion),
-        conclusion: normalize(parsed.conclusion),
-        keywords: Array.isArray(parsed.keywords)
+        introduction: normalize(parsed?.introduction || fallback.introduction),
+        methods: normalize(parsed?.methods || fallback.methods),
+        results: normalize(parsed?.results || fallback.results),
+        discussion: normalize(parsed?.discussion || fallback.discussion),
+        conclusion: normalize(parsed?.conclusion || fallback.conclusion),
+        keywords: Array.isArray(parsed?.keywords)
           ? parsed.keywords.map((item: unknown) => String(item)).filter(Boolean).slice(0, 6)
-          : normalizedAbstract.keywords,
+          : fallback.keywords,
       };
       try {
         setGrammarChecking(true);
