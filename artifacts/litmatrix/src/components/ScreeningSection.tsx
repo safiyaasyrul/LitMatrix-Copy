@@ -8,6 +8,8 @@ import {
   ChevronDown,
   ChevronUp,
   AlertCircle,
+  Copy,
+  Check,
 } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
@@ -40,6 +42,7 @@ export default function ScreeningSection({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [summaryCopied, setSummaryCopied] = useState(false);
   const screeningRunRef = useRef(false);
 
   const screeningQuestions = useMemo<Array<{ key: ScreeningCriterionKey; label: string; criterion: string }>>(
@@ -268,6 +271,20 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
     return true;
   });
 
+  const prismaSynthesisReport = `Rumusan Keputusan Penerimaan dan Penolakan (PRISMA Synthesis Report)
+
+Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui saringan abstrak pintar berdasarkan kriteria kelayakan yang diluluskan. Sebanyak ${includedCount} rekod diterima untuk sintesis, ${excludedCount} rekod ditolak, dan ${pendingCount} rekod masih menunggu keputusan kerana respons penyedia AI tidak lengkap atau belum tersedia. Keputusan ini adalah berdasarkan maklumat tajuk, pengarang, jurnal, dan abstrak yang tersedia dalam rekod.`;
+
+  const copyPrismaSynthesisReport = async () => {
+    try {
+      await navigator.clipboard.writeText(prismaSynthesisReport);
+      setSummaryCopied(true);
+      window.setTimeout(() => setSummaryCopied(false), 2000);
+    } catch {
+      setErrorMessage("Rumusan PRISMA tidak dapat disalin. Sila pilih dan salin teks secara manual.");
+    }
+  };
+
   return (
     <div id="screening-section-container" className="space-y-6">
       {/* Error / Notice message */}
@@ -291,10 +308,10 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
               PRISMA 2020 Item 5 · Eligibility Criteria · Items 8, 16a & 16b · Study Selection
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Study Selection & Eligibility Criteria
+              Fasa 3: Saringan Abstrak Pintar (Abstract Screening)
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-               Evaluate each record against five explicit eligibility questions derived from the approved inclusion, exclusion, and study-type criteria. AI applies the final include or exclude decision automatically; only incomplete provider responses remain pending.
+              Nilai setiap rekod berdasarkan lima soalan kelayakan yang jelas daripada kriteria kemasukan, pengecualian, dan reka bentuk kajian yang diluluskan. AI menetapkan keputusan penerimaan atau penolakan akhir secara automatik; hanya respons penyedia yang tidak lengkap kekal sebagai menunggu.
             </p>
           </div>
 
@@ -350,6 +367,16 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
             </div>
           </div>
         )}
+      </div>
+
+      {/* Comprehensive screening decision table */}
+      <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs">
+        <h3 className="text-lg font-bold text-slate-900">
+          Jadual Keputusan Saringan Komprehensif
+        </h3>
+        <p className="text-xs text-slate-500 mt-1">
+          Dipaparkan mengikut tajuk, pengarang, jurnal berserta alasan penerimaan/penolakan.
+        </p>
       </div>
 
       {/* Tabs and Search */}
@@ -535,6 +562,40 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
             );
           })
         )}
+      </div>
+
+      {/* PRISMA screening synthesis report */}
+      <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-slate-900">
+              Rumusan Keputusan Penerimaan dan Penolakan (PRISMA Synthesis Report)
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">
+              Anda boleh menyalin draf keputusan sintesis PRISMA ini terus untuk dimuatkan ke bab metodologi atau dokumen kajian anda.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={copyPrismaSynthesisReport}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
+          >
+            {summaryCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                Disalin
+              </>
+            ) : (
+              <>
+                <Copy className="w-3.5 h-3.5 text-slate-500" />
+                Salin Rumusan
+              </>
+            )}
+          </button>
+        </div>
+        <pre className="whitespace-pre-wrap rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 text-xs leading-relaxed text-slate-700 font-sans">
+          {prismaSynthesisReport}
+        </pre>
       </div>
     </div>
   );

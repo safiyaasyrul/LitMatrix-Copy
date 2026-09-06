@@ -477,13 +477,13 @@ Return ONLY a JSON array of objects with the exact schema:
               PRISMA 2020 Items 6 & 7 · PRISMA-S Item 7
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 flex items-center gap-2 flex-wrap">
-              <span>Information Sources & Search Query Synthesizer</span>
+              <span>Formulate Academic Search Strategy</span>
               <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700">
                 {protocol.formulationFramework || "PICO"} Framework
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Curate search keywords, incorporate target subject areas and publication stage filters, then synthesize reproducible Boolean queries for Scopus and Web of Science. The manuscript reports only databases represented by uploaded records.
+              State your research interest or topic. The smart system will analyze and automatically draft your PRISMA search strategy.
             </p>
           </div>
 
