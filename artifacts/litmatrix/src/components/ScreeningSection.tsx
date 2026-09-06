@@ -2,12 +2,9 @@ import React, { useState, useMemo, useRef } from "react";
 import { SLRRecord, ScreeningDecision, SLRProtocol } from "../types/slr";
 import {
   Sparkles,
-  Check,
-  X,
   Filter,
   Search,
   FileX,
-  CheckCircle2,
   ChevronDown,
   ChevronUp,
   AlertCircle,
@@ -504,28 +501,11 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                     {isExcluded && (
                       <div className="flex flex-wrap items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-200 rounded-lg">
                         <span className="font-mono text-[11px] font-bold text-rose-800 shrink-0">
-                          PRISMA Item 16b Exclusion Reason:
+                          AI exclusion reason:
                         </span>
-                        <select
-                          value={s.exclusionReason || "Wrong study design"}
-                          onChange={(e) => handleSetDecision(r.id, false, e.target.value as any)}
-                          className="text-xs font-mono p-1 border border-rose-300 rounded bg-white text-rose-800 font-semibold"
-                        >
-                          <option value="Secondary literature / Review paper">Secondary literature / Review paper</option>
-                          <option value="Out of scope / Criteria not met">Out of scope / Criteria not met</option>
-                          <option value="Wrong population">Wrong population</option>
-                          <option value="Wrong population / context">Wrong population / context</option>
-                          <option value="Wrong intervention / exposure">Wrong intervention / exposure</option>
-                          <option value="Wrong phenomenon / contribution">Wrong phenomenon / contribution</option>
-                          <option value="Wrong comparator">Wrong comparator</option>
-                          <option value="Wrong outcome">Wrong outcome</option>
-                          <option value="Wrong study design">Wrong study design</option>
-                          <option value="Insufficient evidence in record">Insufficient evidence in record</option>
-                          <option value="Not accessible / full text unavailable">Not accessible / full text unavailable</option>
-                          <option value="Duplicate / non-original">Duplicate / non-original</option>
-                          <option value="Language barrier">Language barrier</option>
-                          <option value="Other">Other</option>
-                        </select>
+                        <span className="text-xs font-mono text-rose-800 font-semibold">
+                          {s.exclusionReason || "Out of scope / Criteria not met"}
+                        </span>
                       </div>
                     )}
                   </div>
