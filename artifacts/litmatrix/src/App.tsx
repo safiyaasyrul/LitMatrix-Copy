@@ -30,6 +30,10 @@ import EvidenceSynthesisStage, { EvidenceSynthesisPhase } from "./components/Evi
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
+import {
+  normalizePersistedSynthesis,
+  QUALITATIVE_SYNTHESIS_GUARD,
+} from "./utils/synthesisState";
 
 import {
   UserAIKeysConfig,
@@ -101,12 +105,7 @@ export default function App() {
   const [synthesis, setSynthesis] = useState<SynthesisResult>(() => {
     const saved = localStorage.getItem("slr_synthesis_v1");
     const parsed = saved ? JSON.parse(saved) : {};
-    return {
-      ...parsed,
-      forestPlotEstimates: [],
-      pooledEffectEstimate: undefined,
-      heterogeneityDiscussion: parsed.heterogeneityDiscussion?.replace(/I²|p\s*=|pooled/gi, "") || "",
-    };
+    return normalizePersistedSynthesis(parsed);
   });
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
@@ -337,7 +336,7 @@ export default function App() {
         keyFindingsTable: [],
         forestPlotEstimates: [],
         pooledEffectEstimate: undefined,
-        heterogeneityDiscussion: "",
+        heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
       });
       setDiscussion({
         item23aGeneralInterpretation: "",
@@ -375,7 +374,7 @@ export default function App() {
       keyFindingsTable: [],
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
-      heterogeneityDiscussion: "",
+      heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
     });
     setDiscussion({
       item23aGeneralInterpretation: "",

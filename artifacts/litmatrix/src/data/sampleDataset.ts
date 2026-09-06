@@ -1,4 +1,5 @@
 import { SLRRecord, ScreeningDecision, StudyCharacteristic, AbstractReportingAssessment, SynthesisResult, DiscussionSections, SLRProtocol } from "../types/slr";
+import { QUALITATIVE_SYNTHESIS_GUARD } from "../utils/synthesisState";
 
 export const BLANK_PROTOCOL: SLRProtocol = {
   title: "Abstract-Level Systematic Review of [Topic]: Narrative and Thematic Synthesis",
@@ -718,8 +719,7 @@ export const SAMPLE_SYNTHESIS: SynthesisResult = {
   ],
   forestPlotEstimates: [],
   pooledEffectEstimate: undefined,
-  heterogeneityDiscussion:
-    "Study differences are synthesized qualitatively; no statistical pooling or forest plot is produced.",
+  heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
 };
 
 export const SAMPLE_DISCUSSION_SECTIONS: DiscussionSections = {

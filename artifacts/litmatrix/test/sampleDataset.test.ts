@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import * as sampleDataset from "../src/data/sampleDataset";
+import {
+  normalizePersistedSynthesis,
+  QUALITATIVE_SYNTHESIS_GUARD,
+} from "../src/utils/synthesisState";
 
 const allowedFixtureExports = [
   "SAMPLE_CHARACTERISTICS",
@@ -60,4 +64,46 @@ test("reported metrics remain valid evidence fields, not quantitative fixture pa
   assert.ok(
     sampleDataset.SAMPLE_CHARACTERISTICS.some((study) => /\bAUC\b|\bCI\b|\bQALY\b/.test(study.primaryOutcome)),
   );
+});
+
+test("legacy persisted synthesis is normalized to the qualitative workflow", () => {
+  const legacyPersistedSynthesis = {
+    status: "finalized",
+    descriptiveSynthesis: { overview: "Legacy overview", comparisons: [] },
+    categories: [
+      {
+        name: "Legacy category",
+        metaAnalysisData: {
+          pooledEstimate: "0.86",
+          ci95: "0.80–0.90",
+          iSquared: "72%",
+          pVal: "0.01",
+          studies: [{ name: "Legacy study", estimate: 0.86, ciLow: 0.8, ciHigh: 0.9, weight: 1 }],
+        },
+      },
+    ],
+    gradeCertainty: [{ outcome: "Legacy outcome", overallCertainty: "High" }],
+    riskOfBiasItems: [{ recordId: "legacy", overall: "Low" }],
+    forestPlotEstimates: [{ study: "Legacy study", effectSize: 0.86 }],
+    pooledEffectEstimate: {
+      effectMeasure: "AUC",
+      effectSize: 0.86,
+      ciLower: 0.8,
+      ciUpper: 0.9,
+      heterogeneityI2: "72%",
+    },
+    heterogeneityDiscussion: "Pooled effect with I² = 72% and p = 0.01.",
+  };
+
+  const normalized = normalizePersistedSynthesis(
+    JSON.parse(JSON.stringify(legacyPersistedSynthesis)),
+  );
+
+  assert.deepEqual(normalized.forestPlotEstimates, []);
+  assert.equal(normalized.pooledEffectEstimate, undefined);
+  assert.equal(normalized.heterogeneityDiscussion, QUALITATIVE_SYNTHESIS_GUARD);
+  assert.equal("categories" in normalized, false);
+  assert.equal("gradeCertainty" in normalized, false);
+  assert.equal("riskOfBiasItems" in normalized, false);
+  assert.equal(normalized.descriptiveSynthesis?.overview, "Legacy overview");
 });

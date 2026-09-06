@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, Layers, Sparkles } from "lucide-react";
 import { SLRProtocol, SLRRecord, StudyCharacteristic, SynthesisResult } from "../types/slr";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
+import { QUALITATIVE_SYNTHESIS_GUARD } from "../utils/synthesisState";
 
 export type EvidenceSynthesisPhase =
   | "descriptive"
@@ -119,7 +120,7 @@ export default function EvidenceSynthesisStage({
       keyFindingsTable: [],
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
-      heterogeneityDiscussion: "Study differences are synthesized qualitatively; no statistical pooling or forest plot is produced.",
+      heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
     });
     if (clearError) setErrorMessage(null);
   };
@@ -211,7 +212,7 @@ Return ONLY compact JSON:
         })),
         forestPlotEstimates: [],
         pooledEffectEstimate: undefined,
-        heterogeneityDiscussion: "Study differences are synthesized qualitatively; no statistical pooling or forest plot is produced.",
+        heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
       });
     } catch (error: any) {
       createEvidenceMap(false);
