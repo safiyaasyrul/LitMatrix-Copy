@@ -135,7 +135,7 @@ export default function StudyCharacteristicsTable({
         comparator: "Not reported",
         primaryOutcome: "Not reported",
         studyDesign: "Not established from citation metadata",
-        keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; full text is required.",
+        keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; evidence extraction cannot be completed.",
       };
     });
 
@@ -447,7 +447,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
               onClick={onNavigateToScreening}
               className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
             >
-              Go to Full-Text Eligibility Stage
+              Go to Screening Stage
             </button>
           )}
         </div>

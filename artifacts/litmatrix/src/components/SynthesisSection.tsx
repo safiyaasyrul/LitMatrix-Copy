@@ -112,7 +112,7 @@ export default function SynthesisSection({
         topic: category,
         summary: `Findings from ${categoryStudies.length} included ${categoryStudies.length === 1 ? "study contribute" : "studies contribute"} to this theme; a cross-study conclusion has not been inferred automatically.`,
         consistency: "Not assessed quantitatively",
-        evidenceBase: `${categoryStudies.length} full-text eligible stud${categoryStudies.length === 1 ? "y" : "ies"}`,
+        evidenceBase: `${categoryStudies.length} reviewer-included abstract${categoryStudies.length === 1 ? "" : "s"}`,
       })),
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
@@ -143,7 +143,7 @@ export default function SynthesisSection({
           keyFinding: (r.abstract || "").slice(0, 260),
         }));
 
-    const prompt = `Act as a systematic review synthesis methodologist. Produce a two-level evidence synthesis of the ${studiesData.length} full-text eligible studies.
+    const prompt = `Act as a systematic review synthesis methodologist. Produce a two-level evidence synthesis of the ${studiesData.length} reviewer-included citation records and abstracts.
 
 Research Questions:
 ${researchQuestions.map((question, index) => `RQ${index + 1}: ${question.replace(/^RQ\\d+:\\s*/i, "")}`).join("\n") || "No approved research questions were supplied."}
@@ -348,14 +348,14 @@ Generate a JSON object conforming strictly to:
           <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
           <h3 className="text-sm font-bold text-amber-900">No Included Studies Available for Synthesis</h3>
           <p className="text-xs text-amber-700 max-w-md mx-auto">
-            Synthesis requires studies approved after full-text eligibility assessment.
+            Synthesis requires records included by the reviewer after title and abstract screening.
           </p>
           {onNavigateToScreening && (
             <button
               onClick={onNavigateToScreening}
               className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
             >
-              Go to Full-Text Eligibility Stage
+              Go to Screening Stage
             </button>
           )}
         </div>

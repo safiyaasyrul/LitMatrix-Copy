@@ -34,7 +34,6 @@ import MethodsProtocol from "./components/MethodsProtocol";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
-import FullTextEligibilitySection from "./components/FullTextEligibilitySection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
 import RiskOfBiasSection from "./components/RiskOfBiasSection";
@@ -274,19 +273,10 @@ export default function App() {
     return getActiveAIConfig(keysConfig);
   }, [keysConfig]);
 
-  // Records retained at title/abstract screening are not yet included studies.
-  const retainedForFullTextRecords = useMemo(() => {
-    return records.filter((r) => screening[r.id]?.agreed === true);
-  }, [records, screening]);
-
-  // A study is included only after reviewer-approved full-text eligibility.
+  // Reviewer-confirmed title/abstract decisions define final inclusion for this
+  // abstract-based review workflow.
   const includedRecords = useMemo(() => {
-    return records.filter(
-      (r) =>
-        screening[r.id]?.agreed === true &&
-        r.fullTextStatus === "retrieved" &&
-        r.fullTextEligibility === "eligible"
-    );
+    return records.filter((r) => screening[r.id]?.agreed === true);
   }, [records, screening]);
 
   // Derived excluded records
@@ -313,34 +303,6 @@ export default function App() {
     const recordsNotScreenedCount = Math.max(records.length - screenedCount, 0);
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
-    const reportsNotYetSoughtCount = retainedForFullTextRecords.filter(
-      (record) => !record.fullTextStatus || record.fullTextStatus === "not_sought"
-    ).length;
-    const soughtRetrievalCount = retainedForFullTextRecords.filter(
-      (record) => record.fullTextStatus && record.fullTextStatus !== "not_sought"
-    ).length;
-    const notRetrievedCount = retainedForFullTextRecords.filter(
-      (record) => record.fullTextStatus === "not_retrieved"
-    ).length;
-    const assessedCount = retainedForFullTextRecords.filter(
-      (record) =>
-        record.fullTextStatus === "retrieved" &&
-        record.fullTextEligibility &&
-        record.fullTextEligibility !== "not_assessed"
-    ).length;
-    const reportsNotAssessedCount = retainedForFullTextRecords.filter(
-      (record) =>
-        record.fullTextStatus === "retrieved" &&
-        (!record.fullTextEligibility || record.fullTextEligibility === "not_assessed")
-    ).length;
-    const reportsUnclearEligibilityCount = retainedForFullTextRecords.filter(
-      (record) =>
-        record.fullTextStatus === "retrieved" &&
-        record.fullTextEligibility === "unclear"
-    ).length;
-    const assessedExcludedCount = retainedForFullTextRecords.filter(
-      (record) => record.fullTextEligibility === "ineligible"
-    ).length;
     const uploadedSourceNames = Array.from(
       new Set(
         records.flatMap((record) => {
@@ -370,17 +332,8 @@ export default function App() {
       screened: screenedCount,
       recordsNotScreened: recordsNotScreenedCount,
       screenedExcluded: screenedExcludedCount,
-      soughtRetrieval: soughtRetrievalCount,
-      reportsNotYetSought: reportsNotYetSoughtCount,
-      notRetrieved: notRetrievedCount,
-      assessed: assessedCount,
-      reportsNotAssessed: reportsNotAssessedCount,
-      reportsUnclearEligibility: reportsUnclearEligibilityCount,
-      assessedExcluded: assessedExcludedCount,
       exclusionReasonsBreakdown,
       included: includedCount,
-      includedReports: includedCount,
-      fullTextAssessmentRecorded: assessedCount > 0,
     };
   }, [
     records,
@@ -388,7 +341,6 @@ export default function App() {
     dupesRemoved,
     includedRecords,
     excludedRecords,
-    retainedForFullTextRecords,
     exclusionReasonsBreakdown,
   ]);
 
@@ -532,12 +484,6 @@ export default function App() {
       icon: CheckCircle,
     },
     {
-      id: "full-text",
-      label: "Full-Text Eligibility",
-      badge: "Item 16a",
-      icon: FileText,
-    },
-    {
       id: "diagram",
       label: "PRISMA Flow Diagram",
       badge: "Item 16a",
@@ -659,7 +605,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              14 Stages
+              13 Stages
             </span>
           </div>
 
@@ -708,10 +654,6 @@ export default function App() {
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">Included Studies:</span>
               <strong className="text-emerald-700 font-mono font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">{includedRecords.length} studies</strong>
-            </div>
-            <div className="flex items-center justify-between text-xs mt-2">
-              <span className="text-slate-500 font-medium">Retained for full text:</span>
-              <strong className="text-indigo-700 font-mono">{retainedForFullTextRecords.length} records</strong>
             </div>
             <div className="flex items-center justify-between text-xs mt-2">
               <span className="text-slate-500 font-medium">Total Records:</span>
@@ -786,16 +728,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 7: Full-text retrieval and eligibility */}
+          {/* Stage 7: PRISMA 2020 Flow Diagram */}
           {activeStage === 6 && (
-            <FullTextEligibilitySection
-              records={retainedForFullTextRecords}
-              onUpdateRecords={setRecords}
-            />
-          )}
-
-          {/* Stage 8: PRISMA 2020 Flow Diagram */}
-          {activeStage === 7 && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
@@ -805,7 +739,7 @@ export default function App() {
                   PRISMA 2020 Flow Diagram Generator
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Standardized flow of records through Identification, Screening, Eligibility, and Inclusion phases with SVG & High-Res PNG download.
+                  Abstract-based flow of records through identification, title/abstract screening, and reviewer-confirmed inclusion, with SVG and high-resolution PNG download.
                 </p>
               </div>
 
@@ -813,19 +747,19 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 9: Study Characteristics (Table 1) */}
-          {activeStage === 8 && (
+          {/* Stage 8: Study Characteristics (Table 1) */}
+          {activeStage === 7 && (
             <StudyCharacteristicsTable
               includedRecords={includedRecords}
               characteristics={characteristics}
               onUpdateCharacteristics={setCharacteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(6)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 10: Risk of Bias (Table 2) */}
-          {activeStage === 9 && (
+          {/* Stage 9: Risk of Bias (Table 2) */}
+          {activeStage === 8 && (
             <RiskOfBiasSection
               includedRecords={includedRecords}
               riskOfBias={riskOfBias}
@@ -833,12 +767,12 @@ export default function App() {
               aiConfig={activeAIConfig}
               characteristics={characteristics}
               protocol={protocol}
-              onNavigateToScreening={() => setActiveStage(6)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 11: Narrative / Thematic Synthesis */}
-          {activeStage === 10 && (
+          {/* Stage 10: Narrative / Thematic Synthesis */}
+          {activeStage === 9 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
@@ -846,24 +780,24 @@ export default function App() {
               characteristics={characteristics}
               protocol={protocol}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(6)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 12: Optional certainty assessment */}
-          {activeStage === 11 && (
+          {/* Stage 11: Optional certainty assessment */}
+          {activeStage === 10 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(6)}
+              onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {/* Stage 13: 4-Part Discussion */}
-          {activeStage === 12 && (
+          {/* Stage 12: Discussion */}
+          {activeStage === 11 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -875,8 +809,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 14: Consolidated Manuscript */}
-          {activeStage === 13 && (
+          {/* Stage 13: Consolidated Manuscript */}
+          {activeStage === 12 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}

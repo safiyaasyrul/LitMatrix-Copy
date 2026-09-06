@@ -88,7 +88,7 @@ export default function RiskOfBiasSection({
       ? threatsDomains
       : clinicalDomains;
 
-  // Conservative fallback: missing full-text evidence is a concern, not a low-risk
+  // Conservative fallback: limited abstract evidence is a concern, not a low-risk
   // judgment. Citation metadata cannot establish methodological quality.
   const runHeuristicAppraisal = () => {
     if (includedRecords.length === 0) return;
@@ -411,7 +411,7 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
         </div>
         <p className="text-slate-600 leading-relaxed">
           {appraisalFramework === "adaptive"
-            ? "Quality appraisal uses a domain-tailored framework assessing study design, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness. Ratings require user verification against the full text."
+            ? "Quality appraisal uses a domain-tailored framework assessing study design, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness. Ratings are limited to information reported in the abstract and require reviewer verification."
             : appraisalFramework === "threats_validity"
             ? "Empirical quality was evaluated using a comprehensive threats-to-validity framework encompassing construct validity, internal validity, external validity (generalizability), conclusion validity, and experimental reliability."
             : "Risk of bias was evaluated using the Cochrane RoB 2 / ROBINS-I tool across five standard bias domains (selection, performance, attrition, detection, and reporting)."}
@@ -424,14 +424,14 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
           <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
           <h3 className="text-sm font-bold text-amber-900">No Included Studies Available</h3>
           <p className="text-xs text-amber-700 max-w-md mx-auto">
-            Quality appraisal applies only to studies approved after full-text eligibility assessment.
+            Quality appraisal applies only to records included by the reviewer after title and abstract screening.
           </p>
           {onNavigateToScreening && (
             <button
               onClick={onNavigateToScreening}
               className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
             >
-              Go to Full-Text Eligibility Stage
+              Go to Screening Stage
             </button>
           )}
         </div>
@@ -548,7 +548,7 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
               </h3>
               <div className="space-y-3 text-xs leading-relaxed text-slate-700 font-sans">
                 <p>
-                  Methodological appraisal was recorded for {riskOfBias.length} full-text eligible studies using the selected framework. {riskOfBias.filter((r) => r.overall === "Low").length} studies have low-concern judgments and {riskOfBias.filter((r) => r.overall === "Some concerns").length} have some-concern judgments. These counts describe recorded reviewer judgments only.
+                  Methodological appraisal was recorded for {riskOfBias.length} reviewer-included abstracts using the selected framework. {riskOfBias.filter((r) => r.overall === "Low").length} records have low-concern judgments and {riskOfBias.filter((r) => r.overall === "Some concerns").length} have some-concern judgments. These counts describe abstract-based reviewer judgments only.
                 </p>
                 <p>
                   Regarding experimental baseline comparison, the majority of primary investigations incorporated established state-of-the-art benchmarks for comparative validation. However, potential threats to external validity were observed in studies relying exclusively on single-institution datasets without multi-site replication. Statistical reporting was found to be complete across core outcome metrics, supporting the overall reliability and reproducibility of the synthesized evidence base.

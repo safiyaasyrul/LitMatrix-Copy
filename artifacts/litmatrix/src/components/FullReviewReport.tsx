@@ -121,7 +121,8 @@ export default function FullReviewReport({
   const appraisedIds = new Set(
     riskOfBias.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
   );
-  const selectionComplete = includedRecords.length > 0 && counts.assessed >= includedRecords.length;
+  const selectionComplete =
+    includedRecords.length > 0 && (counts.recordsNotScreened || 0) === 0;
   const extractionComplete =
     includedRecords.length > 0 && includedRecords.every((record) => extractedIds.has(record.id));
   const appraisalComplete =
@@ -158,7 +159,7 @@ export default function FullReviewReport({
   const pendingAbstract: StructuredAbstract = {
     bg: "Generate the abstract after final study selection, extraction, methodological appraisal, and evidence synthesis are complete.",
     obj: "The review objective will be summarized from the approved protocol.",
-    meth: "The methods summary will report only recorded search, screening, full-text, and appraisal procedures.",
+    meth: "The methods summary will report only recorded search, title/abstract screening, appraisal, and synthesis procedures.",
     res: "Synthesis-level results are not yet available for abstract generation.",
     concl: "No abstract conclusion is generated before the finalized synthesis is available.",
     keywords: [protocol.reviewType || "Systematic Review", "Evidence Synthesis"],
@@ -232,7 +233,7 @@ export default function FullReviewReport({
 Review title: ${protocol.title}
 Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
 Approved objectives: ${JSON.stringify(objectives)}
-Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened: ${counts.screened || 0}. Full texts assessed: ${counts.assessed || 0}. Final included studies: ${includedRecords.length}. Synthesis approach: ${synthesisApproach}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
+Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Evidence source: citation metadata and abstracts only. Synthesis approach: ${synthesisApproach}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
 Final synthesis: ${JSON.stringify(synthesisEvidence)}
 Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
 
@@ -241,7 +242,7 @@ STRICT ABSTRACT RULES:
 2. Results must answer the approved research questions using the finalized cross-study synthesis. Summarize dominant patterns, approaches, outcomes, consistencies, contradictions, weak evidence, and gaps.
 3. Do not list studies or write a sequence of individual-study findings.
 4. Do not include author names, years, citations, reference numbers, DOI links, or URLs anywhere.
-5. Do not derive findings from screening counts, keyword frequencies, titles alone, excluded records, or records awaiting full-text assessment.
+5. Do not derive findings from screening counts, keyword frequencies, titles alone, excluded records, or records with missing abstracts.
 6. Use only the supplied finalized synthesis. If a relationship is not supported there, omit it.
 7. Do not invent numerical values. Use recorded flow counts only in Methods or Results when useful.
 8. Do not report pooled effects, confidence intervals, heterogeneity statistics, GRADE ratings, p-values, or meta-analysis unless present in the supplied finalized synthesis.
@@ -332,14 +333,14 @@ Return ONLY JSON:
       : `No database search strategy is recorded in the protocol. The report describes only the uploaded records.\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `The application distinguishes title and abstract screening from full-text retrieval and eligibility. ${counts.assessed || 0} full-text reports have recorded eligibility assessments, and ${includedRecords.length} studies have reviewer-approved full-text inclusion. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
+    md += `Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
 
     md += `### 2.5 Methodological Quality and Systematic Assessment Methodology\n`;
     md += `Methodological quality was assessed using ${protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate appraisal framework"}. The approved domains were ${protocol.riskOfBiasMethods.domainsAssessed || "not specified"}. Appraisal claims are limited to recorded judgments.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.identifiedDb || 0} uploaded records were represented, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions; ${counts.soughtRetrieval || 0} reports were sought, ${counts.notRetrieved || 0} were not retrieved, ${counts.assessed || 0} were assessed at full text, ${counts.assessedExcluded || 0} were excluded at full text, and ${includedRecords.length} studies were finally included.\n\n`;
+    md += `${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.\n\n`;
 
     md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
     if (hasCountryData || hasSampleData) {
@@ -508,7 +509,7 @@ Return ONLY JSON:
   <p>${protocol.searchStrategies.length > 0 ? `The protocol documents search strategies for ${protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ")}. Search execution is not claimed unless matching source records were uploaded.` : "No database search strategy is recorded. This report describes only uploaded records."}</p>
 
   <h3>2.4 Selection Process</h3>
-  <p>The application distinguishes title and abstract screening from full-text eligibility. ${counts.assessed || 0} reports have recorded full-text assessments and ${includedRecords.length} studies have reviewer-approved inclusion. Independent duplicate review and adjudication are not claimed unless separately documented.</p>
+  <p>Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.</p>
 
   <h3>2.5 Methodological Quality and Risk of Bias Assessment Methods</h3>
   <p>Methodological quality was appraised using ${protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate framework"}. The approved domains were ${protocol.riskOfBiasMethods.domainsAssessed || "not specified"}.</p>
@@ -516,7 +517,7 @@ Return ONLY JSON:
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>${counts.identifiedDb || 0} records were uploaded and ${counts.duplicatesRemoved || 0} duplicates were recorded as removed. ${counts.screened || 0} records have title and abstract decisions; ${counts.soughtRetrieval || 0} reports were sought, ${counts.notRetrieved || 0} were not retrieved, ${counts.assessed || 0} were assessed at full text, ${counts.assessedExcluded || 0} were excluded at full text, and ${includedRecords.length} studies were finally included.</p>
+  <p>${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.</p>
 
   <h3>3.2 Characteristics of Included Studies (Table 1)</h3>
   <div class="table-caption">Table 1: Characteristics of Included Studies Grouped by Category</div>
@@ -832,7 +833,7 @@ Return ONLY JSON:
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              The application distinguishes title and abstract screening from full-text eligibility. {counts.assessed || 0} reports have recorded full-text assessments and {includedRecords.length} studies have reviewer-approved inclusion. Independent duplicate review and adjudication are not claimed unless separately documented.
+              Eligibility was determined through reviewer-confirmed title and abstract screening. {includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Quality and Rigor Assessment Methods</h3>
@@ -851,7 +852,7 @@ Return ONLY JSON:
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The workspace contains {counts.identifiedDb || 0} uploaded records and {counts.duplicatesRemoved || 0} duplicates recorded as removed. {counts.screened || 0} records have title and abstract decisions; {counts.soughtRetrieval || 0} reports were sought, {counts.notRetrieved || 0} were not retrieved, {counts.assessed || 0} were assessed at full text, {counts.assessedExcluded || 0} were excluded at full text, and {includedRecords.length} studies were finally included.
+              The workspace contains {counts.identifiedDb || 0} identified records. After removing {counts.duplicatesRemoved || 0} duplicates, {counts.recordsAfterDuplicatesRemoved || 0} records remained. {counts.screened || 0} records received reviewer title/abstract decisions, {counts.recordsNotScreened || 0} remain pending, {counts.screenedExcluded || 0} were excluded, and {includedRecords.length} were included for abstract-based synthesis.
             </p>
 
             {/* Illustrated Flow Diagram */}
