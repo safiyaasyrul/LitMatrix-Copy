@@ -20,3 +20,9 @@ Manuscript and grammar-provider responses may be partial or wrapped in an envelo
 **Why:** Managed providers can return valid content with one omitted section or a different JSON wrapper; rejecting that response makes manuscript generation fail even when the supplied evidence is sufficient for a complete fallback.
 
 **How to apply:** Validate and normalize each section independently, preserve valid provider prose, and use the evidence-grounded fallback for missing title, abstract clauses, or manuscript sections.
+
+When a review has an explicit publication-year range in its saved search strategies, that range is authoritative for manuscript Methods and abstract text; a generic eligibility phrase such as “last 5–10 years” must not override it.
+
+**Why:** Search-builder year limits can be more specific than an earlier protocol draft, and AI-generated prose may otherwise replace the recorded range with a plausible but false date description.
+
+**How to apply:** Derive the range from saved filters or database query bounds, persist it into the protocol when search strings are generated, and normalize generic period wording before rendering or exporting.

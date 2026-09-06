@@ -140,8 +140,19 @@ export default function SearchStringsGenerator({
   const [publicationStage, setPublicationStage] = useState<"all" | "final" | "inpress">("all");
 
   // Date & Language Filters
-  const [yearFrom, setYearFrom] = useState(2019);
-  const [yearTo, setYearTo] = useState(2026);
+  const initialYearRange = (() => {
+    const storedText = [
+      protocol.eligibilityCriteria.timeframe || "",
+      ...(protocol.searchStrategies || []).map((strategy) => `${strategy.filters || ""} ${strategy.query || ""}`),
+    ].join(" ");
+    const directRange = storedText.match(/\b(?:years?|py)\s*(?:limits?|=|:)?\s*\(?\s*(\d{4})\s*[-–]\s*(\d{4})\s*\)?/i);
+    if (directRange) return [Number(directRange[1]), Number(directRange[2])] as const;
+    const pubYearRange = storedText.match(/PUBYEAR\s*>\s*(\d{4})[\s\S]{0,120}?PUBYEAR\s*<\s*(\d{4})/i);
+    if (pubYearRange) return [Number(pubYearRange[1]) + 1, Number(pubYearRange[2]) - 1] as const;
+    return [2019, 2026] as const;
+  })();
+  const [yearFrom, setYearFrom] = useState(initialYearRange[0]);
+  const [yearTo, setYearTo] = useState(initialYearRange[1]);
   const [docType, setDocType] = useState("Journal article");
   const [language, setLanguage] = useState("English");
 
@@ -317,6 +328,10 @@ Return ONLY a JSON array of objects with the exact schema:
         onUpdateProtocol({
           ...protocol,
           searchStrategies: parsed,
+          eligibilityCriteria: {
+            ...protocol.eligibilityCriteria,
+            timeframe: `${yearFrom}-${yearTo}`,
+          },
         });
       }
     } catch (e) {
