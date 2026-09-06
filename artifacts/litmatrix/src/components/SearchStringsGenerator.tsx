@@ -228,7 +228,7 @@ Outcomes: "${protocol.objectivesPICO.outcomes}"`;
 Review Type: "${protocol.reviewType}"
 ${frameworkDesc}
 
-Suggest 16-24 academic search keywords, synonyms, alternative spellings, acronyms, and controlled vocabulary terms (MeSH, Emtree, IEEE Inspec, ACM Computing Classification) organized by concept facet.
+Suggest 16-24 academic search keywords, synonyms, alternative spellings, acronyms, and topic-appropriate controlled vocabulary terms organized by concept facet.
 
 Return ONLY a JSON array of objects with the exact structure:
 [
@@ -289,17 +289,13 @@ Applied Search Parameters & Limits:
 2. Publication Stage: ${stageDesc}
    - For Scopus: Use PUBSTAGE(final) for final published, PUBSTAGE(aip) for articles in press, or omit PUBSTAGE / include both for all stages.
    - For Web of Science: Use DT=(Article) or specify Early Access if in press.
-   - For PubMed: Use publication status filters if applicable.
-3. Year Limits: ${yearFrom} to ${yearTo} (Scopus: PUBYEAR > ${yearFrom - 1} AND PUBYEAR < ${yearTo + 1}; WoS: PY=(${yearFrom}-${yearTo}); PubMed: ${yearFrom}:${yearTo}[dp]).
+3. Year Limits: ${yearFrom} to ${yearTo} (Scopus: PUBYEAR > ${yearFrom - 1} AND PUBYEAR < ${yearTo + 1}; WoS: PY=(${yearFrom}-${yearTo})).
 4. Document Type: "${docType}"
 5. Language: "${language}"
 
-Construct reproducible, fully validated Boolean search strings for the following academic databases adhering strictly to PRISMA 2020 Item 7 and PRISMA-S Item 7:
+Construct reproducible, fully validated Boolean search strings for the following databases adhering strictly to PRISMA 2020 Item 7 and PRISMA-S Item 7:
 1. Scopus: Complete TITLE-ABS-KEY query with grouped Boolean concept blocks (Concept 1 OR ...) AND (Concept 2 OR ...), plus AND (SUBJAREA(...) ), PUBSTAGE filter, PUBYEAR, DOCTYPE, and LANGUAGE.
 2. Web of Science (WoS) Core Collection: Complete TS= topic query with Boolean blocks, plus WC= or SU= research areas, PY=, DT=, and LA= filters.
-3. PubMed / MEDLINE: Complete syntax using [Title/Abstract] and [MeSH Terms] with Date range and Language limits.
-4. IEEE Xplore: Complete syntax using ("Document Title" OR "Abstract") with publication year range.
-5. Google Scholar / ACM Digital Library: Optimized Boolean search string.
 
 Return ONLY a JSON array of objects with the exact schema:
 [
@@ -312,21 +308,6 @@ Return ONLY a JSON array of objects with the exact schema:
     "database": "Web of Science",
     "query": "TS=(...)",
     "filters": "Years ${yearFrom}-${yearTo}, ${subjectAreasDesc}, ${stageDesc}, ${docType}, ${language}"
-  },
-  {
-    "database": "PubMed",
-    "query": "(...[Title/Abstract] OR ...[MeSH Terms])",
-    "filters": "Years ${yearFrom}-${yearTo}, ${stageDesc}, ${docType}, ${language}"
-  },
-  {
-    "database": "IEEE Xplore",
-    "query": "...",
-    "filters": "Years ${yearFrom}-${yearTo}, Journals & Conferences"
-  },
-  {
-    "database": "Google Scholar",
-    "query": "...",
-    "filters": "Years ${yearFrom}-${yearTo}, ${language}"
   }
 ]`;
 
@@ -414,7 +395,7 @@ Return ONLY a JSON array of objects with the exact schema:
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Curate search keywords, incorporate target subject areas and publication stage filters, then synthesize reproducible Boolean queries for Scopus, Web of Science, PubMed, and IEEE Xplore.
+              Curate search keywords, incorporate target subject areas and publication stage filters, then synthesize reproducible Boolean queries for Scopus and Web of Science. The manuscript reports only databases represented by uploaded records.
             </p>
           </div>
 

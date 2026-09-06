@@ -68,20 +68,20 @@ export default function ScreeningSection({
         },
         {
           key: "researchContribution",
-          label: "Q3 — Research contribution",
+          label: "Q3 — Primary empirical contribution",
           criterion:
-            "Does the study investigate a method, technology, strategy, model, intervention, or analytical approach relevant to the review objective, as required by the approved criteria?",
+            "Is this an identifiable primary empirical investigation with participants, observations, datasets, experiments, field data, or evaluated models? Exclude reviews, editorials, protocols, commentaries, position papers, and purely conceptual papers unless the approved protocol explicitly includes them.",
         },
         {
           key: "studyType",
-          label: "Q4 — Study type",
-          criterion: `Is this an eligible primary research study? Approved study-type guidance: ${studyTypeGuidance}. Also apply the approved inclusion and exclusion criteria.`,
+          label: "Q4 — Eligible design and population",
+          criterion: `Does the abstract identify an eligible study design and the required population, setting, unit of analysis, or dataset? Approved study-type guidance: ${studyTypeGuidance}. If the design or population is not reported, answer Unclear rather than inferring it.`,
         },
         {
           key: "requiredEvidence",
-          label: "Q5 — Required evidence",
+          label: "Q5 — Direct target outcome",
           criterion:
-            "Does the record provide sufficient information to determine eligibility? Do not infer missing details from the title or citation metadata; unresolved evidence is Unclear.",
+            "Does the abstract report a direct outcome, measure, endpoint, phenomenon, or evaluated result required by the review question? Topic mention alone is insufficient. Do not infer missing details from the title or citation metadata; unresolved evidence is Unclear.",
         },
       ];
     },

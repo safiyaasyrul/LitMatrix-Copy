@@ -244,7 +244,7 @@ Return ONLY a JSON object:
             value={discussion.item23bLimitationsOfEvidence}
             onChange={(e) => updatePart("item23bLimitationsOfEvidence", e.target.value)}
             rows={5}
-            placeholder="Discuss limitations of the included primary evidence (risk of bias, heterogeneity, retrospective designs)..."
+            placeholder="Discuss limitations of the included evidence (abstract reporting gaps, design differences, incomplete validation, and unresolved contradictions)..."
             className="w-full text-xs sm:text-sm font-sans p-3.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 leading-relaxed text-slate-800"
           />
         </div>

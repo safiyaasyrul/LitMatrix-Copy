@@ -3,7 +3,7 @@ import {
   SLRProtocol,
   SLRRecord,
   StudyCharacteristic,
-  RiskOfBiasItem,
+  AbstractReportingAssessment,
   SynthesisResult,
   DiscussionSections,
   PrismaChecklistItem,
@@ -25,7 +25,7 @@ interface FullReviewReportProps {
   protocol: SLRProtocol;
   includedRecords: SLRRecord[];
   characteristics: StudyCharacteristic[];
-  riskOfBias: RiskOfBiasItem[];
+  reportingAssessments: AbstractReportingAssessment[];
   synthesis: SynthesisResult;
   discussion: DiscussionSections;
   checklist: PrismaChecklistItem[];
@@ -37,7 +37,7 @@ export default function FullReviewReport({
   protocol,
   includedRecords,
   characteristics,
-  riskOfBias,
+  reportingAssessments,
   synthesis,
   discussion,
   checklist,
@@ -110,19 +110,23 @@ export default function FullReviewReport({
   // Check if any study has country or sample size populated
   const hasCountryData = characteristics.some((c) => c.country && c.country !== "Not reported" && c.country !== "N/A");
   const hasSampleData = characteristics.some((c) => c.sampleSize && c.sampleSize !== "N/A" && c.sampleSize !== "Not reported");
+  const uploadedDatabaseNames = (counts.identifiedDbSources || []).filter(Boolean);
+  const executedSearchNarrative = uploadedDatabaseNames.length > 0
+    ? `The uploaded records identify ${uploadedDatabaseNames.join(", ")} as the database source${uploadedDatabaseNames.length === 1 ? "" : "s"} represented in this review. This report does not list planned databases as searched unless their records are represented in the uploaded provenance.`
+    : "No executed database search is claimed because the uploaded records do not contain database provenance.";
 
   const includedIds = new Set(includedRecords.map((record) => record.id));
   const extractedIds = new Set(
     characteristics.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
   );
   const appraisedIds = new Set(
-    riskOfBias.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
+    reportingAssessments.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
   );
   const selectionComplete =
     includedRecords.length > 0 && (counts.recordsNotScreened || 0) === 0;
   const extractionComplete =
     includedRecords.length > 0 && includedRecords.every((record) => extractedIds.has(record.id));
-  const appraisalComplete =
+  const reportingComplete =
     includedRecords.length > 0 && includedRecords.every((record) => appraisedIds.has(record.id));
   const rqFindings = synthesis.rqFindings || [];
   const expectedRqIds = questions.map((_, index) => `RQ${index + 1}`);
@@ -145,7 +149,7 @@ export default function FullReviewReport({
     (synthesis.researchGaps?.length || 0) > 0 &&
     (synthesis.futureResearchAgenda?.length || 0) > 0;
   const abstractReady =
-    selectionComplete && extractionComplete && appraisalComplete && synthesisComplete;
+    selectionComplete && extractionComplete && reportingComplete && synthesisComplete;
 
   const removeCitationArtifacts = (value: string) =>
     value
@@ -216,16 +220,14 @@ export default function FullReviewReport({
       heterogeneity: removeCitationArtifacts(synthesis.heterogeneityDiscussion || ""),
     };
     const appraisalSummary = {
-      totalAppraised: riskOfBias.filter((item) => includedIds.has(item.recordId)).length,
-      lowConcern: riskOfBias.filter(
-        (item) => includedIds.has(item.recordId) && (item.overall === "Low" || item.overall === "High Rigor")
-      ).length,
-      someConcerns: riskOfBias.filter(
-        (item) => includedIds.has(item.recordId) && (item.overall === "Some concerns" || item.overall === "Moderate Rigor")
-      ).length,
-      highConcern: riskOfBias.filter(
-        (item) => includedIds.has(item.recordId) && (item.overall === "High" || item.overall === "Low Rigor")
-      ).length,
+      totalAssessed: reportingAssessments.filter((item) => includedIds.has(item.recordId)).length,
+      completeness: reportingAssessments
+        .filter((item) => includedIds.has(item.recordId))
+        .reduce((counts, item) => {
+          counts[item.abstractReportingCompleteness] += 1;
+          return counts;
+        }, { High: 0, Moderate: 0, Low: 0 } as Record<"High" | "Moderate" | "Low", number>),
+      note: "Abstract-reporting appraisal only; no risk-of-bias or certainty judgment was assigned.",
     };
     const uploadedSources = counts.identifiedDbSources?.join(", ") || "uploaded source records";
     const recordedSearchDates = protocol.informationSources
@@ -242,7 +244,7 @@ export default function FullReviewReport({
 Review title: ${protocol.title}
 Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
 Approved objectives: ${JSON.stringify(objectives)}
-Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Evidence source: citation metadata and abstracts only. Synthesis approach: ${synthesisApproach}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
+Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Evidence source: citation metadata and abstracts only. Synthesis approach: ${synthesisApproach}. Appraisal approach: structured abstract-reporting checklist; no formal risk-of-bias judgment.
 Final synthesis: ${JSON.stringify(synthesisEvidence)}
 Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
 
@@ -341,16 +343,13 @@ Return ONLY JSON:
     md += `Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Records were excluded when they met ${excText}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.\n\n`;
 
     md += `### 2.3 Information Sources and Search Strategy\n`;
-    const searchDatabases = protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ");
-    md += searchDatabases
-      ? `The protocol documents search strategies for ${searchDatabases}. This report does not claim that a search was executed unless records from those sources were uploaded.\n\n`
-      : `No database search strategy is recorded in the protocol. The report describes only the uploaded records.\n\n`;
+    md += `${executedSearchNarrative}\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
     md += `Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
 
-    md += `### 2.5 Methodological Quality and Systematic Assessment Methodology\n`;
-    md += `Methodological quality was assessed using ${protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate appraisal framework"}. The approved domains were ${protocol.riskOfBiasMethods.domainsAssessed || "not specified"}. Appraisal claims are limited to recorded judgments.\n\n`;
+    md += `### 2.5 Methodological Reporting and Evidence Appraisal\n`;
+    md += `The included records were assessed with an abstract-level reporting checklist. The checklist records whether study design, sample or dataset, outcomes, validation, comparators, external validation, uncertainty, implementation, and the direct target outcome were reported. “Unclear” means not reported in the available abstract; it is not a risk-of-bias judgment. Formal risk-of-bias and certainty-of-evidence assessments were not performed.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
@@ -372,11 +371,11 @@ Return ONLY JSON:
     }
     md += `\n`;
 
-    md += `### 3.3 Methodological Quality and Rigor Assessment (Table 2)\n\n`;
-    md += `| Study | Study Design & Setup | Benchmark Data Adequacy | Measurement Methodology | Baseline Validation | Repeatability & Reporting | Overall Rigor | Methodological Justification |\n`;
-    md += `| --- | --- | --- | --- | --- | --- | --- | --- |\n`;
-    riskOfBias.forEach((r) => {
-      md += `| ${r.authorYear} | ${r.d1Selection} | ${r.d2Performance} | ${r.d3Attrition} | ${r.d4Detection} | ${r.d5Reporting} | ${r.overall} | ${r.justification.replace(/\|/g, "/")} |\n`;
+    md += `### 3.3 Abstract Reporting Completeness (Table 2)\n\n`;
+    md += `| Study | Design | Dataset / sample | Outcome | Validation | Comparator / baseline | External validation | Uncertainty | Real-world implementation | Direct target outcome | Completeness |\n`;
+    md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
+    reportingAssessments.forEach((r) => {
+      md += `| ${r.authorYear} | ${r.studyDesignIdentifiable} | ${r.datasetSampleDescribed} | ${r.outcomeClearlyDefined} | ${r.validationDescribed} | ${r.comparatorBaselineDescribed} | ${r.externalValidation} | ${r.uncertaintyReported} | ${r.realWorldImplementation} | ${r.directTargetOutcome} | ${r.abstractReportingCompleteness} |\n`;
     });
     md += `\n`;
 
@@ -449,13 +448,13 @@ Return ONLY JSON:
 
   const handleDownloadDoc = () => {
     const formatBadge = (val: string) => {
-      if (val === "Low" || val === "High Rigor" || val === "Met") {
-        return `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">Met / High</span>`;
+      if (val === "Yes") {
+        return `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">Yes</span>`;
       }
-      if (val === "High" || val === "Low Rigor" || val === "Not Met") {
-        return `<span style="background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">Unmet / Low</span>`;
+      if (val === "No") {
+        return `<span style="background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">No</span>`;
       }
-      return `<span style="background-color: #fef9c3; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">Some Concerns</span>`;
+      return `<span style="background-color: #fef9c3; color: #854d0e; padding: 2px 6px; border-radius: 4px; font-weight: bold; font-size: 9pt;">Unclear</span>`;
     };
 
     const docHTML = `<!DOCTYPE html>
@@ -516,13 +515,13 @@ Return ONLY JSON:
   <p>Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded when they met ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.</p>
 
   <h3>2.3 Information Sources and Search Strategy</h3>
-  <p>${protocol.searchStrategies.length > 0 ? `The protocol documents search strategies for ${protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ")}. Search execution is not claimed unless matching source records were uploaded.` : "No database search strategy is recorded. This report describes only uploaded records."}</p>
+  <p>${executedSearchNarrative}</p>
 
   <h3>2.4 Selection Process</h3>
   <p>Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.</p>
 
-  <h3>2.5 Methodological Quality and Risk of Bias Assessment Methods</h3>
-  <p>Methodological quality was appraised using ${protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate framework"}. The approved domains were ${protocol.riskOfBiasMethods.domainsAssessed || "not specified"}.</p>
+  <h3>2.5 Methodological Reporting and Evidence Appraisal</h3>
+  <p>Included records were assessed with an abstract-level reporting checklist. “Unclear” means that an item was not reported in the available abstract; it is not a high-risk judgment. Formal risk-of-bias and certainty-of-evidence assessments were not performed.</p>
 
   <h2>3. Results</h2>
 
@@ -562,32 +561,38 @@ Return ONLY JSON:
     </tbody>
   </table>
 
-  <h3>3.3 Methodological Quality and Rigor Assessment (Table 2)</h3>
-  <div class="table-caption">Table 2: Methodological Quality and Rigor Appraisal Matrix</div>
+  <h3>3.3 Abstract Reporting Completeness (Table 2)</h3>
+  <div class="table-caption">Table 2: Abstract-level methodological reporting checklist</div>
   <table>
     <thead>
       <tr>
         <th>Study</th>
-        <th style="text-align: center;">Study Design & Setup</th>
-        <th style="text-align: center;">Data Adequacy</th>
-        <th style="text-align: center;">Measurement Methodology</th>
-        <th style="text-align: center;">Baseline Validation</th>
-        <th style="text-align: center;">Repeatability & Reporting</th>
-        <th style="text-align: center;">Overall Rigor</th>
-        <th>Methodological Justification</th>
+        <th style="text-align: center;">Design</th>
+        <th style="text-align: center;">Sample</th>
+        <th style="text-align: center;">Outcome</th>
+        <th style="text-align: center;">Validation</th>
+        <th style="text-align: center;">Comparator</th>
+        <th style="text-align: center;">External validation</th>
+        <th style="text-align: center;">Uncertainty</th>
+        <th style="text-align: center;">Implementation</th>
+        <th style="text-align: center;">Direct outcome</th>
+        <th style="text-align: center;">Completeness</th>
       </tr>
     </thead>
     <tbody>
-      ${riskOfBias.map((r) => `
+      ${reportingAssessments.map((r) => `
         <tr>
           <td><strong>${r.authorYear}</strong></td>
-          <td style="text-align: center;">${formatBadge(r.d1Selection)}</td>
-          <td style="text-align: center;">${formatBadge(r.d2Performance)}</td>
-          <td style="text-align: center;">${formatBadge(r.d3Attrition)}</td>
-          <td style="text-align: center;">${formatBadge(r.d4Detection)}</td>
-          <td style="text-align: center;">${formatBadge(r.d5Reporting)}</td>
-          <td style="text-align: center;">${formatBadge(r.overall)}</td>
-          <td>${r.justification}</td>
+          <td style="text-align: center;">${formatBadge(r.studyDesignIdentifiable)}</td>
+          <td style="text-align: center;">${formatBadge(r.datasetSampleDescribed)}</td>
+          <td style="text-align: center;">${formatBadge(r.outcomeClearlyDefined)}</td>
+          <td style="text-align: center;">${formatBadge(r.validationDescribed)}</td>
+          <td style="text-align: center;">${formatBadge(r.comparatorBaselineDescribed)}</td>
+          <td style="text-align: center;">${formatBadge(r.externalValidation)}</td>
+          <td style="text-align: center;">${formatBadge(r.uncertaintyReported)}</td>
+          <td style="text-align: center;">${formatBadge(r.realWorldImplementation)}</td>
+          <td style="text-align: center;">${formatBadge(r.directTargetOutcome)}</td>
+          <td style="text-align: center;">${r.abstractReportingCompleteness}</td>
         </tr>
       `).join("")}
     </tbody>
@@ -758,7 +763,7 @@ Return ONLY JSON:
             <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
               Complete all final-evidence stages first:
               <span className="ml-1 font-mono">
-                selection {selectionComplete ? "✓" : "○"} · extraction {extractionComplete ? "✓" : "○"} · appraisal {appraisalComplete ? "✓" : "○"} · synthesis {synthesisComplete ? "✓" : "○"}
+                selection {selectionComplete ? "✓" : "○"} · extraction {extractionComplete ? "✓" : "○"} · reporting appraisal {reportingComplete ? "✓" : "○"} · synthesis {synthesisComplete ? "✓" : "○"}
               </span>
             </div>
           )}
@@ -845,9 +850,7 @@ Return ONLY JSON:
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.3 Information Sources and Search Strategy</h3>
             <p className="text-justify">
-              {protocol.searchStrategies.length > 0
-                ? `The protocol documents search strategies for ${protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ")}. Search execution is not claimed unless matching source records were uploaded.`
-                : "No database search strategy is recorded. This report describes only uploaded records."}
+              {executedSearchNarrative}
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
@@ -855,9 +858,9 @@ Return ONLY JSON:
               Eligibility was determined through reviewer-confirmed title and abstract screening. {includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.
             </p>
 
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Quality and Rigor Assessment Methods</h3>
+            <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Reporting and Evidence Appraisal</h3>
             <p className="text-justify">
-              Methodological quality was appraised using {protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate framework"}. The approved domains were {protocol.riskOfBiasMethods.domainsAssessed || "not specified"}.
+              Included records were assessed with an abstract-level reporting checklist. “Unclear” means the item was not reported in the available abstract; it is not a high-risk judgment. Formal risk-of-bias and certainty-of-evidence assessments were not performed.
             </p>
           </div>
         </section>
@@ -925,36 +928,42 @@ Return ONLY JSON:
             </div>
           </div>
 
-          {/* Table 2: Methodological Quality and Rigor Appraisal */}
+          {/* Table 2: Abstract-level methodological reporting */}
           <div className="space-y-2 pt-4">
             <div className="text-xs font-mono font-bold text-slate-900">
-              Table 2: Methodological Quality and Rigor Assessment Matrix
+              Table 2: Abstract Reporting Completeness
             </div>
             <div className="overflow-x-auto border border-slate-200 rounded-lg">
               <table className="w-full text-left text-[11px] font-sans">
                 <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
                   <tr>
                     <th className="p-2 font-bold">Study</th>
-                    <th className="p-2 font-bold text-center">Design & Setup</th>
-                    <th className="p-2 font-bold text-center">Data Adequacy</th>
-                    <th className="p-2 font-bold text-center">Measurement</th>
-                    <th className="p-2 font-bold text-center">Baseline Validation</th>
-                    <th className="p-2 font-bold text-center">Repeatability</th>
-                    <th className="p-2 font-bold text-center">Overall Rigor</th>
-                    <th className="p-2 font-bold">Appraisal Justification</th>
+                    <th className="p-2 font-bold text-center">Design</th>
+                    <th className="p-2 font-bold text-center">Sample</th>
+                    <th className="p-2 font-bold text-center">Outcome</th>
+                    <th className="p-2 font-bold text-center">Validation</th>
+                    <th className="p-2 font-bold text-center">Comparator</th>
+                    <th className="p-2 font-bold text-center">External</th>
+                    <th className="p-2 font-bold text-center">Uncertainty</th>
+                    <th className="p-2 font-bold text-center">Implementation</th>
+                    <th className="p-2 font-bold text-center">Direct outcome</th>
+                    <th className="p-2 font-bold text-center">Completeness</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {riskOfBias.map((r, i) => (
+                  {reportingAssessments.map((r, i) => (
                     <tr key={i} className="hover:bg-slate-50/50">
                       <td className="p-2 font-mono font-semibold">{r.authorYear}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d1Selection}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d2Performance}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d3Attrition}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d4Detection}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d5Reporting}</td>
-                      <td className="p-2 text-center font-mono font-bold text-indigo-700">{r.overall}</td>
-                      <td className="p-2 text-slate-600 text-[10px]">{r.justification}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.studyDesignIdentifiable}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.datasetSampleDescribed}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.outcomeClearlyDefined}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.validationDescribed}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.comparatorBaselineDescribed}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.externalValidation}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.uncertaintyReported}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.realWorldImplementation}</td>
+                      <td className="p-2 text-center font-mono text-[10px]">{r.directTargetOutcome}</td>
+                      <td className="p-2 text-center font-mono font-bold text-indigo-700">{r.abstractReportingCompleteness}</td>
                     </tr>
                   ))}
                 </tbody>

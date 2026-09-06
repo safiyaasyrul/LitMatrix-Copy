@@ -1,7 +1,7 @@
 import { SLRRecord, ScreeningDecision, StudyCharacteristic, RiskOfBiasItem, SynthesisCategory, GradeCertaintyItem, SynthesisResult, DiscussionSections, SLRProtocol } from "../types/slr";
 
 export const BLANK_PROTOCOL: SLRProtocol = {
-  title: "Untitled Systematic Review",
+  title: "Abstract-Level Systematic Review of [Topic]: Narrative and Thematic Synthesis",
   reviewType: "Systematic Review with Narrative Synthesis",
   introductionRationale: "",
   backgroundContext: "",
@@ -13,7 +13,7 @@ export const BLANK_PROTOCOL: SLRProtocol = {
   ],
   secondaryObjectives: [
     "Describe patterns and differences across the included studies",
-    "Assess methodological quality using criteria appropriate to the study designs",
+    "Describe abstract-level methodological reporting and evidence limitations without assigning formal risk-of-bias judgments",
   ],
   formulationFramework: "PICO",
   objectivesPICO: {
@@ -82,10 +82,10 @@ export const BLANK_PROTOCOL: SLRProtocol = {
     missingDataAssumptions: "No values are imputed. Missing information is recorded as not reported.",
   },
   riskOfBiasMethods: {
-    toolName: "Domain-tailored methodological quality appraisal.",
+    toolName: "Abstract-level methodological reporting checklist; no formal risk-of-bias assessment.",
     numReviewers: 1,
-    domainsAssessed: "Study design clarity, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness.",
-    automationTools: "AI-assisted appraisal suggestions; judgments require reviewer verification against the full text.",
+    domainsAssessed: "Study design, dataset/sample, outcome definition, validation, comparator/baseline, external validation, uncertainty, implementation, direct target outcome, and abstract reporting completeness.",
+    automationTools: "AI-assisted abstract reporting suggestions; every judgment requires reviewer confirmation.",
   },
   effectMeasures: "Not prespecified. Quantitative pooling requires comparable, extractable effect data.",
   synthesisMethods: {
@@ -101,18 +101,18 @@ export const BLANK_PROTOCOL: SLRProtocol = {
 };
 
 export const SAMPLE_PROTOCOL: SLRProtocol = {
-  title: "Machine Learning Approaches for Early Type 2 Diabetes Prediction: A Systematic Review and Meta-Analysis",
-  reviewType: "Systematic Review and Quantitative Meta-Analysis",
-  introductionRationale: "Type 2 Diabetes Mellitus (T2DM) represents a escalating global health crisis affecting over 530 million adults worldwide, associated with substantial macrovascular and microvascular morbidity. Early detection during asymptomatic dysglycemic or prediabetic stages permits timely lifestyle interventions and pharmacotherapy that significantly delay or prevent disease progression. Although conventional risk scores (such as FINDRISC and the ADA Risk Tool) provide accessible baseline screening, their discriminative performance is constrained when processing complex, non-linear interactions across high-dimensional clinical registers, metabolic panels, and longitudinal EHR trajectories. Recent advances in supervised machine learning—including tree-based ensembles (XGBoost, LightGBM, Random Forest) and deep neural architectures—demonstrate superior capacity to capture complex temporal risk profiles. However, published studies vary widely in model architectures, validation protocols, cohort demographics, and risk-of-bias controls. A rigorous, PRISMA 2020-compliant systematic review and quantitative meta-analysis is urgently warranted to consolidate pooled diagnostic discrimination (AUC-ROC), compare model families against conventional risk scores, appraise methodological risk of bias via PROBAST, and evaluate the overall certainty of cumulative evidence using the GRADE framework.",
+  title: "Machine Learning for Early Type 2 Diabetes Risk Prediction: An Abstract-Level Systematic Review with Narrative and Thematic Synthesis",
+  reviewType: "Systematic Review with Narrative and Thematic Synthesis",
+  introductionRationale: "Type 2 Diabetes Mellitus represents a substantial global health burden. Machine-learning approaches are increasingly used to model early risk from clinical and longitudinal data, but the available literature varies in population, data source, validation approach, and outcome reporting. This review therefore synthesizes what is reported in the available citation records and abstracts, using narrative and thematic synthesis rather than unsupported quantitative pooling.",
   backgroundContext: "T2DM accounts for >90% of global diabetes cases, imposing an estimated $966 billion annual economic burden. Routine clinical risk calculators frequently suffer from moderate discrimination (AUC ~0.70-0.76) and suboptimal calibration when deployed across multi-ethnic cohorts. Machine learning models leveraging multimodal electronic health record features offer a promising paradigm for personalized predictive stratification.",
   knowledgeGap: "Existing literature is fragmented across disparate algorithm implementations, heterogeneous feature sets, and inconsistent reporting of calibration and external validation. A qualitative cross-study synthesis is needed to compare recurring findings, contradictions, methodological limitations, and evidence gaps.",
   primaryResearchQuestions: [
-    "RQ1 (Discrimination): What is the pooled diagnostic and predictive discrimination (AUC-ROC / C-index) of supervised machine learning algorithms in predicting incident Type 2 Diabetes?",
-    "RQ2 (Comparative Superiority): Do tree-based gradient boosted ensembles (XGBoost/LightGBM) demonstrate statistically superior predictive accuracy compared to traditional multivariable logistic regression and clinical risk scores?",
-    "RQ3 (Methodological Bias & Generalizability): What specific methodological risk of bias domains (selection, predictor definition, outcome determination, overfitting) most critically affect model transportability and external validation?",
+    "RQ1 (Reported evidence): What methods, populations, data sources, validation approaches, and outcomes are reported by studies of supervised machine learning for early Type 2 Diabetes risk prediction?",
+    "RQ2 (Cross-study patterns): What recurring patterns, differences, and contradictions appear across model families, clinical settings, and reported outcomes?",
+    "RQ3 (Evidence limitations): Which reporting gaps and unresolved questions limit interpretation of transportability, external validation, and real-world implementation?",
   ],
   secondaryObjectives: [
-    "Quantify between-study heterogeneity (I²) across cohort sample sizes and validation methods (cross-validation vs. external cohorts)",
+    "Describe differences in study design, populations, data sources, validation approaches, and reported outcomes without statistical pooling",
     "Identify top consistent predictive feature rankings (e.g., fasting plasma glucose, HbA1c, BMI, lipid ratios) across model architectures",
     "Develop an evidence-grounded future research agenda from identified gaps and methodological limitations",
   ],
@@ -151,19 +151,19 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
       "Peer-reviewed journal articles or conference proceedings published 2019-2026",
       "Studies developing or validating machine learning models for Type 2 Diabetes prediction",
       "Human adult participants (>= 18 years old)",
-      "Clear reporting of model discrimination metrics (AUC, sensitivity, specificity)",
+      "Abstract reports a direct target outcome or evaluated result relevant to the review questions",
       "English language publication",
     ],
     exclusion: [
       "Type 1 diabetes or gestational diabetes prediction only",
-      "Studies lacking external or cross-validation reporting",
+      "Records that do not identify an eligible primary empirical design or direct target outcome in the abstract",
       "Non-peer reviewed preprints, editorials, letters, or abstract-only conference posters",
       "Animal models or in vitro cellular studies",
-      "Unpublished or inaccessible full texts",
+      "Reviews, editorials, protocols, commentaries, or purely conceptual records unless explicitly eligible",
     ],
     timeframe: "January 2019 - Present (2026)",
     language: "English",
-    groupingForSynthesis: "Thematic grouping by algorithm family: Tree-based Ensembles (XGBoost/Random Forest), Deep Neural Architectures (MLP/CNN), and Hybrid Metabolic Biomarker Models.",
+    groupingForSynthesis: "Categories must emerge from explicitly reported study design, population/data source, method, validation approach, or outcome; use narrative and thematic grouping and retain an unclassified category where the abstract is insufficient.",
   },
   informationSources: [
     { name: "Scopus (Elsevier)", lastSearchedDate: "2026-08-15", urlOrHost: "scopus.com", recordsRetrieved: 42 },
@@ -207,22 +207,22 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     missingDataAssumptions: "Missing standard errors imputed using reported 95% confidence intervals or p-values according to Cochrane Handbook guidance.",
   },
   riskOfBiasMethods: {
-    toolName: "PROBAST (Prediction model Risk Of Bias ASsessment Tool) and Cochrane RoB 2 / ROBINS-I adaptations across 5 domains (Selection, Performance/Predictors, Attrition/Missing Data, Outcome Detection, and Analysis/Reporting).",
+    toolName: "Abstract-level reporting checklist; formal risk-of-bias tools were not applied because full texts were not retrieved.",
     numReviewers: 2,
-    domainsAssessed: "D1: Participant Selection; D2: Predictor Assessment; D3: Attrition & Missing Data; D4: Outcome Determination; D5: Statistical Analysis & Reporting.",
-    automationTools: "Heuristic and LLM bias prompt cross-checked by two independent reviewers.",
+    domainsAssessed: "Study design, dataset/sample, outcome definition, validation, comparator/baseline, external validation, uncertainty, implementation, direct target outcome, and abstract reporting completeness.",
+    automationTools: "AI-assisted abstract reporting suggestions; every judgment requires reviewer confirmation.",
   },
-  effectMeasures: "Area Under the Receiver Operating Characteristic Curve (AUC-ROC), pooled Odds Ratio (OR) for high-risk classification, and Sensitivity/Specificity summary pairs.",
+  effectMeasures: "Not applicable by default. Quantitative synthesis is not justified unless comparable, extractable effect data and an approved quantitative plan are supplied.",
   synthesisMethods: {
     criteriaForEligibility: "Studies providing validated predictive performance metrics in general adult cohorts.",
     dataPreparation: "Conversion of ROC confidence bounds into standard error using Wilson score / Hanley-McNeil variance formulas.",
     visualDisplays: "Study-characteristics tables, adaptive study-quality summaries, thematic clusters, and cross-study evidence tables.",
-    synthesisModel: "DerSimonian-Laird random-effects meta-analysis model with inverse-variance weighting; statistical heterogeneity quantified via I² statistic and Cochran's Q test (p < 0.10).",
+    synthesisModel: "Narrative and thematic synthesis; quantitative synthesis is not applicable or not justified for the abstract-level evidence workflow.",
     heterogeneityExploration: "Subgroup analysis comparing algorithm type (Tree ensemble vs Deep Learning vs Logistic regression) and validation type (internal vs external cohort).",
-    sensitivityAnalysis: "Leave-one-out sensitivity analysis and restriction to low Risk of Bias studies.",
+    sensitivityAnalysis: "Not applicable to the abstract-level narrative workflow; describe contradictions and evidence gaps instead.",
   },
   reportingBiasMethods: "Visual inspection of funnel plot asymmetry and Egger's linear regression test for funnel asymmetry (significance threshold p < 0.05).",
-  certaintyMethods: "Qualitative confidence is interpreted from adaptive study-quality judgments, consistency, directness, reporting completeness, and identified evidence gaps.",
+  certaintyMethods: "Not applicable by default. The report describes reporting completeness and evidence limitations without assigning formal certainty ratings.",
 };
 
 export const SAMPLE_RECORDS: SLRRecord[] = [

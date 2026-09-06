@@ -4,7 +4,7 @@ import {
   SLRRecord,
   ScreeningDecision,
   StudyCharacteristic,
-  RiskOfBiasItem,
+  AbstractReportingAssessment,
   SynthesisResult,
   DiscussionSections,
   PrismaChecklistItem,
@@ -21,7 +21,6 @@ import {
   sampleRecords,
   sampleScreening,
   sampleCharacteristics,
-  sampleRiskOfBias,
   sampleSynthesis,
   sampleDiscussion,
   BLANK_PROTOCOL,
@@ -34,7 +33,7 @@ import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
-import RiskOfBiasSection from "./components/RiskOfBiasSection";
+import AbstractReportingSection from "./components/AbstractReportingSection";
 import EvidenceSynthesisStage, { EvidenceSynthesisPhase } from "./components/EvidenceSynthesisStage";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
@@ -102,9 +101,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [riskOfBias, setRiskOfBias] = useState<RiskOfBiasItem[]>(() => {
-    const saved = localStorage.getItem("slr_rob_v1");
-    return saved ? JSON.parse(saved) : [];
+  const [reportingAssessments, setReportingAssessments] = useState<AbstractReportingAssessment[]>(() => {
+    const saved = localStorage.getItem("slr_reporting_appraisal_v1");
+    const parsed = saved ? JSON.parse(saved) : [];
+    return Array.isArray(parsed) ? parsed : [];
   });
 
   const [synthesis, setSynthesis] = useState<SynthesisResult>(() => {
@@ -228,8 +228,8 @@ export default function App() {
   }, [characteristics]);
 
   useEffect(() => {
-    localStorage.setItem("slr_rob_v1", JSON.stringify(riskOfBias));
-  }, [riskOfBias]);
+    localStorage.setItem("slr_reporting_appraisal_v1", JSON.stringify(reportingAssessments));
+  }, [reportingAssessments]);
 
   useEffect(() => {
     localStorage.setItem("slr_synthesis_v1", JSON.stringify(synthesis));
@@ -357,9 +357,29 @@ export default function App() {
       setDupesRemoved(284);
       setScreening(sampleScreening);
       setCharacteristics(sampleCharacteristics);
-      setRiskOfBias(sampleRiskOfBias);
-      setSynthesis(sampleSynthesis);
-      setDiscussion(sampleDiscussion);
+      setReportingAssessments([]);
+      setSynthesis({
+        ...sampleSynthesis,
+        status: undefined,
+        descriptiveSynthesis: undefined,
+        studyEvidence: [],
+        subtopics: [],
+        clusters: [],
+        rqFindings: [],
+        crossStudySynthesis: undefined,
+        researchGaps: [],
+        futureResearchAgenda: [],
+        keyFindingsTable: [],
+        forestPlotEstimates: [],
+        pooledEffectEstimate: undefined,
+        heterogeneityDiscussion: "",
+      });
+      setDiscussion({
+        item23aGeneralInterpretation: "",
+        item23bLimitationsOfEvidence: "",
+        item23cLimitationsOfReviewProcess: "",
+        item23dImplications: "",
+      });
       setChecklist(initialPrismaChecklist);
       setPrismaSChecklist(initialPrismaSChecklist);
       setRosesChecklist(initialRosesChecklist);
@@ -370,7 +390,7 @@ export default function App() {
   const handleStartBlankReview = () => {
     if (
       window.confirm(
-        "Start a blank review? This will clear all records, screening decisions, characteristics, risk of bias, and reset the protocol template for your own research topic."
+        "Start a blank review? This will clear all records, screening decisions, characteristics, abstract reporting appraisals, and reset the protocol template for your own research topic."
       )
     ) {
       setProtocol(BLANK_PROTOCOL);
@@ -378,7 +398,7 @@ export default function App() {
       setDupesRemoved(0);
       setScreening({});
       setCharacteristics([]);
-      setRiskOfBias([]);
+      setReportingAssessments([]);
       setSynthesis({
         status: undefined,
         descriptiveSynthesis: undefined,
@@ -419,7 +439,7 @@ export default function App() {
       Object.fromEntries(Object.entries(current).filter(([recordId]) => recordIds.has(recordId)))
     );
     setCharacteristics((current) => current.filter((item) => recordIds.has(item.recordId)));
-    setRiskOfBias((current) => current.filter((item) => recordIds.has(item.recordId)));
+    setReportingAssessments((current) => current.filter((item) => recordIds.has(item.recordId)));
     setSynthesis({
       status: undefined,
       descriptiveSynthesis: undefined,
@@ -496,7 +516,7 @@ export default function App() {
     },
     {
       id: "rob",
-      label: "Risk of Bias & Quality (Table 2)",
+      label: "Methodological Reporting & Appraisal (Table 2)",
       badge: "Items 11 & 18",
       icon: ShieldCheck,
     },
@@ -751,14 +771,13 @@ export default function App() {
             />
           )}
 
-          {/* Stage 9: Risk of Bias (Table 2) */}
+          {/* Stage 9: Abstract-level methodological reporting appraisal (Table 2) */}
           {activeStage === 8 && (
-            <RiskOfBiasSection
+            <AbstractReportingSection
               includedRecords={includedRecords}
-              riskOfBias={riskOfBias}
-              onUpdateRiskOfBias={setRiskOfBias}
+              assessments={reportingAssessments}
+              onUpdateAssessments={setReportingAssessments}
               aiConfig={activeAIConfig}
-              characteristics={characteristics}
               protocol={protocol}
               onNavigateToScreening={() => setActiveStage(5)}
             />
@@ -801,7 +820,7 @@ export default function App() {
               protocol={protocol}
               includedRecords={includedRecords}
               characteristics={characteristics}
-              riskOfBias={riskOfBias}
+              reportingAssessments={reportingAssessments}
               synthesis={synthesis}
               discussion={discussion}
               checklist={checklist}

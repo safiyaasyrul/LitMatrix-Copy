@@ -127,7 +127,7 @@ export default function StudyCharacteristicsTable({
       return {
         recordId: r.id,
         authorYear: `${firstAuthor} et al. (${year})`,
-        category: "Not categorized",
+        category: "Not reported in abstract",
         country: "Not reported",
         sampleSize,
         population: "Not reported",
@@ -170,7 +170,7 @@ EVIDENCE RULES:
 Fields to extract:
 1. recordId: exact string from recordId
 2. authorYear: e.g. "Chen et al. (2023)"
-3. category: A short theme grounded in the study topic
+3. category: One concise evidence category grounded in an explicitly reported study design, dataset/population, method, or outcome. Do not invent a category; use "Not reported in abstract" when the record does not support one.
 4. country: e.g. "United States" or "Not reported"
 5. sampleSize: Explicit sample, dataset, participant, unit, material, document, or case count
 6. population: Unit, setting, system, or evidence source studied
@@ -212,7 +212,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
     const newRow: StudyCharacteristic = {
       recordId: `custom-${Date.now()}`,
       authorYear: "New Author (2024)",
-      category: "Uncategorized",
+      category: "Not reported in abstract",
       country: "Not reported",
       sampleSize: "Not reported",
       population: "Not reported",
@@ -310,6 +310,9 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
             </h2>
             <p className="text-xs text-slate-500 mt-1">
               Construct Table 1 tailored to your review domain. Group by categories or paradigms, and customize or drop inapplicable columns such as country or sample size.
+            </p>
+            <p className="mt-2 max-w-4xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
+              Extraction is limited to citation metadata and available abstracts. Missing fields remain “Not reported”; this table is not a substitute for full-text extraction or verification.
             </p>
           </div>
 

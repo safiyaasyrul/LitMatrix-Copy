@@ -93,6 +93,30 @@ export interface RiskOfBiasItem {
   justification: string;
 }
 
+export type ReportingJudgment = "Yes" | "No" | "Unclear";
+export type AbstractReportingCompleteness = "High" | "Moderate" | "Low";
+
+/**
+ * Abstract-level evidence reporting appraisal. This is intentionally not a
+ * risk-of-bias judgment: citation metadata and abstracts cannot establish
+ * internal validity, confounding, attrition, or causal certainty.
+ */
+export interface AbstractReportingAssessment {
+  recordId: string;
+  authorYear: string;
+  studyDesignIdentifiable: ReportingJudgment;
+  datasetSampleDescribed: ReportingJudgment;
+  outcomeClearlyDefined: ReportingJudgment;
+  validationDescribed: ReportingJudgment;
+  comparatorBaselineDescribed: ReportingJudgment;
+  externalValidation: ReportingJudgment;
+  uncertaintyReported: ReportingJudgment;
+  realWorldImplementation: ReportingJudgment;
+  directTargetOutcome: ReportingJudgment;
+  abstractReportingCompleteness: AbstractReportingCompleteness;
+  evidenceNotes: string;
+}
+
 export interface SynthesisCategory {
   name: string;
   recordIds: string[];
