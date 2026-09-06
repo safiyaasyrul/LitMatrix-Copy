@@ -1,4 +1,4 @@
-import { SLRRecord, ScreeningDecision, StudyCharacteristic, AbstractReportingAssessment, RiskOfBiasItem, SynthesisCategory, GradeCertaintyItem, SynthesisResult, DiscussionSections, SLRProtocol } from "../types/slr";
+import { SLRRecord, ScreeningDecision, StudyCharacteristic, AbstractReportingAssessment, SynthesisResult, DiscussionSections, SLRProtocol } from "../types/slr";
 
 export const BLANK_PROTOCOL: SLRProtocol = {
   title: "Abstract-Level Systematic Review of [Topic]: Narrative and Thematic Synthesis",
@@ -100,6 +100,14 @@ export const BLANK_PROTOCOL: SLRProtocol = {
   certaintyMethods: "Use a certainty framework appropriate to the evidence types; do not assign certainty automatically.",
 };
 
+/**
+ * QUALITATIVE-ONLY COMPLETED-REVIEW FIXTURES
+ *
+ * Keep the active demo grounded in supplied records, abstract-level reporting
+ * completeness, and the finalized narrative/thematic synthesis below. Do not
+ * add GRADE, formal risk-of-bias, pooled-effect, meta-analysis, heterogeneity,
+ * or forest-plot fixtures to this module.
+ */
 export const SAMPLE_PROTOCOL: SLRProtocol = {
   title: "Machine Learning for Early Type 2 Diabetes Risk Prediction: An Abstract-Level Systematic Review with Narrative and Thematic Synthesis",
   reviewType: "Systematic Review with Narrative and Thematic Synthesis",
@@ -517,290 +525,6 @@ export const SAMPLE_REPORTING_ASSESSMENTS: AbstractReportingAssessment[] =
     };
   });
 
-export const SAMPLE_RISK_OF_BIAS: RiskOfBiasItem[] = [
-  {
-    recordId: "rec-01",
-    authorYear: "Chen et al. (2023)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Large representative EHR population; rigorous independent external validation cohort; transparent imputation and metric reporting.",
-  },
-  {
-    recordId: "rec-02",
-    authorYear: "Nakamura et al. (2024)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Prospective 7-year design with blind outcome verification and complete genotype quality control.",
-  },
-  {
-    recordId: "rec-03",
-    authorYear: "Williams et al. (2022)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Some concerns",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Multi-center prospective general practice cohort; minor loss to 2-year confirmatory follow-up appropriately handled.",
-  },
-  {
-    recordId: "rec-04",
-    authorYear: "Gomez et al. (2023)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Complete 5-wave annual medical records with validated ICD-10 diagnostic coding.",
-  },
-  {
-    recordId: "rec-05",
-    authorYear: "Al-Mansoori et al. (2024)",
-    d1Selection: "Some concerns",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Some concerns",
-    justification: "Single-region community screening cohort; potential selection bias towards health-conscious volunteers.",
-  },
-  {
-    recordId: "rec-06",
-    authorYear: "Fischer et al. (2021)",
-    d1Selection: "Some concerns",
-    d2Performance: "Some concerns",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Some concerns",
-    overall: "Some concerns",
-    justification: "Cross-sectional outpatient sample without prospective external test set; partial reporting of calibration.",
-  },
-  {
-    recordId: "rec-07",
-    authorYear: "Larsson et al. (2022)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Well-characterized 10-year prospective registry cohort with standardized Cox and RSF comparisons.",
-  },
-  {
-    recordId: "rec-08",
-    authorYear: "Zhou et al. (2024)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Multi-hospital data linkage with robust graph split train/validation partitions.",
-  },
-  {
-    recordId: "rec-09",
-    authorYear: "Henderson et al. (2023)",
-    d1Selection: "Low",
-    d2Performance: "Low",
-    d3Attrition: "Low",
-    d4Detection: "Low",
-    d5Reporting: "Low",
-    overall: "Low",
-    justification: "Validated CHEERS compliant decision-analytic Markov microsimulation model with extensive probabilistic sensitivity analyses.",
-  },
-];
-
-export const SAMPLE_CATEGORIES: SynthesisCategory[] = [
-  {
-    name: "1. Tree-Based Gradient Boosting Ensembles (XGBoost, LightGBM, CatBoost)",
-    recordIds: ["rec-01", "rec-03", "rec-05", "rec-07", "rec-09"],
-    summaryProse:
-      "Tree-based gradient boosting models demonstrated consistently high discriminative capacity for Type 2 Diabetes prediction across general outpatient and community cohorts. Chen et al. (2023) established that XGBoost achieved an AUC-ROC of 0.892 (95% CI 0.884-0.900) in 124,500 EHR records, outperforming traditional logistic regression (AUC 0.781). Similarly, Williams et al. (2022) found LightGBM superior to standard clinical risk tools (FINDRISC AUC 0.724 vs LightGBM AUC 0.841), eliminating 34% of unnecessary confirmatory blood draws. Al-Mansoori et al. (2024) integrated CatBoost with explainable TreeSHAP values, raising clinician trust from 42% to 88%. Larsson et al. (2022) extended tree ensembles into survival analysis with Random Survival Forests (C-index 0.838), while Henderson et al. (2023) confirmed economic viability (ICER $14,250/QALY).",
-    tableRows: [
-      {
-        authorYear: "Chen et al. (2023)",
-        focus: "XGBoost 3-year T2DM EHR prediction",
-        keyFinding: "AUC 0.892; BMI velocity and fasting glucose slope were primary drivers.",
-        method: "Retrospective EHR cohort with external multi-center validation",
-        effectEstimate: "AUC = 0.89 (0.88 - 0.90)",
-      },
-      {
-        authorYear: "Williams et al. (2022)",
-        focus: "LightGBM vs FINDRISC/ADA clinical risk scores",
-        keyFinding: "AUC 0.841 vs FINDRISC 0.724; 34% reduction in false-positive blood tests.",
-        method: "Prospective primary care general practice validation",
-        effectEstimate: "AUC = 0.84 (0.83 - 0.86)",
-      },
-      {
-        authorYear: "Al-Mansoori et al. (2024)",
-        focus: "CatBoost & Explainable TreeSHAP in community screening",
-        keyFinding: "AUC 0.872; transparent biomarker attribution boosted clinician trust to 88%.",
-        method: "Community-based cross-sectional screening",
-        effectEstimate: "AUC = 0.87 (0.86 - 0.89)",
-      },
-      {
-        authorYear: "Larsson et al. (2022)",
-        focus: "Random Survival Forests in postmenopausal women",
-        keyFinding: "C-index 0.838; captured non-linear interaction between menopause duration and HOMA-IR.",
-        method: "Prospective 10-year registry cohort",
-        effectEstimate: "C-index = 0.84 (0.82 - 0.86)",
-      },
-    ],
-    references: [
-      "Chen, L., Zhang, M., Kumar, A., & Patel, R. (2023). Ensemble Machine Learning for Early Risk Stratification of Type 2 Diabetes in Large-Scale Electronic Health Records. Journal of Medical Internet Research, 25, e44120.",
-      "Williams, E. R., Davies, G. M., & O'Connor, T. (2022). Comparison of Machine Learning Algorithms Versus Traditional Clinical Risk Scores for Diabetes Screening in Primary Care. Diabetes Care, 45(6), 1380-1388.",
-      "Al-Mansoori, H., Khalid, N., & Al-Mutawa, A. (2024). Explainable Artificial Intelligence for Diabetes Prediction Using SHAP Values and CatBoost in Community Screening. Artificial Intelligence in Medicine, 149, 102780.",
-      "Larsson, A., Eriksson, M., & Sundstrom, J. (2022). Predictive Analytics for Incident Type 2 Diabetes in Postmenopausal Women: A Random Forest Survival Model. Maturitas, 160, 45-52.",
-      "Henderson, P., Clark, D., & Foster, H. (2023). Cost-Effectiveness of Machine Learning-Driven Targeted Diabetes Screening Programs. Value in Health, 26(10), 1432-1441.",
-    ],
-    metaAnalysisData: {
-      pooledEstimate: "0.864",
-      ci95: "0.850 - 0.878",
-      iSquared: "48.2%",
-      pVal: "< 0.001",
-      heterogeneityInterpretation: "Moderate statistical heterogeneity (I² = 48.2%) attributable to differences between primary care and tertiary hospital EHR cohorts.",
-      studies: [
-        { name: "Chen et al. (2023)", estimate: 0.892, ciLow: 0.884, ciHigh: 0.900, weight: 32 },
-        { name: "Williams et al. (2022)", estimate: 0.841, ciLow: 0.825, ciHigh: 0.857, weight: 24 },
-        { name: "Al-Mansoori et al. (2024)", estimate: 0.872, ciLow: 0.855, ciHigh: 0.889, weight: 22 },
-        { name: "Larsson et al. (2022)", estimate: 0.838, ciLow: 0.819, ciHigh: 0.857, weight: 22 },
-      ],
-    },
-  },
-  {
-    name: "2. Deep Neural Architectures & Longitudinal Trajectory Modeling (DNN, LSTM, GCN)",
-    recordIds: ["rec-02", "rec-04", "rec-08"],
-    summaryProse:
-      "Deep learning frameworks excelled at fusing complex multimodal inputs and sequential longitudinal records. Nakamura et al. (2024) developed a multimodal deep neural network integrating 120 SNPs with clinical biomarkers, reaching an AUC-ROC of 0.914 (95% CI 0.901-0.927) and demonstrating that genomic-phenotypic fusion provides a substantial +0.052 AUC improvement over single-modality models. Gomez et al. (2023) demonstrated that Recurrent Neural Networks (LSTM) trained on 5-year annual checkups (AUC 0.885) outperformed static models by capturing longitudinal biomarker trajectories. Zhou et al. (2024) applied Graph Convolutional Networks (GCN) to patient comorbidity graphs (AUC 0.895), capturing interconnected diagnostic risks across hypertension, NAFLD, and PCOS.",
-    tableRows: [
-      {
-        authorYear: "Nakamura et al. (2024)",
-        focus: "Multimodal Deep Neural Network (Genomics + Phenotype)",
-        keyFinding: "AUC 0.914; +0.052 gain over clinical variables alone with near-perfect calibration.",
-        method: "Prospective 7-year cohort combining 120 SNPs and 24 clinical features",
-        effectEstimate: "AUC = 0.91 (0.90 - 0.93)",
-      },
-      {
-        authorYear: "Gomez et al. (2023)",
-        focus: "LSTM RNN on 5-year longitudinal medical trajectories",
-        keyFinding: "AUC 0.885; blood pressure and fasting glucose velocity enhanced 5-year prediction.",
-        method: "Longitudinal recurrent neural network on 5 consecutive annual waves",
-        effectEstimate: "AUC = 0.89 (0.87 - 0.90)",
-      },
-      {
-        authorYear: "Zhou et al. (2024)",
-        focus: "Graph Neural Networks on patient comorbidity networks",
-        keyFinding: "AUC 0.895; modeled topological risk clusters (NAFLD, hypertension, PCOS).",
-        method: "Heterogeneous bipartite patient-disease graph convolutional network",
-        effectEstimate: "AUC = 0.90 (0.88 - 0.91)",
-      },
-    ],
-    references: [
-      "Nakamura, S., Tanaka, K., & Yamamoto, H. (2024). Deep Neural Network Architectures for Multimodal Diabetes Onset Prediction Combining Genomic and Phenotypic Features. IEEE Transactions on Biomedical Engineering, 71(2), 512-521.",
-      "Gomez, R., Silva, F., Santos, M., & Costa, J. (2023). Longitudinal Trajectory Mining Using Recurrent Neural Networks for 5-Year Diabetes Incidence Forecasting. Lancet Digital Health, 5(8), e510-e519.",
-      "Zhou, Y., Qian, X., & Li, T. (2024). Graph Neural Networks for Modeling Comorbidity Interactions in Type 2 Diabetes Risk Prediction. Journal of Biomedical Informatics, 150, 104592.",
-    ],
-    metaAnalysisData: {
-      pooledEstimate: "0.898",
-      ci95: "0.886 - 0.910",
-      iSquared: "31.4%",
-      pVal: "< 0.001",
-      heterogeneityInterpretation: "Low-to-moderate heterogeneity (I² = 31.4%) indicating high consistency across deep learning architectures.",
-      studies: [
-        { name: "Nakamura et al. (2024)", estimate: 0.914, ciLow: 0.901, ciHigh: 0.927, weight: 38 },
-        { name: "Gomez et al. (2023)", estimate: 0.885, ciLow: 0.871, ciHigh: 0.899, weight: 32 },
-        { name: "Zhou et al. (2024)", estimate: 0.895, ciLow: 0.881, ciHigh: 0.909, weight: 30 },
-      ],
-    },
-  },
-  {
-    name: "3. Low-Cost Hematological & Primary Care Biomarker Classifiers (SVM, RBF)",
-    recordIds: ["rec-06"],
-    summaryProse:
-      "Fischer et al. (2021) demonstrated that Support Vector Machines with radial basis kernels (SVM-RBF) achieved an AUC of 0.814 (95% CI 0.793-0.835) using routine complete blood count indices and lipid panels. Neutrophil-to-lymphocyte ratio and red blood cell distribution width (RDW) acted as surrogate markers for systemic subclinical inflammation, offering a viable, low-cost screening alternative in resource-constrained settings where specialized HbA1c testing is unavailable.",
-    tableRows: [
-      {
-        authorYear: "Fischer et al. (2021)",
-        focus: "SVM classification using complete blood count indices",
-        keyFinding: "AUC 0.814; neutrophil-to-lymphocyte ratio and RDW identified impaired glucose tolerance.",
-        method: "Support Vector Machines (SVM-RBF) in outpatient clinical setting",
-        effectEstimate: "AUC = 0.81 (0.79 - 0.84)",
-      },
-    ],
-    references: [
-      "Fischer, B., Schmidt, U., & Weber, K. (2021). Support Vector Machine Classification of Impaired Glucose Tolerance Using Routine Hematological Parameters. BMC Medical Informatics and Decision Making, 21(1), 198.",
-    ],
-  },
-];
-
-export const SAMPLE_GRADE_CERTAINTY: GradeCertaintyItem[] = [
-  {
-    outcome: "Predictive Discrimination (AUC-ROC) of Gradient Boosted Tree Ensembles (XGBoost, LightGBM)",
-    numStudies: 5,
-    studyDesign: "Observational cohort studies with external validation (N = 200,000+)",
-    riskOfBias: "No serious",
-    inconsistency: "No serious",
-    indirectness: "No serious",
-    imprecision: "No serious",
-    publicationBias: "Undetected",
-    overallCertainty: "High",
-    importance: "Critical",
-    summaryOfFindings: "Pooled AUC 0.864 (95% CI 0.850-0.878). Substantially superior to conventional clinical scores (FINDRISC/ADA). High certainty of robust clinical discrimination.",
-    explanation: "Pooled AUC 0.864 (95% CI 0.850-0.878). Substantially superior to conventional clinical scores (FINDRISC/ADA). High certainty of robust clinical discrimination.",
-  },
-  {
-    outcome: "Multimodal Deep Learning (Genomic + Phenotypic Feature Fusion) Discrimination Gain",
-    numStudies: 3,
-    studyDesign: "Prospective cohorts with deep neural network architectures (N = 165,000+)",
-    riskOfBias: "No serious",
-    inconsistency: "No serious",
-    indirectness: "No serious",
-    imprecision: "No serious",
-    publicationBias: "Undetected",
-    overallCertainty: "High",
-    importance: "Critical",
-    summaryOfFindings: "Pooled AUC 0.898 (95% CI 0.886-0.910). Adding polygenic risk scores and longitudinal EHR trajectories yields consistent discrimination improvement (+0.05 AUC).",
-    explanation: "Pooled AUC 0.898 (95% CI 0.886-0.910). Adding polygenic risk scores and longitudinal EHR trajectories yields consistent discrimination improvement (+0.05 AUC).",
-  },
-  {
-    outcome: "Reduction in Unnecessary Confirmatory Diagnostic Blood Draws in Primary Care",
-    numStudies: 2,
-    studyDesign: "Prospective community screening & Markov decision models",
-    riskOfBias: "No serious",
-    inconsistency: "No serious",
-    indirectness: "No serious",
-    imprecision: "Serious",
-    publicationBias: "Undetected",
-    overallCertainty: "Moderate",
-    importance: "Important",
-    summaryOfFindings: "Estimated 34% reduction in false-positive diagnostic referrals; ICER $14,250/QALY gained. Downrated for imprecision due to limited real-world health economic trials.",
-    explanation: "Estimated 34% reduction in false-positive diagnostic referrals; ICER $14,250/QALY gained. Downrated for imprecision due to limited real-world health economic trials.",
-  },
-  {
-    outcome: "Low-Cost CBC Inflammatory Parameter Diagnostic Accuracy in Resource-Constrained Settings",
-    numStudies: 1,
-    studyDesign: "Cross-sectional outpatient diagnostic study (N = 9,450)",
-    riskOfBias: "Serious",
-    inconsistency: "No serious",
-    indirectness: "Serious",
-    imprecision: "Serious",
-    publicationBias: "Suspected",
-    overallCertainty: "Low",
-    importance: "Important",
-    summaryOfFindings: "AUC 0.814 using CBC markers. Downrated for risk of bias (single-center cross-sectional), indirectness of surrogate inflammatory markers, and imprecision.",
-    explanation: "AUC 0.814 using CBC markers. Downrated for risk of bias (single-center cross-sectional), indirectness of surrogate inflammatory markers, and imprecision.",
-  },
-];
-
 export const SAMPLE_SYNTHESIS: SynthesisResult = {
   status: "finalized",
   descriptiveSynthesis: {
@@ -1015,8 +739,6 @@ export const sampleRecords = SAMPLE_RECORDS;
 export const sampleScreening = SAMPLE_SCREENING;
 export const sampleCharacteristics = SAMPLE_CHARACTERISTICS;
 export const sampleReportingAssessments = SAMPLE_REPORTING_ASSESSMENTS;
-export const sampleRiskOfBias = SAMPLE_RISK_OF_BIAS;
 export const sampleSynthesis = SAMPLE_SYNTHESIS;
-export const sampleGradeItems = SAMPLE_GRADE_CERTAINTY;
 export const sampleDiscussion = SAMPLE_DISCUSSION_SECTIONS;
 
