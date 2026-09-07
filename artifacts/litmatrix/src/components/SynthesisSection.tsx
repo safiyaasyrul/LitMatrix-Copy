@@ -12,6 +12,151 @@ interface SynthesisSectionProps {
   onNavigateToScreening?: () => void;
 }
 
+const MIN_SYNTHESIS_CLUSTERS = 3;
+
+type SynthesisStudy = StudyCharacteristic;
+
+const firstAuthorSurname = (record: SLRRecord) => {
+  const firstAuthor = record.authors?.[0]?.trim();
+  if (!firstAuthor) return "Author";
+  return firstAuthor.includes(",")
+    ? firstAuthor.split(",")[0].trim()
+    : firstAuthor.split(/\s+/).slice(-1)[0] || "Author";
+};
+
+const authorYearLabel = (record: SLRRecord) =>
+  `${firstAuthorSurname(record)} et al. (${record.year || "n.d."})`;
+
+const buildStudiesFromRecords = (records: SLRRecord[]): SynthesisStudy[] =>
+  records.map((record) => ({
+    recordId: record.id,
+    authorYear: authorYearLabel(record),
+    country: "Not reported",
+    sampleSize: "Not reported",
+    population: "Not reported",
+    interventionOrFocus: record.title,
+    comparator: "Not reported",
+    primaryOutcome: "Not reported",
+    studyDesign: "Not established from citation metadata",
+    keyFinding: record.abstract?.trim().slice(0, 260) || "No finding was reported in the supplied record.",
+  }));
+
+const getSynthesisStudies = (
+  includedRecords: SLRRecord[],
+  characteristics: StudyCharacteristic[]
+) => characteristics.length > 0 ? characteristics : buildStudiesFromRecords(includedRecords);
+
+const clusterStudies = (studies: SynthesisStudy[]) => {
+  const themes = [
+    {
+      key: "Methods, models, and study designs",
+      terms: ["method", "model", "algorithm", "framework", "simulation", "design", "validation", "experiment"],
+    },
+    {
+      key: "Applications, interventions, and contexts",
+      terms: ["intervention", "exposure", "population", "context", "application", "technology", "system", "setting"],
+    },
+    {
+      key: "Outcomes, performance, and reported effects",
+      terms: ["outcome", "performance", "efficiency", "accuracy", "impact", "emission", "effect", "result", "evaluation"],
+    },
+  ];
+  const buckets = themes.map((theme) => ({ key: theme.key, studies: [] as SynthesisStudy[] }));
+
+  studies.forEach((study, studyIndex) => {
+    const searchableText = [
+      study.category,
+      study.interventionOrFocus,
+      study.studyDesign,
+      study.primaryOutcome,
+      study.keyFinding,
+    ].join(" ").toLowerCase();
+    const scores = themes.map((theme) =>
+      theme.terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0)
+    );
+    const highestScore = Math.max(...scores);
+    const matchingIndexes = scores
+      .map((score, index) => score === highestScore ? index : -1)
+      .filter((index) => index >= 0);
+    const selectedIndex = matchingIndexes.length > 1
+      ? studyIndex % themes.length
+      : matchingIndexes[0];
+    buckets[selectedIndex].studies.push(study);
+  });
+
+  // Keep all three clusters populated whenever at least three records exist.
+  for (let index = 0; index < buckets.length; index++) {
+    if (buckets[index].studies.length === 0 && studies.length >= MIN_SYNTHESIS_CLUSTERS) {
+      const donor = buckets
+        .map((bucket, donorIndex) => ({ donorIndex, size: bucket.studies.length }))
+        .filter((bucket) => bucket.size > 1)
+        .sort((a, b) => b.size - a.size)[0];
+      if (donor) {
+        buckets[index].studies.push(buckets[donor.donorIndex].studies.pop()!);
+      }
+    }
+  }
+
+  return buckets;
+};
+
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const studyCitationLine = (study: SynthesisStudy) => {
+  const finding = (study.keyFinding || "No finding was reported in the supplied record.")
+    .replace(/\s+/g, " ")
+    .trim();
+  return `${study.authorYear}: ${finding}`;
+};
+
+const formatClusterProse = (prose: string, studies: SynthesisStudy[]) => {
+  let formatted = (prose || "").replace(/\r\n/g, "\n").trim();
+  studies.forEach((study) => {
+    const label = study.authorYear;
+    const labelMatch = label.match(/^(.*?)(?:\s+et al\.)?\s*\(([^)]+)\)$/);
+    const surname = labelMatch?.[1] || label.split(" et al.")[0];
+    const year = labelMatch?.[2];
+    if (year) {
+      const variantPattern = new RegExp(
+        `${escapeRegExp(surname)}\\s+et\\s+al\\.?\\s*(?:,|\\()\\s*${escapeRegExp(year)}\\)?`,
+        "gi"
+      );
+      formatted = formatted.replace(variantPattern, label);
+    }
+    const canonicalPattern = new RegExp(`${escapeRegExp(label)}\\s*:??\\s*`, "g");
+    formatted = formatted.replace(canonicalPattern, `${label}: `);
+    const labelPattern = new RegExp(`\\s+(?=${escapeRegExp(label)}\\s*:?)`, "g");
+    formatted = formatted.replace(labelPattern, "\n\n");
+    if (!formatted.includes(label)) {
+      formatted = `${formatted}${formatted ? "\n\n" : ""}${studyCitationLine(study)}`;
+    }
+  });
+  return formatted || studies.map(studyCitationLine).join("\n\n");
+};
+
+const fallbackSubtopics = (studies: SynthesisStudy[]) =>
+  clusterStudies(studies).map((cluster, index) => ({
+    title: `${index + 1}. ${cluster.key} evidence`,
+    prose: formatClusterProse("", cluster.studies),
+  }));
+
+const normalizeSubtopics = (subtopics: any[], studies: SynthesisStudy[]) => {
+  const clusters = clusterStudies(studies);
+  return clusters.map((cluster, index) => {
+    const supplied = subtopics[index];
+    const title = typeof supplied?.title === "string" && supplied.title.trim()
+      ? supplied.title.trim()
+      : `${index + 1}. ${cluster.key} evidence`;
+    return {
+      title: title.replace(/^\d+\.\s*/, `${index + 1}. `),
+      prose: formatClusterProse(
+        typeof supplied?.prose === "string" ? supplied.prose : "",
+        cluster.studies,
+      ),
+    };
+  });
+};
+
 export default function SynthesisSection({
   synthesis,
   onUpdateSynthesis,
@@ -57,36 +202,16 @@ export default function SynthesisSection({
   const runHeuristicSynthesis = () => {
     if (includedRecords.length === 0 && characteristics.length === 0) return;
 
-    const studies = characteristics.length > 0
-      ? characteristics
-      : includedRecords.map((r) => ({
-          recordId: r.id,
-          authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
-          country: "Not reported",
-          sampleSize: "Not reported",
-          population: "Not reported",
-          interventionOrFocus: r.title.slice(0, 50),
-          comparator: "Not reported",
-          primaryOutcome: "Not reported",
-          studyDesign: "Not established from citation metadata",
-          keyFinding: r.abstract?.slice(0, 240) || "No abstract available.",
-        }));
-    const categoryMap = new Map<string, typeof studies>();
-    studies.forEach((study) => {
-      const category = study.category || "Uncategorized evidence";
-      categoryMap.set(category, [...(categoryMap.get(category) || []), study]);
-    });
+    const studies = getSynthesisStudies(includedRecords, characteristics);
+    const clusters = clusterStudies(studies);
 
     const generated: SynthesisResult = {
-      subtopics: Array.from(categoryMap.entries()).map(([category, categoryStudies], index) => ({
-        title: `${index + 1}. ${category}`,
-        prose: categoryStudies.map((study) => `${study.authorYear}: ${study.keyFinding}`).join(" "),
-      })),
-      keyFindingsTable: Array.from(categoryMap.entries()).map(([category, categoryStudies]) => ({
-        topic: category,
-        summary: categoryStudies.map((study) => `${study.authorYear}: ${study.keyFinding}`).join(" "),
+      subtopics: fallbackSubtopics(studies),
+      keyFindingsTable: clusters.map((cluster) => ({
+        topic: cluster.key,
+        summary: formatClusterProse("", cluster.studies),
         consistency: "Not assessed quantitatively",
-        evidenceBase: `${categoryStudies.length} screened-in record${categoryStudies.length === 1 ? "" : "s"}`,
+        evidenceBase: `${cluster.studies.length} screened-in record${cluster.studies.length === 1 ? "" : "s"}`,
       })),
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
@@ -102,24 +227,18 @@ export default function SynthesisSection({
     setGenerating(true);
     setErrorMessage(null);
 
-    const studiesData = characteristics.length > 0
-      ? characteristics
-      : includedRecords.map((r) => ({
-          recordId: r.id,
-          authorYear: `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
-          country: "Not reported",
-          sampleSize: "Not reported",
-          population: "Not reported",
-          interventionOrFocus: r.title,
-          comparator: "Not reported",
-          primaryOutcome: "Not reported",
-          studyDesign: "Not established from citation metadata",
-          keyFinding: (r.abstract || "").slice(0, 260),
-        }));
+    const studiesData = getSynthesisStudies(includedRecords, characteristics);
+    const clusters = clusterStudies(studiesData);
 
     const prompt = `Act as a systematic review synthesis methodologist. Produce a narrative and thematic synthesis of the ${studiesData.length} screened-in records.
 
-Group studies using themes that emerge from the supplied records.
+Group studies using the following record-grounded cluster assignments. Use all clusters, and return at least ${MIN_SYNTHESIS_CLUSTERS} non-quantitative subtopics:
+${JSON.stringify(clusters.map((cluster, index) => ({
+  cluster: index + 1,
+  basis: cluster.key,
+  recordIds: cluster.studies.map((study) => study.recordId),
+})))}
+
 Within each category or thematic group, explicitly identify authors who share similarities in their methods, designs, or outcomes, and compare/contrast their empirical results.
 
 Included Studies and Detailed Characteristics:
@@ -129,8 +248,8 @@ STRICT WRITING RULES:
 1. Write in strictly third-person objective academic voice. NEVER use first-person pronouns (DO NOT use "we", "our", "us", "in our study", "we observed").
 2. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
 3. DO NOT mention "PRISMA Item", "PRISMA", "Item 20", etc.
-4. CITE EVERY INCLUDED STUDY EXPLICITLY in the narrative text (e.g. Chen et al., 2023) and present its key characteristics and findings. Compare authors who share methodological or paradigm similarities within each category.
-5. Group the findings into 3-4 structured subtopics with descriptive academic titles.
+4. CITE EVERY INCLUDED STUDY EXPLICITLY in the narrative text using exactly "Author et al. (Year): finding". Put each study citation on its own paragraph. Never concatenate one citation directly after another, and never use a bare author name without its year.
+5. Return at least ${MIN_SYNTHESIS_CLUSTERS} structured subtopics, matching the supplied cluster assignments. Each subtopic must contain the citations for its assigned records.
 6. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
 7. Do not calculate or report pooled effects, confidence intervals, p-values, I², weights, meta-analysis, or statistical significance.
 8. Treat "Not reported" as missing information, not as evidence of absence.
@@ -161,10 +280,16 @@ Generate a JSON object conforming strictly to:
       );
       const parsed = parseJSONLoose(text);
       if (parsed && parsed.subtopics) {
+        const normalizedSubtopics = normalizeSubtopics(parsed.subtopics, studiesData);
         onUpdateSynthesis({
           ...synthesis,
-          subtopics: parsed.subtopics || synthesis.subtopics,
-          keyFindingsTable: parsed.keyFindingsTable || synthesis.keyFindingsTable,
+          subtopics: normalizedSubtopics,
+          keyFindingsTable: normalizedSubtopics.map((subtopic, index) => ({
+            topic: subtopic.title.replace(/^\d+\.\s*/, ""),
+            summary: subtopic.prose,
+            consistency: parsed.keyFindingsTable?.[index]?.consistency || "Not assessed quantitatively",
+            evidenceBase: `${clusters[index].studies.length} screened-in record${clusters[index].studies.length === 1 ? "" : "s"}`,
+          })),
           forestPlotEstimates: [],
           pooledEffectEstimate: undefined,
           heterogeneityDiscussion: "Study differences are described narratively; no statistical heterogeneity analysis was performed.",
