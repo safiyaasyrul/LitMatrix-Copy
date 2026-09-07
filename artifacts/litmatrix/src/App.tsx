@@ -302,7 +302,7 @@ export default function App() {
       if (includedIds.has(r.id)) return;
       const reason = screening[r.id]?.agreed === false
         ? screening[r.id]?.exclusionReason || "Other"
-        : "Not included / pending decision";
+        : "Other";
       acc[reason] = (acc[reason] || 0) + 1;
     });
     return acc;
@@ -429,7 +429,7 @@ export default function App() {
       item23cLimitationsOfReviewProcess: "",
       item23dImplications: "",
     });
-    alert("Records synchronized. Unscreened records remain pending; no inclusion, appraisal, or synthesis results were generated.");
+    alert("Records synchronized. Records without screening decisions were not included; no appraisal or synthesis results were generated.");
   };
 
   // Navigation stages mapped to the PRISMA 2020 checklist.

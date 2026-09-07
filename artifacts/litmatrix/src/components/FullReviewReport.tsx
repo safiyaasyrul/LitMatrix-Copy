@@ -107,7 +107,7 @@ export default function FullReviewReport({
       ? "Included"
       : screening[record.id]?.agreed === false
       ? "Excluded"
-      : "Pending";
+      : "Excluded";
 
   // Structured Abstract generator
   const getAbstractContent = () => {

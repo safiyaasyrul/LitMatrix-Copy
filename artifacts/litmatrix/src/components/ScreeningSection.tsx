@@ -43,14 +43,12 @@ export default function ScreeningSection({
   const includedCount = includedRecords.length;
   const afterDedupCount = screeningPool.length;
   const excludedCount = Math.max(0, afterDedupCount - includedCount);
-  const screenedDecisionCount = screeningPool.filter((r) => screening[r.id]?.agreed !== undefined).length;
-  const pendingCount = afterDedupCount - screenedDecisionCount;
   const exclusionBreakdown = screeningPool.reduce<Record<string, number>>((acc, record) => {
     const decision = screening[record.id];
     if (!includedIds.has(record.id)) {
       const reason = decision?.agreed === false
         ? decision.exclusionReason || "Other"
-        : "Not included / pending decision";
+        : "Other";
       acc[reason] = (acc[reason] || 0) + 1;
     }
     return acc;
@@ -143,7 +141,7 @@ export default function ScreeningSection({
 Inclusion Criteria: ${protocol.eligibilityCriteria.inclusion.join("; ")}
 Exclusion Criteria: ${protocol.eligibilityCriteria.exclusion.join("; ")}
 
-Apply a strict record-evidence screening gate to every study. Include only when the supplied record details explicitly support the review population, intervention or exposure, outcome, and eligible study design. Do not infer eligibility from keyword overlap, topic similarity, or absent information. Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage pending full-text verification.
+Apply a strict record-evidence screening gate to every study. Include only when the supplied record details explicitly support the review population, intervention or exposure, outcome, and eligible study design. Do not infer eligibility from keyword overlap, topic similarity, or absent information. Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage; full-text verification is not claimed.
 Calculate an overall eligibility score (0-100) and give a concise, criterion-specific justification.
 If score < ${effectiveThreshold}, choose the best-supported exclusion reason: "Secondary literature / Review paper" | "Out of scope / Keyword mismatch" | "Wrong population" | "Wrong intervention / exposure" | "Wrong comparator" | "Wrong outcome" | "Wrong study design" | "Not accessible / full text unavailable" | "Duplicate / non-original" | "Language barrier" | "Other".
 
@@ -185,9 +183,22 @@ Return ONLY a JSON array:
         } catch (err: any) {
           console.warn("AI screening batch error:", err);
           if (!errorMessage) {
-            setErrorMessage(`AI screening could not complete this batch: ${err.message || "Request failed"}. Records remain pending for manual review.`);
+            setErrorMessage(`AI screening could not complete this batch: ${err.message || "Request failed"}. Unresolved records were conservatively excluded.`);
           }
         }
+
+        batch.forEach((record) => {
+          const decision = nextScreening[record.id];
+          if (!decision || decision.agreed === undefined) {
+            nextScreening[record.id] = {
+              score: decision?.score ?? null,
+              reason: "No explicit protocol match was confirmed during the brief record scan; excluded conservatively from the synthesis set.",
+              decision: "exclude",
+              agreed: false,
+              exclusionReason: "Other",
+            };
+          }
+        });
 
         setProgress(Math.round(((b + 1) / totalBatches) * 100));
         onUpdateScreening({ ...enforceInclusionLimit(nextScreening) });
@@ -252,7 +263,6 @@ Return ONLY a JSON array:
             <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
               <span className="text-emerald-700 font-semibold">{includedCount} Included</span>
               <span className="text-rose-700 font-semibold">{excludedCount} Excluded</span>
-              <span className="text-slate-500">{pendingCount} Pending</span>
             </div>
           </div>
         )}
@@ -293,7 +303,6 @@ Return ONLY a JSON array:
             ["After deduplication", afterDedupCount],
             ["Included", includedCount],
             ["Excluded", excludedCount],
-            ["Pending decisions", pendingCount],
           ].map(([label, value]) => (
             <div key={label} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
               <div className="text-[10px] font-mono uppercase text-slate-500">{label}</div>
