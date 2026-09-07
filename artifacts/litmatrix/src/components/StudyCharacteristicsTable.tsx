@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertCircle, Check, Copy, FileSpreadsheet, Sparkles, Table } from "lucide-react";
+import { AlertCircle, Check, Copy, FileSpreadsheet, Sparkles, Table, X } from "lucide-react";
 import { ScreeningDecision, SLRProtocol, SLRRecord, StudyCharacteristic } from "../types/slr";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
@@ -7,6 +7,7 @@ interface StudyCharacteristicsTableProps {
   screeningRecords: SLRRecord[];
   characteristics: StudyCharacteristic[];
   onUpdateCharacteristics: (chars: StudyCharacteristic[]) => void;
+  onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
   screening: Record<string, ScreeningDecision>;
   protocol: SLRProtocol;
   aiConfig: any;
@@ -42,6 +43,7 @@ export default function StudyCharacteristicsTable({
   screeningRecords,
   characteristics,
   onUpdateCharacteristics,
+  onUpdateScreening,
   screening,
   protocol,
   aiConfig,
@@ -53,6 +55,29 @@ export default function StudyCharacteristicsTable({
   const [copied, setCopied] = useState(false);
 
   const characteristicById = new Map(characteristics.map((item) => [item.recordId, item]));
+
+  const handleSetDecision = (
+    recordId: string,
+    agreed: boolean,
+    exclusionReason?: ScreeningDecision["exclusionReason"]
+  ) => {
+    const existing = screening[recordId] || {
+      score: null,
+      reason: "Manual investigator evaluation",
+      decision: agreed ? "include" : "exclude",
+    };
+    onUpdateScreening({
+      ...screening,
+      [recordId]: {
+        ...existing,
+        agreed,
+        decision: agreed ? "include" : "exclude",
+        exclusionReason: agreed
+          ? undefined
+          : exclusionReason || existing.exclusionReason || "Wrong study design",
+      },
+    });
+  };
 
   const handleAutoExtract = async () => {
     if (screeningRecords.length === 0) return;

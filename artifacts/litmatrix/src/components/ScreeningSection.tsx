@@ -348,12 +348,12 @@ Return ONLY a JSON array:
                   </div>
                 </div>
 
-                {/* AI Justification & Exclusion Reason selector */}
+                {/* Justification & Exclusion Reason selector */}
                 {s && (
                   <div className="mt-3 pt-3 border-t border-slate-100 text-xs font-sans space-y-2">
                     <div className="flex items-start gap-2">
                       <span className="font-mono text-[11px] font-bold text-indigo-700 shrink-0">
-                        AI Reasoning:
+                        Justification:
                       </span>
                       <span className="text-slate-700">{s.reason}</span>
                     </div>
