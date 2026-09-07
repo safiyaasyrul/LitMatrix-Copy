@@ -340,7 +340,7 @@ export default function App() {
     const includedCount = includedRecords.length;
     const excludedCount = Math.max(0, afterDedupCount - includedCount);
     const databaseBreakdown = records.reduce<Record<string, number>>((breakdown, record) => {
-      const sources = record.databaseSources?.length
+      const sources: string[] = record.databaseSources?.length
         ? record.databaseSources
         : [record.databaseSource || "Other databases"];
       const normalizedSources = Array.from(new Set(sources.map((source) => {
