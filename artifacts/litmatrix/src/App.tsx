@@ -720,6 +720,8 @@ export default function App() {
           {/* Stage 7: Narrative / Thematic Synthesis */}
           {activeStage === 6 && (
             <SynthesisSection
+              protocol={protocol}
+              onUpdateProtocol={setProtocol}
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
               includedRecords={includedRecords}

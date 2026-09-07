@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
-import { SLRRecord, SynthesisResult, StudyCharacteristic } from "../types/slr";
+import { SLRProtocol, SLRRecord, SynthesisResult, StudyCharacteristic } from "../types/slr";
 import { Sparkles, BarChart2, BookOpen, Layers, Download, CheckCircle, RefreshCw, AlertCircle, Zap, Tag, Quote, Filter, Copy } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
 interface SynthesisSectionProps {
+  protocol: SLRProtocol;
+  onUpdateProtocol: (protocol: SLRProtocol) => void;
   synthesis: SynthesisResult;
   onUpdateSynthesis: (synthesis: SynthesisResult) => void;
   includedRecords: SLRRecord[];
@@ -257,6 +259,8 @@ const suggestReviewTitle = (studies: SynthesisStudy[], subtopics: SynthesisResul
 };
 
 export default function SynthesisSection({
+  protocol,
+  onUpdateProtocol,
   synthesis,
   onUpdateSynthesis,
   includedRecords,
@@ -578,32 +582,62 @@ Generate a JSON object conforming strictly to:
             </div>
           )}
 
-          {suggestedTitle && (
-            <div className="bg-emerald-50/70 border border-emerald-200 p-5 rounded-xl space-y-2">
+          <div className="bg-emerald-50/70 border border-emerald-200 p-5 rounded-xl space-y-3">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-bold text-emerald-950 font-mono">
                   Suggested review title
                 </h3>
+                <span className="text-[10px] font-mono text-emerald-800">
+                  Editable
+                </span>
+              </div>
+
+              <input
+                type="text"
+                value={synthesis.suggestedTitle ?? suggestedTitle}
+                onChange={(event) =>
+                  onUpdateSynthesis({
+                    ...synthesis,
+                    suggestedTitle: event.target.value,
+                  })
+                }
+                placeholder="Generate a synthesis or enter a suggested review title"
+                className="w-full px-3 py-2.5 text-sm font-semibold text-emerald-950 bg-white border border-emerald-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400"
+                aria-label="Suggested review title"
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => {
-                    navigator.clipboard.writeText(suggestedTitle);
+                    const title = (synthesis.suggestedTitle ?? suggestedTitle).trim();
+                    if (!title) return;
+                    onUpdateProtocol({ ...protocol, title });
+                  }}
+                  disabled={!(synthesis.suggestedTitle ?? suggestedTitle).trim()}
+                  className="px-3 py-1.5 text-[10px] font-mono font-semibold text-white bg-emerald-700 rounded-md hover:bg-emerald-800 disabled:bg-emerald-300 cursor-pointer disabled:cursor-not-allowed"
+                >
+                  Use as review title
+                </button>
+                <button
+                  onClick={() => {
+                    const title = synthesis.suggestedTitle ?? suggestedTitle;
+                    if (!title) return;
+                    navigator.clipboard.writeText(title);
                     setTitleCopied(true);
                     window.setTimeout(() => setTitleCopied(false), 1800);
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-semibold text-emerald-900 bg-white border border-emerald-300 rounded-md hover:bg-emerald-100 cursor-pointer"
+                  disabled={!(synthesis.suggestedTitle ?? suggestedTitle).trim()}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono font-semibold text-emerald-900 bg-white border border-emerald-300 rounded-md hover:bg-emerald-100 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
                 >
                   <Copy className="w-3 h-3" />
                   {titleCopied ? "Copied" : "Copy title"}
                 </button>
               </div>
-              <p className="text-sm sm:text-base font-semibold text-emerald-950 leading-relaxed">
-                {suggestedTitle}
-              </p>
+
               <p className="text-xs text-emerald-800">
-                Derived from the recurring topics in the screened records and the narrative clusters above.
+                A generated suggestion appears after synthesis. You can edit it here, copy it, or apply it to the review protocol.
               </p>
             </div>
-          )}
         </div>
       )}
 
