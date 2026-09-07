@@ -52,6 +52,33 @@ const DEFAULT_SUBJECT_AREAS = [
   { code: "MATE", name: "Materials Science", wos: "Materials Science" },
 ];
 
+function buildWebOfScienceQuery(
+  keywords: KeywordItem[],
+  yearFrom: number,
+  yearTo: number,
+  docType: string,
+  language: string,
+): string {
+  const selected = keywords
+    .filter((keyword) => keyword.selected && keyword.term.trim())
+    .map((keyword) => keyword.term.trim().replace(/["()]/g, "").replace(/\s+/g, " "))
+    .filter(Boolean);
+
+  const uniqueTerms = Array.from(new Set(selected));
+  const topic = uniqueTerms.length > 0
+    ? uniqueTerms.map((term) => `"${term}"`).join(" OR ")
+    : "\"systematic review\"";
+
+  const filters = [`PY=(${yearFrom}-${yearTo})`];
+  if (docType === "Journal article") filters.push("DT=(ARTICLE)");
+  if (docType === "Article OR Conference Paper") filters.push("DT=(ARTICLE OR PROCEEDINGS PAPER)");
+  if (docType === "Review OR Article") filters.push("DT=(REVIEW OR ARTICLE)");
+  if (language === "English") filters.push("LA=(ENGLISH)");
+  if (language === "English OR Malay") filters.push("LA=(ENGLISH OR MALAY)");
+
+  return `TS=(${topic}) AND ${filters.join(" AND ")}`;
+}
+
 export default function SearchStringsGenerator({
   protocol,
   onUpdateProtocol,
@@ -205,7 +232,7 @@ Comparison: "${protocol.objectivesPICOC?.comparison || protocol.objectivesPICO.c
 Outcomes / Metrics: "${protocol.objectivesPICOC?.outcomes || protocol.objectivesPICO.outcomes}"
 Context: "${protocol.objectivesPICOC?.context || ""}"`;
       } else if (fw === "PEO") {
-        frameworkDesc = `Framework: PEO (Observational / Environmental / Exposure - ROSES)
+        frameworkDesc = `Framework: PEO (Observational / Environmental / Exposure)
 Population / Biota: "${protocol.objectivesPEO?.population || protocol.objectivesPICO.population}"
 Exposure / Pollutant: "${protocol.objectivesPEO?.exposure || protocol.objectivesPICO.intervention}"
 Outcomes: "${protocol.objectivesPEO?.outcomes || protocol.objectivesPICO.outcomes}"
@@ -294,9 +321,9 @@ Applied Search Parameters & Limits:
 4. Document Type: "${docType}"
 5. Language: "${language}"
 
-Construct reproducible, fully validated Boolean search strings for the following academic databases adhering strictly to PRISMA 2020 Item 7 and PRISMA-S Item 7:
+Construct reproducible, fully validated Boolean search strings for the following academic databases adhering strictly to PRISMA 2020 Item 7:
 1. Scopus: Complete TITLE-ABS-KEY query with grouped Boolean concept blocks (Concept 1 OR ...) AND (Concept 2 OR ...), plus AND (SUBJAREA(...) ), PUBSTAGE filter, PUBYEAR, DOCTYPE, and LANGUAGE.
-2. Web of Science (WoS) Core Collection: Complete TS= topic query with Boolean blocks, plus WC= or SU= research areas, PY=, DT=, and LA= filters.
+2. Web of Science (WoS) Core Collection: Use only valid WoS field tags: TS=(...), PY=(YYYY-YYYY), DT=(ARTICLE/REVIEW/PROCEEDINGS PAPER), and LA=(ENGLISH). Do not use Scopus TITLE-ABS-KEY, PUBYEAR, SUBJAREA, PUBSTAGE, or unsupported field names.
 3. PubMed / MEDLINE: Complete syntax using [Title/Abstract] and [MeSH Terms] with Date range and Language limits.
 4. IEEE Xplore: Complete syntax using ("Document Title" OR "Abstract") with publication year range.
 5. Google Scholar / ACM Digital Library: Optimized Boolean search string.
@@ -333,9 +360,18 @@ Return ONLY a JSON array of objects with the exact schema:
       const text = await callAI(prompt, "You are a professional research librarian and Boolean search string engineer.", aiConfig);
       const parsed = parseJSONLoose(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
+        const validatedStrategies = parsed.map((strategy) =>
+          strategy?.database?.toLowerCase().includes("web of science")
+            ? {
+                ...strategy,
+                database: "Web of Science",
+                query: buildWebOfScienceQuery(keywords, yearFrom, yearTo, docType, language),
+              }
+            : strategy
+        );
         onUpdateProtocol({
           ...protocol,
-          searchStrategies: parsed,
+          searchStrategies: validatedStrategies,
         });
       }
     } catch (e) {
@@ -744,7 +780,7 @@ Return ONLY a JSON array of objects with the exact schema:
               Synthesized Database Search Strategies ({protocol.searchStrategies.length})
             </h3>
             <span className="text-xs font-mono text-slate-500">
-              PRISMA 2020 Item 7 & PRISMA-S Item 7 compliant
+               PRISMA 2020 Item 7 compliant
             </span>
           </div>
 
