@@ -59,7 +59,7 @@ export default function ScreeningSection({
         decision: "exclude",
         agreed: false,
         exclusionReason: "Other",
-        reason: `The record met the minimum title and abstract screening threshold but ranked outside the ${MAX_INCLUDED_RECORDS} strongest protocol matches. It was excluded from the bounded synthesis set; full-text eligibility was not assessed.`,
+        reason: `The record met the minimum screening threshold but ranked outside the ${MAX_INCLUDED_RECORDS} strongest protocol matches. It was excluded from the bounded synthesis set; full-text eligibility was not assessed.`,
       };
     });
 
@@ -82,7 +82,7 @@ export default function ScreeningSection({
       `- Records excluded: ${excludedCount}`,
       `- Maximum synthesis set: ${MAX_INCLUDED_RECORDS} records`,
       ``,
-      `All uploaded records are assessed against the documented protocol. Inclusion requires explicit support in the supplied title and abstract. Missing or ambiguous evidence is not treated as confirmation of eligibility. Full-text eligibility is not claimed.`,
+      `All uploaded records are assessed against the documented protocol. Inclusion requires explicit support in the available record evidence. Missing or ambiguous evidence is not treated as confirmation of eligibility. Full-text eligibility is not claimed.`,
       ``,
       `## Exclusion reasons`,
       ...(Object.entries(exclusionBreakdown).length > 0
@@ -100,7 +100,7 @@ export default function ScreeningSection({
         : ["No records are currently included."]),
       ``,
       `## Evidence-synthesis status`,
-      `This report summarizes uploaded citation records and title/abstract screening decisions. Narrative findings should be generated only from information contained in the uploaded records or separately verified full texts. No pooled effects, heterogeneity statistics, risk-of-bias judgments, or certainty ratings are inferred.`,
+      `This report summarizes uploaded citation records and recorded screening decisions. Narrative findings should be generated only from information contained in the uploaded records or separately verified full texts. No pooled effects, heterogeneity statistics, risk-of-bias judgments, or certainty ratings are inferred.`,
     ].join("\n");
 
     const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
@@ -143,7 +143,7 @@ export default function ScreeningSection({
 Inclusion Criteria: ${protocol.eligibilityCriteria.inclusion.join("; ")}
 Exclusion Criteria: ${protocol.eligibilityCriteria.exclusion.join("; ")}
 
-Apply a strict title-and-abstract screening gate to every study. Include only when the supplied title or abstract explicitly supports the review population, intervention or exposure, outcome, and eligible study design. Do not infer eligibility from keyword overlap, topic similarity, or absent information. Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage pending full-text verification.
+Apply a strict record-evidence screening gate to every study. Include only when the supplied record details explicitly support the review population, intervention or exposure, outcome, and eligible study design. Do not infer eligibility from keyword overlap, topic similarity, or absent information. Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage pending full-text verification.
 Calculate an overall eligibility score (0-100) and give a concise, criterion-specific justification.
 If score < ${effectiveThreshold}, choose the best-supported exclusion reason: "Secondary literature / Review paper" | "Out of scope / Keyword mismatch" | "Wrong population" | "Wrong intervention / exposure" | "Wrong comparator" | "Wrong outcome" | "Wrong study design" | "Not accessible / full text unavailable" | "Duplicate / non-original" | "Language barrier" | "Other".
 
@@ -224,7 +224,7 @@ Return ONLY a JSON array:
               Study Selection & Screening Review
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Screen every imported record using a strict title and abstract evidence gate. The bounded synthesis set retains no more than 99 of the strongest protocol matches.
+              Screen every imported record using a strict record-evidence gate. The bounded synthesis set retains no more than 99 of the strongest protocol matches.
             </p>
           </div>
 
@@ -306,7 +306,7 @@ Return ONLY a JSON array:
           <div>
             <h4 className="font-mono font-bold text-slate-200 mb-2">Selection summary</h4>
             <p className="text-slate-400 leading-relaxed">
-              All {screeningPool.length} uploaded records form the screening pool. Inclusion requires explicit protocol support in the supplied title and abstract. The final synthesis set is limited to the {MAX_INCLUDED_RECORDS} highest-supported records.
+              All {screeningPool.length} uploaded records form the screening pool. Inclusion requires explicit protocol support in the available record evidence. The final synthesis set is limited to the {MAX_INCLUDED_RECORDS} highest-supported records.
             </p>
           </div>
           <div>

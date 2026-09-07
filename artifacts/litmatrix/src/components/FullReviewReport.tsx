@@ -114,7 +114,7 @@ export default function FullReviewReport({
     const bg = protocol.introductionRationale || `This review examines the evidence relevant to ${protocol.title || "the defined topic"}.`;
     const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
     const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
-    const meth = `The workspace contains records from ${searchDbs}. Title and abstract screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, duplicate independent review, and adjudication are reported only when separately documented.`;
+    const meth = `The workspace contains records from ${searchDbs}. Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, duplicate independent review, and adjudication are reported only when separately documented.`;
     
     // Generate synthesized category summary
     const catSummaries: string[] = [];
@@ -123,7 +123,7 @@ export default function FullReviewReport({
       catSummaries.push(`The ${cat} theme includes ${authors}`);
     });
 
-    const res = `${counts.screened || 0} records have recorded title and abstract screening decisions; ${includedRecords.length} are marked for inclusion at that stage. ${catSummaries.join(". ")}. No pooled quantitative analysis was performed.`;
+    const res = `${counts.screened || 0} records have recorded screening decisions; ${includedRecords.length} are marked for inclusion at that stage. ${catSummaries.join(". ")}. No pooled quantitative analysis was performed.`;
     const concl = `The available evidence is summarized narratively. Eligibility, extracted characteristics, and methodological judgments should be verified against full texts before drawing definitive conclusions.`;
     const keywords = [
       protocol.reviewType || "Systematic Literature Review",
@@ -183,11 +183,11 @@ export default function FullReviewReport({
     md += `Comprehensive systematic search strategies were executed across major academic databases, including ${searchDatabases}. Queries combined Boolean operators, controlled vocabulary terms, and truncation tailored to each database search syntax.\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not recorded and are not claimed here.\n\n`;
+    md += `The application records screening decisions against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not recorded and are not claimed here.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
+    md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have screening decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
 
     md += `### 3.2 Comprehensive Screening Decision Table (Table 1)\n\n`;
     md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
@@ -324,12 +324,12 @@ export default function FullReviewReport({
   <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
 
   <h3>2.4 Selection Process</h3>
-  <p>The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.</p>
+  <p>The application records screening decisions against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.</p>
 
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded.</p>
+  <p>${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have screening decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded.</p>
 
   <h3>3.2 Comprehensive Screening Decision Table (Table 1)</h3>
   <div class="table-caption">Table 1: Article information, screening status, and academic screening justification</div>
@@ -546,7 +546,7 @@ export default function FullReviewReport({
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.
+              The application records screening decisions against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.
             </p>
 
           </div>
@@ -561,7 +561,7 @@ export default function FullReviewReport({
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The evidence database represents {counts.identifiedDb || 0} records, including {counts.duplicatesRemoved || 0} duplicates recorded as removed. {counts.screened || 0} records have title and abstract screening decisions, {counts.screenedExcluded || 0} are excluded, and {includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
+              The evidence database represents {counts.identifiedDb || 0} records, including {counts.duplicatesRemoved || 0} duplicates recorded as removed. {counts.screened || 0} records have screening decisions, {counts.screenedExcluded || 0} are excluded, and {includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
             </p>
 
             {/* Illustrated Flow Diagram */}

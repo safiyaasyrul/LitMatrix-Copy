@@ -67,7 +67,7 @@ export const BLANK_PROTOCOL: SLRProtocol = {
     numReviewers: 1,
     independentScreening: false,
     disputeResolution: "Not configured.",
-    automationTools: "AI-assisted title and abstract screening suggestions; final decisions require user confirmation.",
+    automationTools: "AI-assisted record screening suggestions; final decisions require user confirmation.",
     screeningThreshold: 80,
   },
   dataCollectionProcess: {
@@ -192,7 +192,7 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     numReviewers: 2,
     independentScreening: true,
     disputeResolution: "Consensus through joint re-evaluation or adjudication by a third senior reviewer.",
-    automationTools: "AI-assisted title/abstract screening using relevance threshold (>= 80% score) followed by human reviewer confirmation.",
+    automationTools: "AI-assisted record screening using a relevance threshold followed by human reviewer confirmation.",
     screeningThreshold: 80,
   },
   dataCollectionProcess: {

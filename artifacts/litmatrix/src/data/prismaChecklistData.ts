@@ -83,7 +83,7 @@ export const INITIAL_PRISMA_CHECKLIST: PrismaChecklistItem[] = [
     appStageMapping: "Stage 04: AI & Dual Screening",
     status: "Reported",
     locationInReview: "Methods - Section 2.4",
-    userNotes: "Dual screening with AI-assisted title/abstract relevance scoring and independent human reviewer verification.",
+    userNotes: "Dual screening with AI-assisted record relevance scoring and independent human reviewer verification.",
   },
   {
     section: "METHODS",
@@ -481,7 +481,7 @@ export const INITIAL_PRISMAS_CHECKLIST: PrismaSChecklistItem[] = [
     appStageMapping: "Stage 02: Search Strings Generator",
     status: "Reported",
     locationInReview: "Methods - Section 2.3 & Appendix 1",
-    userNotes: "Full Boolean query strings with field tags (TITLE-ABS-KEY, TS=, [Title/Abstract]) reproduced verbatim.",
+    userNotes: "Full Boolean query strings with database-specific field tags reproduced verbatim.",
   },
   {
     domain: "SEARCH_METHODS",

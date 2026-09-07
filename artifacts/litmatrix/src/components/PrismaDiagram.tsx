@@ -184,13 +184,13 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               (n = {screened}) · Duplicates removed (n = {duplicatesRemoved})
             </text>
 
-            {/* Arrow down to title/abstract screening */}
+            {/* Arrow down to record screening */}
             <line x1="190" y1="290" x2="190" y2="320" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
 
-            {/* Title / abstract screened */}
+            {/* Records screened */}
             <rect x="20" y="320" width="340" height="58" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
             <text x="32" y="342" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
-              Records screened (title & abstract):
+              Records screened:
             </text>
             <text x="32" y="360" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
               (n = {screened})
@@ -202,7 +202,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
             {/* Excluded records box */}
             <rect x="440" y="320" width="310" height="58" rx="8" fill="#FEF2F2" stroke="#F87171" strokeWidth="1.2" filter="url(#card-shadow)" />
             <text x="452" y="342" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#B91C1C">
-              Records excluded (Title/Abstract):
+              Records excluded:
             </text>
             <text x="452" y="360" fontFamily="JetBrains Mono" fontSize="11" fill="#991B1B">
               (n = {screenedExcluded}) · Irrelevant topic / non-matching

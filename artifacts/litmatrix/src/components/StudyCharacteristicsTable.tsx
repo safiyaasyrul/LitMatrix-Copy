@@ -131,7 +131,6 @@ export default function StudyCharacteristicsTable({
                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700/70 bg-emerald-950/70 px-2 py-1 font-mono text-[10px] font-semibold uppercase text-emerald-300">
                           Included
                         </span>
-                        <div className="mt-1 text-[10px] text-slate-500">Title/abstract</div>
                       </td>
                       <td className="py-3 px-3 text-slate-300 leading-relaxed">
                         {justification}
@@ -144,7 +143,7 @@ export default function StudyCharacteristicsTable({
           </div>
           <div className="flex items-center gap-2 border-t border-slate-700 bg-[#111111] px-4 py-3 text-[11px] text-slate-400">
             <Table className="h-3.5 w-3.5 text-amber-300" />
-            Included status and justification come directly from the recorded title/abstract screening decision. Full-text eligibility was not verified.
+            Included status and justification come directly from the recorded screening decision. Full-text eligibility was not verified.
           </div>
         </div>
       )}

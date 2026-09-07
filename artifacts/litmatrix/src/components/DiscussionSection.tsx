@@ -60,8 +60,8 @@ export default function DiscussionSection({
 
     const generated: DiscussionSections = {
       item23aGeneralInterpretation: `The records marked for inclusion address ${topic} through several thematic approaches. ${crossAuthorText} These observations are narrative only and do not establish a pooled direction or magnitude of effect.`,
-      item23bLimitationsOfEvidence: `The supplied citation metadata and abstracts do not consistently report comparable study designs, samples, measures, or validation procedures. Methodological quality and transferability therefore require verification against the full texts.`,
-      item23cLimitationsOfReviewProcess: `This workspace records title and abstract screening decisions but does not verify full-text retrieval, independent duplicate review, or adjudication. Any unrecorded search coverage, language restrictions, reviewer activity, or eligibility assessment should not be inferred.`,
+      item23bLimitationsOfEvidence: `The supplied citation records do not consistently report comparable study designs, samples, measures, or validation procedures. Methodological quality and transferability therefore require verification against the full texts.`,
+      item23cLimitationsOfReviewProcess: `This workspace records screening decisions but does not verify full-text retrieval, independent duplicate review, or adjudication. Any unrecorded search coverage, language restrictions, reviewer activity, or eligibility assessment should not be inferred.`,
       item23dImplications: `The evidence should be interpreted as a thematic map rather than a quantitative estimate. Future work should verify eligibility and extracted fields against full texts, document reviewer actions, and define comparable outcomes before any statistical synthesis is considered.`,
     };
 
