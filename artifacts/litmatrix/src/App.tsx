@@ -31,6 +31,7 @@ import MethodsProtocol from "./components/MethodsProtocol";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
+import PrismaDiagram from "./components/PrismaDiagram";
 import SynthesisSection from "./components/SynthesisSection";
 import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
@@ -73,11 +74,11 @@ import {
 } from "./utils/aiClient";
 
 import {
-  ClipboardCheck,
   FileSpreadsheet,
   Search,
   UploadCloud,
   CheckCircle,
+  GitBranch,
   BarChart2,
   Award,
   BookOpen,
@@ -488,6 +489,12 @@ export default function App() {
       icon: CheckCircle,
     },
     {
+      id: "diagram",
+      label: "PRISMA Flow Diagram",
+      badge: "Item 16a",
+      icon: GitBranch,
+    },
+    {
       id: "synthesis",
       label: "Narrative Synthesis",
       badge: "Items 13a–f",
@@ -532,7 +539,7 @@ export default function App() {
 
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-                <ClipboardCheck className="w-4 h-4" />
+                <GitBranch className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
@@ -700,8 +707,26 @@ export default function App() {
             />
           )}
 
-          {/* Stage 6: Narrative / Thematic Synthesis */}
+          {/* Stage 6: PRISMA 2020 Flow Diagram */}
           {activeStage === 5 && (
+            <div className="space-y-4">
+              <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
+                <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
+                  PRISMA 2020 Item 16a
+                </div>
+                <h2 className="text-xl font-bold text-slate-900 mt-1">
+                  PRISMA 2020 Flow Diagram
+                </h2>
+                <p className="text-xs text-slate-500 mt-1">
+                  Flow of records through identification, screening, eligibility, and inclusion. Untracked full-text stages are shown as “Not recorded,” not as zero.
+                </p>
+              </div>
+              <PrismaDiagram counts={prismaCounts} />
+            </div>
+          )}
+
+          {/* Stage 7: Narrative / Thematic Synthesis */}
+          {activeStage === 6 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
@@ -712,8 +737,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 7: GRADE Certainty of Evidence */}
-          {activeStage === 6 && (
+          {/* Stage 8: GRADE Certainty of Evidence */}
+          {activeStage === 7 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
@@ -724,8 +749,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 8: 4-Part Discussion */}
-          {activeStage === 7 && (
+          {/* Stage 9: 4-Part Discussion */}
+          {activeStage === 8 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -737,8 +762,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 9: Consolidated Manuscript */}
-          {activeStage === 8 && (
+          {/* Stage 10: Consolidated Manuscript */}
+          {activeStage === 9 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}

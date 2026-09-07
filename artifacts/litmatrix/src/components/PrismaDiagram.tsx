@@ -123,7 +123,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
             <text x="34" y="144" fontFamily="JetBrains Mono" fontSize="12" fill="#475569">{countLabel(uploaded)}</text>
             <rect x="420" y="96" width="370" height="66" rx="8" fill="#FFFFFF" stroke="#CBD5E1" filter="url(#prisma-card-shadow)" />
             <text x="434" y="121" fontWeight="600" fontSize="13" fill="#0F172A">Records from other sources</text>
-            <text x="434" y="144" fontFamily="JetBrains Mono" fontSize="12" fill="#475569">{countLabel(identifiedOther)}</text>
+            <text x="434" y="144" fontFamily="JetBrains Mono" fontSize="12" fill="#475569">{countLabel(identifiedOther, false)}</text>
             <line x1="205" y1="162" x2="205" y2="198" stroke="#64748B" strokeWidth="1.4" markerEnd="url(#prisma-arrow)" />
             <line x1="605" y1="162" x2="300" y2="198" stroke="#64748B" strokeWidth="1.4" markerEnd="url(#prisma-arrow)" />
 
