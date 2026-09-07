@@ -20,7 +20,7 @@ export interface ScreeningDecision {
   reason: string;
   decision: "include" | "exclude";
   recommendation?: "include" | "exclude" | "maybe";
-  agreed?: boolean; // final AI decision; undefined only while screening is incomplete
+  agreed?: boolean; // human confirmation
   criteriaAnswers?: {
     populationContext: "Yes" | "No" | "Unclear";
     phenomenon: "Yes" | "No" | "Unclear";
@@ -91,30 +91,6 @@ export interface RiskOfBiasItem {
   d5Reporting: "Low" | "Some concerns" | "High" | "Met" | "Partially Met" | "Not Met";
   overall: "Low" | "Some concerns" | "High" | "High Rigor" | "Moderate Rigor" | "Low Rigor";
   justification: string;
-}
-
-export type ReportingJudgment = "Yes" | "No" | "Unclear";
-export type AbstractReportingCompleteness = "High" | "Moderate" | "Low";
-
-/**
- * Abstract-level evidence reporting appraisal. This is intentionally not a
- * risk-of-bias judgment: citation metadata and abstracts cannot establish
- * internal validity, confounding, attrition, or causal certainty.
- */
-export interface AbstractReportingAssessment {
-  recordId: string;
-  authorYear: string;
-  studyDesignIdentifiable: ReportingJudgment;
-  datasetSampleDescribed: ReportingJudgment;
-  outcomeClearlyDefined: ReportingJudgment;
-  validationDescribed: ReportingJudgment;
-  comparatorBaselineDescribed: ReportingJudgment;
-  externalValidation: ReportingJudgment;
-  uncertaintyReported: ReportingJudgment;
-  realWorldImplementation: ReportingJudgment;
-  directTargetOutcome: ReportingJudgment;
-  abstractReportingCompleteness: AbstractReportingCompleteness;
-  evidenceNotes: string;
 }
 
 export interface SynthesisCategory {
@@ -311,20 +287,6 @@ export interface ObjectivesSPIDER {
   researchType: string;
 }
 
-export interface TopicDecomposition {
-  topic: string;
-  fieldOfStudy: string;
-  problemStatement: string;
-  context: string;
-}
-
-export interface CuratedSearchKeyword {
-  id: string;
-  term: string;
-  category: "Concept 1 (Population / Domain)" | "Concept 2 (Intervention / Technology)" | "Concept 3 (Outcome / Comparator)" | "MeSH & Controlled Vocabulary" | "General / Synonym";
-  selected: boolean;
-}
-
 export interface SLRProtocol {
   // Items 1, 3 & 4 (Title, Rationale & Objectives)
   title: string;
@@ -333,9 +295,6 @@ export interface SLRProtocol {
   introductionRationale?: string;
   backgroundContext?: string;
   knowledgeGap?: string;
-  topicDecomposition?: TopicDecomposition;
-  curatedKeywords?: CuratedSearchKeyword[];
-  titleSuggestions?: string[];
   primaryResearchQuestions?: string[];
   secondaryObjectives?: string[];
   protocolRegistration?: string;

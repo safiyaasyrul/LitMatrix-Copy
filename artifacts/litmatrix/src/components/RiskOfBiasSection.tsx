@@ -136,7 +136,7 @@ export default function RiskOfBiasSection({
         authorYear: char?.authorYear || `${r.authors[0]?.split(",")[0] || "Author"} et al. (${r.year || "2024"})`,
         title: r.title,
         source: r.source,
-        abstract: r.abstract || "",
+        abstract: (r.abstract || "").slice(0, 600),
       };
     });
 

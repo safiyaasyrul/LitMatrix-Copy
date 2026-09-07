@@ -274,7 +274,7 @@ Return ONLY valid JSON matching this exact structure:
       // Engineering & Technology Formulation
       onUpdateProtocol({
         ...protocol,
-        introductionRationale: `${t} has emerged as a significant topic in contemporary applied research. Published studies may use diverse designs, data sources, outcomes, and reporting conventions. A PRISMA 2020-compliant systematic review using the PICOC framework can organize the available evidence through narrative and thematic synthesis without assuming comparable quantitative effects.`,
+        introductionRationale: `${t} has emerged as a pivotal domain in contemporary software engineering, computing systems, and applied technology. Rapid technological acceleration has led to diverse architectural paradigms, algorithmic implementations, and tool frameworks. However, published engineering studies frequently present disparate empirical benchmarks, conflicting latency/throughput trade-offs, and heterogeneous deployment constraints without standardized quality assessment. Conducting a PRISMA 2020-compliant systematic literature review using the PICOC framework (Kitchenham & Charters) is essential to consolidate cumulative empirical evidence, quantify comparative performance benchmarks against baseline standards, and establish reproducible guidelines for technological adoption.`,
         backgroundContext: `Engineering foundations and recent technological advances in ${t}, addressing computational scalability, architectural robustness, and implementation trade-offs across modern production environments.`,
         knowledgeGap: `Lack of consolidated empirical benchmarks, fragmented evaluation metrics (latency vs. throughput vs. resource consumption), and inconsistent reporting of runtime operational constraints across current studies on ${t}.`,
         primaryResearchQuestions: [
@@ -316,7 +316,7 @@ Return ONLY valid JSON matching this exact structure:
         ...protocol,
         introductionRationale: `${t} represents a pressing subject of inquiry across environmental sciences, ecological conservation, and public health epidemiology. Anthropogenic activities and environmental transformations have intensified exposure to environmental stressors, contaminants, and ecosystem perturbations. While an expanding body of observational and field monitoring literature exists, findings exhibit considerable variability attributable to differential exposure gradients, sampling regimes, and geographical heterogeneity. This systematic evidence synthesis adheres to PRISMA 2020 and ROSES reporting standards using the PEO framework to consolidate cumulative findings, assess exposure-response relationships, and provide evidence-based recommendations for policy and management.`,
         backgroundContext: `Ecological baseline and environmental exposure pathways associated with ${t}, highlighting susceptibility of populations/ecosystems and critical regulatory thresholds.`,
-        knowledgeGap: `Fragmented reporting, geographic or sampling gaps, and incomplete description of design, validation, outcomes, or implementation across studies on ${t}.`,
+        knowledgeGap: `Conflicting exposure-response evidence, geographic sampling gaps, and lack of standardized methodological risk-of-bias appraisal across observational studies on ${t}.`,
         primaryResearchQuestions: [
           `RQ1 (Exposure Impact): What is the quantitative relationship between exposure to ${t} and ecological/health outcomes across affected populations or ecosystems?`,
           `RQ2 (Gradient & Sensitivity): How do varying exposure levels, chemical/climatic gradients, or spatial settings modulate adverse outcomes?`,
@@ -324,7 +324,7 @@ Return ONLY valid JSON matching this exact structure:
         ],
         secondaryObjectives: [
           `Evaluate geographic and spatial subgroup variations across biomes, catchment areas, and demographic strata`,
-          `Describe abstract-level methodological reporting and evidence limitations without assigning formal risk-of-bias or certainty judgments`,
+          `Appraise study quality using a domain-appropriate framework and synthesize limitations without imposing a clinical certainty scale`,
         ],
         objectivesPEO: {
           population: `Target ecosystems, biotas, catchments, communities, or observational human cohorts subject to ${t}.`,
@@ -392,13 +392,13 @@ Return ONLY valid JSON matching this exact structure:
       // Clinical / Health PICO Formulation
       onUpdateProtocol({
         ...protocol,
-        introductionRationale: `${t} represents an important subject of inquiry. Primary studies may vary in populations, methods, outcomes, validation, and reporting completeness. This PRISMA 2020 systematic review therefore maps and synthesizes the available evidence narratively and thematically, while keeping abstract-level limitations explicit.`,
+        introductionRationale: `${t} represents a critical subject of inquiry across contemporary clinical medicine and healthcare. Despite an expanding volume of primary empirical investigations, reported findings exhibit notable variations in methodological rigor, intervention architectures, cohort demographics, and measured outcome metrics. Existing reviews either remain outdated, rely on restricted sample scopes, or fail to systematically evaluate methodological risk of bias under standardized reporting frameworks. Therefore, this systematic literature review is conducted in accordance with PRISMA 2020 to synthesize cumulative evidence, quantify comparative effect sizes, and establish robust evidence-based benchmarks.`,
         backgroundContext: `Clinical importance, epidemiological burden, and therapeutic/diagnostic significance of ${t} across target patient populations.`,
         knowledgeGap: `Inconsistent findings, fragmented sub-methodologies, and lack of standardized quality appraisal across existing studies on ${t}.`,
         primaryResearchQuestions: [
           `RQ1 (Primary Efficacy/Effect): What is the cumulative effect, diagnostic accuracy, or clinical impact of ${t} across eligible patient cohorts?`,
           `RQ2 (Comparative Performance): How does ${t} perform relative to conventional clinical baselines and standard-of-care comparators?`,
-          `RQ3 (Evidence limitations): What reporting gaps and unresolved questions limit interpretation across settings?`,
+          `RQ3 (Methodological Bias & Generalizability): What key methodological characteristics and risk-of-bias domains moderate clinical outcomes across settings?`,
         ],
         secondaryObjectives: [
           `Evaluate subgroup variations across demographic and methodological strata`,
@@ -641,12 +641,6 @@ Return ONLY valid JSON matching this exact structure:
               <option>Mixed-Methods Systematic Review</option>
               <option>Systematic Review with Quantitative Synthesis (only when justified)</option>
             </select>
-            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-4 text-amber-900">
-              <strong>Quantitative synthesis:</strong>{" "}
-              {protocol.reviewType.includes("Quantitative")
-                ? "Not justified unless comparable, extractable effect data and an approved quantitative plan are available."
-                : "Not applicable / not justified by default in this abstract-level narrative and thematic workflow."}
-            </div>
           </div>
         </div>
 
@@ -688,7 +682,7 @@ Return ONLY valid JSON matching this exact structure:
               rows={3}
               value={protocol.knowledgeGap || ""}
               onChange={(e) => onUpdateProtocol({ ...protocol, knowledgeGap: e.target.value })}
-              placeholder="What evidence gaps, reporting limitations, or unresolved differences justify this review?..."
+              placeholder="What controversies, fragmented methodologies, or lack of pooled benchmarks justify this review?..."
               className="w-full text-xs font-sans p-2.5 bg-slate-50/70 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 leading-relaxed"
             />
           </div>

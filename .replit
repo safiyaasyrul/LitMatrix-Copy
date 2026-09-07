@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-base-3.13"]
+modules = ["nodejs-24"]
 
 [deployment]
 router = "application"
@@ -21,4 +21,3 @@ timeoutMs = 20000
 
 [nix]
 channel = "stable-25_05"
-packages = ["freetype", "gumbo", "harfbuzz", "jbig2dec", "libjpeg_turbo", "mupdf", "openjpeg", "swig", "xcbuild", "glib", "nss", "nspr", "atk", "cups", "libdrm", "pango", "cairo", "gtk3", "gdk-pixbuf", "xorg.libX11", "xorg.libXcomposite", "xorg.libXdamage", "xorg.libXext", "xorg.libXfixes", "xorg.libXrandr", "xorg.libXcursor", "xorg.libXi", "xorg.libxcb", "mesa", "libgbm", "libxkbcommon", "alsa-lib"]

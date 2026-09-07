@@ -7,22 +7,6 @@ Review outputs must distinguish imported citation metadata, abstracts, reviewer-
 
 The required qualitative synthesis chain is study → finding → comparison → pattern → theme → cross-study conclusion → research gaps → future research agenda. Descriptive synthesis, thematic synthesis, cluster analysis, cross-study synthesis, gap analysis, and agenda are separate workflow stages backed by one finalized evidence object. GRADE is not a standard stage, and forest plots are not produced by default.
 
-Abstract-level appraisal must be framed as reporting completeness (for example, design, sample, outcome, validation, comparator, uncertainty, implementation, and direct target-outcome reporting). “Unclear” means not reported in the abstract; it must not be converted into a risk-of-bias, overall-quality, or certainty judgment.
-
-The manuscript export should use a conventional journal structure and consolidate the included RIS records, abstracts, reviewer decisions, reporting assessments, and finalized synthesis. Introduction framing may use scientific judgement, but Methods and Results must remain traceable to the supplied evidence; valid study citation markers resolve only to included record IDs.
-
 **Why:** Abstracts provide limited evidence and cannot support claims about unreported methods or results. A single traceable qualitative chain keeps six workflow pages and the manuscript consistent, while clinical certainty tools and quantitative displays would overstate heterogeneous abstract-level evidence.
 
 **How to apply:** Derive counts from stored records and explicit reviewer decisions. Label outputs as abstract-based; use “not reported” for absent fields. Finalize Discussion and Manuscript only when all six qualitative stages exist and remain traceable to record IDs.
-
-Manuscript and grammar-provider responses may be partial or wrapped in an envelope such as `manuscript` or `data`. Always unwrap known envelopes and merge missing sections from the grounded fallback rather than failing the whole manuscript.
-
-**Why:** Managed providers can return valid content with one omitted section or a different JSON wrapper; rejecting that response makes manuscript generation fail even when the supplied evidence is sufficient for a complete fallback.
-
-**How to apply:** Validate and normalize each section independently, preserve valid provider prose, and use the evidence-grounded fallback for missing title, abstract clauses, or manuscript sections.
-
-When a review has an explicit publication-year range in its saved search strategies, that range is authoritative for manuscript Methods and abstract text; a generic eligibility phrase such as “last 5–10 years” must not override it.
-
-**Why:** Search-builder year limits can be more specific than an earlier protocol draft, and AI-generated prose may otherwise replace the recorded range with a plausible but false date description.
-
-**How to apply:** Derive the range from saved filters or database query bounds, persist it into the protocol when search strings are generated, and normalize generic period wording before rendering or exporting.

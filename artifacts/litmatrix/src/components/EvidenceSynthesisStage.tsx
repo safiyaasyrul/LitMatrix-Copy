@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { AlertCircle, ArrowRight, CheckCircle2, Layers, Sparkles } from "lucide-react";
 import { SLRProtocol, SLRRecord, StudyCharacteristic, SynthesisResult } from "../types/slr";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
-import { QUALITATIVE_SYNTHESIS_GUARD } from "../utils/synthesisState";
 
 export type EvidenceSynthesisPhase =
   | "descriptive"
@@ -70,7 +69,6 @@ export default function EvidenceSynthesisStage({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const meta = phaseMeta[phase];
   const researchQuestions = (protocol.primaryResearchQuestions || []).filter((item) => item.trim());
-  const recordById = new Map(includedRecords.map((record) => [record.id, record]));
 
   const evidenceRows = characteristics.length
     ? characteristics.map((study) => ({
@@ -81,7 +79,6 @@ export default function EvidenceSynthesisStage({
         outcome: study.primaryOutcome?.slice(0, 240) || "Not reported",
         design: study.studyDesign?.slice(0, 160) || "Not reported",
         finding: study.keyFinding?.slice(0, 650) || "Not reported",
-        sourceAbstract: recordById.get(study.recordId)?.abstract || "",
       }))
     : includedRecords.map((record) => ({
         recordId: record.id,
@@ -89,9 +86,8 @@ export default function EvidenceSynthesisStage({
         category: "Uncategorized evidence",
         focus: record.title,
         outcome: "Not reported",
-        design: "Not yet extracted from the complete abstract",
-        finding: "Structured extraction is pending for this record.",
-        sourceAbstract: record.abstract || "",
+        design: "Not established from citation metadata",
+        finding: record.abstract?.slice(0, 650) || "No abstract available",
       }));
 
   const createEvidenceMap = (clearError = true) => {
@@ -106,8 +102,8 @@ export default function EvidenceSynthesisStage({
         finding: row.finding,
         assignedResearchQuestions: [],
       })),
-       descriptiveSynthesis: {
-         overview: `${evidenceRows.length} included abstracts are mapped for comparison. Cross-study patterns require finalized synthesis.`,
+      descriptiveSynthesis: {
+        overview: `${evidenceRows.length} reviewer-included abstracts are mapped for comparison. Cross-study patterns require finalized synthesis.`,
         comparisons: [],
       },
       subtopics: Array.from(byCategory.entries()).map(([title, rows]) => ({
@@ -123,7 +119,7 @@ export default function EvidenceSynthesisStage({
       keyFindingsTable: [],
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
-      heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
+      heterogeneityDiscussion: "Study differences are synthesized qualitatively; no statistical pooling or forest plot is produced.",
     });
     if (clearError) setErrorMessage(null);
   };
@@ -137,13 +133,13 @@ export default function EvidenceSynthesisStage({
 Research questions:
 ${researchQuestions.map((question, index) => `RQ${index + 1}: ${question.replace(/^RQ\\d+:\\s*/i, "")}`).join("\n")}
 
-Study evidence. The sourceAbstract field contains each complete abstract and is the authoritative evidence source; extracted fields are only an aid:
+Study evidence:
 ${JSON.stringify(evidenceRows)}
 
 Required reasoning chain: Study -> finding -> comparison -> pattern -> theme -> overall conclusion -> research gaps -> future research agenda.
 
 Rules:
-1. Use only supplied evidence. Treat "Not reported" as missing information, not as an evidence-quality deficiency.
+1. Use only supplied evidence. Treat "Not reported" as missing information.
 2. Results state what studies found. Do not invent methods, outcomes, causal effects, numbers, or full-text evidence.
 3. Discussion-style meaning and recommendations belong only in implications and the future agenda.
 4. Use exact supplied recordIds in comparisons, themes, clusters, RQ findings, and gaps.
@@ -215,7 +211,7 @@ Return ONLY compact JSON:
         })),
         forestPlotEstimates: [],
         pooledEffectEstimate: undefined,
-        heterogeneityDiscussion: QUALITATIVE_SYNTHESIS_GUARD,
+        heterogeneityDiscussion: "Study differences are synthesized qualitatively; no statistical pooling or forest plot is produced.",
       });
     } catch (error: any) {
       createEvidenceMap(false);
@@ -258,9 +254,6 @@ Return ONLY compact JSON:
       <div className={`rounded-xl border p-4 text-xs flex items-center gap-2 ${synthesis.status === "finalized" ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-slate-200 bg-white text-slate-600"}`}>
         {synthesis.status === "finalized" ? <CheckCircle2 className="w-4 h-4" /> : <Layers className="w-4 h-4" />}
         {synthesis.status === "finalized" ? "Complete evidence chain finalized and available to Discussion and Manuscript." : "This page is awaiting a finalized evidence chain."}
-      </div>
-      <div role="note" className="rounded-xl border border-indigo-200 bg-indigo-50 p-4 text-xs text-indigo-950">
-        {QUALITATIVE_SYNTHESIS_GUARD}
       </div>
 
       {phase === "descriptive" && <div className="space-y-4">

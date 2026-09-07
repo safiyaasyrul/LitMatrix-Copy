@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from "react";
-import { CuratedSearchKeyword, SLRProtocol } from "../types/slr";
+import React, { useState, useMemo } from "react";
+import { SLRProtocol } from "../types/slr";
 import {
   Copy,
   Check,
@@ -29,7 +29,12 @@ interface SearchStringsGeneratorProps {
   aiConfig: any;
 }
 
-type KeywordItem = CuratedSearchKeyword;
+interface KeywordItem {
+  id: string;
+  term: string;
+  category: "Concept 1 (Population / Domain)" | "Concept 2 (Intervention / Technology)" | "Concept 3 (Outcome / Comparator)" | "MeSH & Controlled Vocabulary" | "General / Synonym";
+  selected: boolean;
+}
 
 const DEFAULT_SUBJECT_AREAS = [
   { code: "COMP", name: "Computer Science", wos: "Computer Science" },
@@ -54,9 +59,6 @@ export default function SearchStringsGenerator({
 }: SearchStringsGeneratorProps) {
   // Initialize keywords from protocol
   const getInitialKeywords = (): KeywordItem[] => {
-    if (protocol.curatedKeywords?.length) {
-      return protocol.curatedKeywords.map((item) => ({ ...item }));
-    }
     const items: KeywordItem[] = [];
     const fw = protocol.formulationFramework || "PICO";
 
@@ -138,38 +140,17 @@ export default function SearchStringsGenerator({
   const [publicationStage, setPublicationStage] = useState<"all" | "final" | "inpress">("all");
 
   // Date & Language Filters
-  const initialYearRange = (() => {
-    const storedText = [
-      protocol.eligibilityCriteria.timeframe || "",
-      ...(protocol.searchStrategies || []).map((strategy) => `${strategy.filters || ""} ${strategy.query || ""}`),
-    ].join(" ");
-    const directRange = storedText.match(/\b(?:years?|py)\s*(?:limits?|=|:)?\s*\(?\s*(\d{4})\s*[-–]\s*(\d{4})\s*\)?/i);
-    if (directRange) return [Number(directRange[1]), Number(directRange[2])] as const;
-    const pubYearRange = storedText.match(/PUBYEAR\s*>\s*(\d{4})[\s\S]{0,120}?PUBYEAR\s*<\s*(\d{4})/i);
-    if (pubYearRange) return [Number(pubYearRange[1]) + 1, Number(pubYearRange[2]) - 1] as const;
-    return [2019, 2026] as const;
-  })();
-  const [yearFrom, setYearFrom] = useState(initialYearRange[0]);
-  const [yearTo, setYearTo] = useState(initialYearRange[1]);
+  const [yearFrom, setYearFrom] = useState(2019);
+  const [yearTo, setYearTo] = useState(2026);
   const [docType, setDocType] = useState("Journal article");
   const [language, setLanguage] = useState("English");
 
   const [loadingKw, setLoadingKw] = useState(false);
   const [loadingStrings, setLoadingStrings] = useState(false);
-  const [loadingTitles, setLoadingTitles] = useState(false);
-  const [titleError, setTitleError] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   // Accepted (Active) Keywords
   const acceptedKeywords = useMemo(() => keywords.filter((k) => k.selected), [keywords]);
-
-  useEffect(() => {
-    const current = JSON.stringify(protocol.curatedKeywords || []);
-    const next = JSON.stringify(keywords);
-    if (current !== next) {
-      onUpdateProtocol({ ...protocol, curatedKeywords: keywords });
-    }
-  }, [keywords, protocol.curatedKeywords]);
 
   const toggleKeyword = (id: string) => {
     setKeywords((prev) => prev.map((k) => (k.id === id ? { ...k, selected: !k.selected } : k)));
@@ -211,16 +192,9 @@ export default function SearchStringsGenerator({
   };
 
   const handleSuggestKeywords = async () => {
-    const topic = protocol.topicDecomposition;
-    if (!protocol.title.trim() && !topic?.topic?.trim()) return;
+    if (!protocol.title.trim()) return;
     setLoadingKw(true);
     try {
-      const topicContext = topic
-        ? `Topic: "${topic.topic}"
-Field of Study: "${topic.fieldOfStudy}"
-Problem Statement: "${topic.problemStatement}"
-Context / Setting: "${topic.context}"`
-        : `Topic: "${protocol.title}"`;
       const fw = protocol.formulationFramework || "PICO";
       let frameworkDesc = "";
       if (fw === "PICOC") {
@@ -250,12 +224,11 @@ Comparator: "${protocol.objectivesPICO.comparator}"
 Outcomes: "${protocol.objectivesPICO.outcomes}"`;
       }
 
-      const prompt = `${topicContext}
-Systematic Review Title: "${protocol.title}"
+      const prompt = `Systematic Review Title: "${protocol.title}"
 Review Type: "${protocol.reviewType}"
 ${frameworkDesc}
 
-Suggest 16-24 academic search keywords, synonyms, alternative spellings, acronyms, and topic-appropriate controlled vocabulary terms organized by concept facet.
+Suggest 16-24 academic search keywords, synonyms, alternative spellings, acronyms, and controlled vocabulary terms (MeSH, Emtree, IEEE Inspec, ACM Computing Classification) organized by concept facet.
 
 Return ONLY a JSON array of objects with the exact structure:
 [
@@ -284,63 +257,6 @@ No preamble or extra commentary.`;
       console.error("Error generating keyword suggestions:", e);
     }
     setLoadingKw(false);
-  };
-
-  const handleSuggestTitles = async () => {
-    const topic = protocol.topicDecomposition;
-    if (loadingTitles || (!topic?.topic?.trim() && acceptedKeywords.length === 0)) return;
-    setLoadingTitles(true);
-    setTitleError(null);
-    try {
-      const topicContext = topic
-        ? `Topic: "${topic.topic}"
-Field of Study: "${topic.fieldOfStudy}"
-Problem Statement: "${topic.problemStatement}"
-Context / Setting: "${topic.context}"`
-        : `Topic: "${protocol.title}"`;
-      const prompt = `Suggest four precise, conventional titles for a PRISMA 2020 systematic review.
-
-${topicContext}
-Accepted search keywords: ${acceptedKeywords.map((item) => item.term).join(", ")}
-Review approach: narrative and thematic synthesis; do not imply meta-analysis or pooled effects.
-
-Return ONLY a JSON array of four title strings.
-Rules:
-- Keep titles specific to the supplied topic and keywords.
-- Use academic journal style, not promotional language.
-- Do not invent geography, populations, study findings, or a date range.
-- At least two titles should use a distinct but natural title structure.
-- Include "systematic review" or "systematic mapping study" where appropriate.`;
-      const parsed = parseJSONLoose(
-        await callAI(
-          prompt,
-          "You are an academic systematic-review title editor. Use only the supplied topic and curated keywords.",
-          aiConfig
-        )
-      );
-      const candidates = Array.isArray(parsed)
-        ? parsed
-        : Array.isArray(parsed?.titles)
-        ? parsed.titles
-        : [];
-      const titles: string[] = Array.from(
-        new Set<string>(
-          candidates
-            .map((item: unknown) => (typeof item === "string" ? item.trim() : String((item as any)?.title || "").trim()))
-            .filter((item: string) => item.length >= 18)
-        )
-      ).slice(0, 6);
-      if (!titles.length) throw new Error("The AI did not return usable title suggestions.");
-      onUpdateProtocol({ ...protocol, titleSuggestions: titles });
-    } catch (error: any) {
-      setTitleError(error?.message || "Title suggestions could not be generated.");
-    } finally {
-      setLoadingTitles(false);
-    }
-  };
-
-  const handleSelectTitle = (title: string) => {
-    onUpdateProtocol({ ...protocol, title });
   };
 
   const handleGenerateStrings = async () => {
@@ -373,13 +289,17 @@ Applied Search Parameters & Limits:
 2. Publication Stage: ${stageDesc}
    - For Scopus: Use PUBSTAGE(final) for final published, PUBSTAGE(aip) for articles in press, or omit PUBSTAGE / include both for all stages.
    - For Web of Science: Use DT=(Article) or specify Early Access if in press.
-3. Year Limits: ${yearFrom} to ${yearTo} (Scopus: PUBYEAR > ${yearFrom - 1} AND PUBYEAR < ${yearTo + 1}; WoS: PY=(${yearFrom}-${yearTo})).
+   - For PubMed: Use publication status filters if applicable.
+3. Year Limits: ${yearFrom} to ${yearTo} (Scopus: PUBYEAR > ${yearFrom - 1} AND PUBYEAR < ${yearTo + 1}; WoS: PY=(${yearFrom}-${yearTo}); PubMed: ${yearFrom}:${yearTo}[dp]).
 4. Document Type: "${docType}"
 5. Language: "${language}"
 
-Construct reproducible, fully validated Boolean search strings for the following databases adhering strictly to PRISMA 2020 Item 7 and PRISMA-S Item 7:
+Construct reproducible, fully validated Boolean search strings for the following academic databases adhering strictly to PRISMA 2020 Item 7 and PRISMA-S Item 7:
 1. Scopus: Complete TITLE-ABS-KEY query with grouped Boolean concept blocks (Concept 1 OR ...) AND (Concept 2 OR ...), plus AND (SUBJAREA(...) ), PUBSTAGE filter, PUBYEAR, DOCTYPE, and LANGUAGE.
 2. Web of Science (WoS) Core Collection: Complete TS= topic query with Boolean blocks, plus WC= or SU= research areas, PY=, DT=, and LA= filters.
+3. PubMed / MEDLINE: Complete syntax using [Title/Abstract] and [MeSH Terms] with Date range and Language limits.
+4. IEEE Xplore: Complete syntax using ("Document Title" OR "Abstract") with publication year range.
+5. Google Scholar / ACM Digital Library: Optimized Boolean search string.
 
 Return ONLY a JSON array of objects with the exact schema:
 [
@@ -392,6 +312,21 @@ Return ONLY a JSON array of objects with the exact schema:
     "database": "Web of Science",
     "query": "TS=(...)",
     "filters": "Years ${yearFrom}-${yearTo}, ${subjectAreasDesc}, ${stageDesc}, ${docType}, ${language}"
+  },
+  {
+    "database": "PubMed",
+    "query": "(...[Title/Abstract] OR ...[MeSH Terms])",
+    "filters": "Years ${yearFrom}-${yearTo}, ${stageDesc}, ${docType}, ${language}"
+  },
+  {
+    "database": "IEEE Xplore",
+    "query": "...",
+    "filters": "Years ${yearFrom}-${yearTo}, Journals & Conferences"
+  },
+  {
+    "database": "Google Scholar",
+    "query": "...",
+    "filters": "Years ${yearFrom}-${yearTo}, ${language}"
   }
 ]`;
 
@@ -401,10 +336,6 @@ Return ONLY a JSON array of objects with the exact schema:
         onUpdateProtocol({
           ...protocol,
           searchStrategies: parsed,
-          eligibilityCriteria: {
-            ...protocol.eligibilityCriteria,
-            timeframe: `${yearFrom}-${yearTo}`,
-          },
         });
       }
     } catch (e) {
@@ -477,20 +408,20 @@ Return ONLY a JSON array of objects with the exact schema:
               PRISMA 2020 Items 6 & 7 · PRISMA-S Item 7
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 flex items-center gap-2 flex-wrap">
-              <span>Formulate Academic Search Strategy</span>
+              <span>Information Sources & Search Query Synthesizer</span>
               <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-700">
                 {protocol.formulationFramework || "PICO"} Framework
               </span>
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              State your research interest or topic. The smart system will analyze and automatically draft your PRISMA search strategy.
+              Curate search keywords, incorporate target subject areas and publication stage filters, then synthesize reproducible Boolean queries for Scopus, Web of Science, PubMed, and IEEE Xplore.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleSuggestKeywords}
-              disabled={loadingKw || (!protocol.title.trim() && !protocol.topicDecomposition?.topic?.trim())}
+              disabled={loadingKw || !protocol.title.trim()}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
@@ -607,69 +538,6 @@ Return ONLY a JSON array of objects with the exact schema:
               Add Keyword
             </button>
           </div>
-        </div>
-
-        {/* Section 1b: AI Title Suggestions from Topic + Curated Keywords */}
-        <div className="p-4 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-indigo-600" />
-                <span className="font-mono text-xs font-bold text-indigo-950 uppercase tracking-wider">
-                  AI-Suggested Review Titles
-                </span>
-              </div>
-              <p className="text-[11px] text-indigo-900/70 mt-1 max-w-2xl">
-                Generate title candidates from the decomposed topic and accepted search terms. Selecting a title updates the protocol title used by the review and manuscript.
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSuggestTitles}
-              disabled={loadingTitles || (acceptedKeywords.length === 0 && !protocol.topicDecomposition?.topic?.trim())}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3.5 py-2 text-xs font-mono font-bold text-white shadow-xs transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:bg-slate-300"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              {loadingTitles ? "Drafting titles..." : "Suggest Titles"}
-            </button>
-          </div>
-
-          {titleError && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
-              {titleError}
-            </div>
-          )}
-
-          {protocol.titleSuggestions?.length ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {protocol.titleSuggestions.map((title, index) => (
-                <button
-                  type="button"
-                  key={`${title}-${index}`}
-                  onClick={() => handleSelectTitle(title)}
-                  className={`text-left rounded-xl border p-3.5 transition ${
-                    protocol.title === title
-                      ? "border-indigo-600 bg-white ring-2 ring-indigo-500/20 shadow-xs"
-                      : "border-indigo-100 bg-white/70 hover:border-indigo-400 hover:bg-white"
-                  }`}
-                >
-                  <div className="flex items-start gap-2">
-                    <span className={`mt-0.5 h-4 w-4 rounded-full border-2 shrink-0 ${protocol.title === title ? "border-indigo-600 bg-indigo-600 ring-2 ring-indigo-100" : "border-slate-300"}`} />
-                    <span className="text-sm font-semibold leading-snug text-slate-900">{title}</span>
-                  </div>
-                  {protocol.title === title && (
-                    <span className="mt-2 ml-6 inline-block text-[10px] font-mono font-bold uppercase tracking-wider text-indigo-700">
-                      Selected review title
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="rounded-lg border border-dashed border-indigo-200 bg-white/50 px-3 py-3 text-xs text-indigo-900/70">
-              Curate or generate keywords first, then ask the AI for title candidates.
-            </div>
-          )}
         </div>
 
         {/* Section 2: Subject Areas & Publication Stage (Requested Enhancements) */}

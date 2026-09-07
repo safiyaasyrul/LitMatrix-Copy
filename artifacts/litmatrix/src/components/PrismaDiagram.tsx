@@ -207,7 +207,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
             </text>
           </g>
 
-          {/* Phase 3: AI-FINALIZED INCLUSION */}
+          {/* Phase 3: REVIEWER-CONFIRMED INCLUSION */}
           <g>
             {/* Arrow down to included records */}
             <line x1="190" y1="378" x2="190" y2="410" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
@@ -222,7 +222,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records included after title/abstract screening:
             </text>
             <text x="32" y="470" fontFamily="JetBrains Mono" fontWeight="600" fontSize="12" fill="#047857">
-              (n = {included}) · AI-finalized for abstract-based synthesis
+              (n = {included}) · Reviewer-confirmed for abstract-based synthesis
             </text>
           </g>
         </svg>

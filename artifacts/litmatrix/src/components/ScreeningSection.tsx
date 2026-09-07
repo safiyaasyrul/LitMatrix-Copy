@@ -2,14 +2,15 @@ import React, { useState, useMemo, useRef } from "react";
 import { SLRRecord, ScreeningDecision, SLRProtocol } from "../types/slr";
 import {
   Sparkles,
+  Check,
+  X,
   Filter,
   Search,
   FileX,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
   AlertCircle,
-  Copy,
-  Check,
 } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
@@ -27,8 +28,6 @@ type AIRecommendation = NonNullable<ScreeningDecision["recommendation"]>;
 const getRecommendationLabel = (recommendation: AIRecommendation) =>
   recommendation === "include" ? "Accept" : recommendation === "exclude" ? "Exclude" : "Maybe / Unclear";
 
-const ELIGIBILITY_INCLUDE_THRESHOLD = 75;
-
 export default function ScreeningSection({
   records,
   screening,
@@ -42,7 +41,6 @@ export default function ScreeningSection({
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [summaryCopied, setSummaryCopied] = useState(false);
   const screeningRunRef = useRef(false);
 
   const screeningQuestions = useMemo<Array<{ key: ScreeningCriterionKey; label: string; criterion: string }>>(
@@ -70,20 +68,20 @@ export default function ScreeningSection({
         },
         {
           key: "researchContribution",
-          label: "Q3 — Primary empirical contribution",
+          label: "Q3 — Research contribution",
           criterion:
-            "Is this an identifiable primary empirical investigation with participants, observations, datasets, experiments, field data, or evaluated models? Exclude reviews, editorials, protocols, commentaries, position papers, and purely conceptual papers unless the approved protocol explicitly includes them.",
+            "Does the study investigate a method, technology, strategy, model, intervention, or analytical approach relevant to the review objective, as required by the approved criteria?",
         },
         {
           key: "studyType",
-          label: "Q4 — Eligible design and population",
-          criterion: `Does the abstract identify an eligible study design and the required population, setting, unit of analysis, or dataset? Approved study-type guidance: ${studyTypeGuidance}. If the design or population is not reported, answer Unclear rather than inferring it.`,
+          label: "Q4 — Study type",
+          criterion: `Is this an eligible primary research study? Approved study-type guidance: ${studyTypeGuidance}. Also apply the approved inclusion and exclusion criteria.`,
         },
         {
           key: "requiredEvidence",
-          label: "Q5 — Direct target outcome",
+          label: "Q5 — Required evidence",
           criterion:
-            "Does the abstract report a direct outcome, measure, endpoint, phenomenon, or evaluated result required by the review question? Topic mention alone is insufficient. Do not infer missing details from the title or citation metadata; unresolved evidence is Unclear.",
+            "Does the record provide sufficient information to determine eligibility? Do not infer missing details from the title or citation metadata; unresolved evidence is Unclear.",
         },
       ];
     },
@@ -127,7 +125,7 @@ ${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}
 Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
 ${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
 
-Apply this final decision rule: include when the eligibility score is at least 75% and no exclusion rule is triggered. A score of exactly 75% qualifies. Do not downgrade a 75% or higher score merely because a question is Unclear. Exclude when the score is below 75%, when Q1 and Q2 are both No, or when Q3, Q4, or Q5 is No. Every complete response must have a final include or exclude decision; only a missing or invalid provider response remains pending.
+Apply this recommendation rule: accept when Q1 OR Q2 is Yes AND Q3 is Yes AND Q4 is Yes. If Q1/Q2/Q3/Q4 is unresolved, or if Q5 is anything other than Yes, recommend Maybe / Unclear. Exclude only when Q1 and Q2 are both No, or Q3 or Q4 is No. AI recommendations remain pending for reviewer confirmation.
 
 Keep each reason to no more than 25 words. Do not repeat the title, abstract, criteria, or question text. Use an exclusion reason only when supported: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
 
@@ -178,36 +176,29 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
               };
               const q1OrQ2Yes =
                 answers.populationContext === "Yes" || answers.phenomenon === "Yes";
-              const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
               const coreCriteriaAccepted =
                 q1OrQ2Yes &&
                 answers.researchContribution === "Yes" &&
-                answers.studyType === "Yes" &&
-                answers.requiredEvidence === "Yes";
+                answers.studyType === "Yes";
               const coreCriteriaExcluded =
                 (answers.populationContext === "No" && answers.phenomenon === "No") ||
                 answers.researchContribution === "No" ||
-                answers.studyType === "No" ||
-                answers.requiredEvidence === "No";
-              const scoreSupportsInclusion =
-                finalScore !== null && finalScore >= ELIGIBILITY_INCLUDE_THRESHOLD;
+                answers.studyType === "No";
               const recommendation: AIRecommendation = coreCriteriaExcluded
                 ? "exclude"
-                : scoreSupportsInclusion
+                : coreCriteriaAccepted && answers.requiredEvidence === "Yes"
                 ? "include"
-                : "exclude";
+                : "maybe";
+              const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
 
               nextScreening[p.id] = {
                 score: finalScore,
                 reason: p.reason || "AI screening suggestion based on the approved eligibility criteria.",
                 recommendation,
                 decision: recommendation === "exclude" ? "exclude" : "include",
-                agreed: recommendation === "include",
+                agreed: undefined,
                 criteriaAnswers: answers,
-                exclusionReason:
-                  recommendation === "exclude"
-                    ? p.exclusionReason || (coreCriteriaExcluded ? "Criteria not met" : "Insufficient evidence in record")
-                    : undefined,
+                exclusionReason: recommendation === "exclude" ? p.exclusionReason || "Criteria not met" : undefined,
               };
               generatedCount += 1;
             });
@@ -253,6 +244,19 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
     }
   };
 
+  const handleSetDecision = (id: string, agree: boolean, reason?: ScreeningDecision["exclusionReason"]) => {
+    const existing = screening[id] || { score: null, reason: "Manual investigator evaluation", decision: agree ? "include" : "exclude" };
+    onUpdateScreening({
+      ...screening,
+      [id]: {
+        ...existing,
+        agreed: agree,
+        decision: agree ? "include" : "exclude",
+        exclusionReason: !agree ? reason || existing.exclusionReason || "Wrong study design" : undefined,
+      },
+    });
+  };
+
   const filteredRecords = records.filter((r) => {
     const dec = screening[r.id];
 
@@ -270,20 +274,6 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
     }
     return true;
   });
-
-  const prismaSynthesisReport = `Rumusan Keputusan Penerimaan dan Penolakan (PRISMA Synthesis Report)
-
-Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui saringan abstrak pintar berdasarkan kriteria kelayakan yang diluluskan. Sebanyak ${includedCount} rekod diterima untuk sintesis, ${excludedCount} rekod ditolak, dan ${pendingCount} rekod masih menunggu keputusan kerana respons penyedia AI tidak lengkap atau belum tersedia. Keputusan ini adalah berdasarkan maklumat tajuk, pengarang, jurnal, dan abstrak yang tersedia dalam rekod.`;
-
-  const copyPrismaSynthesisReport = async () => {
-    try {
-      await navigator.clipboard.writeText(prismaSynthesisReport);
-      setSummaryCopied(true);
-      window.setTimeout(() => setSummaryCopied(false), 2000);
-    } catch {
-      setErrorMessage("Rumusan PRISMA tidak dapat disalin. Sila pilih dan salin teks secara manual.");
-    }
-  };
 
   return (
     <div id="screening-section-container" className="space-y-6">
@@ -305,13 +295,13 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              PRISMA 2020 Item 5 · Eligibility Criteria · Items 8, 16a & 16b · Study Selection
+              PRISMA 2020 Items 8, 16a & 16b · Eligibility Criteria Screening
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Fasa 3: Saringan Abstrak Pintar (Abstract Screening)
+              Study Selection & Eligibility Criteria Screening
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Nilai setiap rekod berdasarkan lima soalan kelayakan yang jelas daripada kriteria kemasukan, pengecualian, dan reka bentuk kajian yang diluluskan. AI menetapkan keputusan penerimaan atau penolakan akhir secara automatik; hanya respons penyedia yang tidak lengkap kekal sebagai menunggu.
+              Screen records by asking explicit questions derived from the approved inclusion, exclusion, and study-type criteria. AI suggestions remain pending until the reviewer confirms them.
             </p>
           </div>
 
@@ -322,7 +312,7 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {runningScreening ? `Evaluating (${progress}%)...` : "AI Evaluate Records"}
+              {runningScreening ? `Screening (${progress}%)...` : "AI Screen Records"}
             </button>
           </div>
         </div>
@@ -335,9 +325,7 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
         )}
 
         <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-950">
-          <div className="font-mono font-bold">
-            Five eligibility questions derived from the approved criteria · Include recommendation threshold: {ELIGIBILITY_INCLUDE_THRESHOLD}%
-          </div>
+          <div className="font-mono font-bold">Screening questions generated from approved eligibility criteria</div>
           <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
             {screeningQuestions.map((question) => (
               <div key={question.key} className="bg-white/80 border border-indigo-100 rounded-lg p-2">
@@ -352,31 +340,19 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
         {/* Quick bulk actions */}
         {Object.keys(screening).length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 border border-slate-200 rounded-xl">
-              <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="text-xs font-mono text-slate-600">
-                  AI decisions are applied automatically. Human review is view-only.
+                AI outputs are suggestions only. Confirm each record manually.
               </span>
             </div>
 
-            <div className="flex items-center gap-2 flex-wrap justify-end">
-              <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
-                <span className="text-emerald-700 font-semibold">{includedCount} Included</span>
-                <span className="text-rose-700 font-semibold">{excludedCount} Excluded</span>
-                <span className="text-slate-500">{pendingCount} Pending</span>
-              </div>
+            <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
+              <span className="text-emerald-700 font-semibold">{includedCount} Included</span>
+              <span className="text-rose-700 font-semibold">{excludedCount} Excluded</span>
+              <span className="text-slate-500">{pendingCount} Pending</span>
             </div>
           </div>
         )}
-      </div>
-
-      {/* Comprehensive screening decision table */}
-      <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs">
-        <h3 className="text-lg font-bold text-slate-900">
-          Jadual Keputusan Saringan Komprehensif
-        </h3>
-        <p className="text-xs text-slate-500 mt-1">
-          Dipaparkan mengikut tajuk, pengarang, jurnal berserta alasan penerimaan/penolakan.
-        </p>
       </div>
 
       {/* Tabs and Search */}
@@ -446,7 +422,7 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
                       {s?.score !== undefined && s.score !== null && (
                         <span
                           className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
-                            s.score >= ELIGIBILITY_INCLUDE_THRESHOLD
+                            s.score >= 80
                               ? "bg-emerald-50 border-emerald-200 text-emerald-800"
                               : "bg-rose-50 border-rose-200 text-rose-800"
                           }`}
@@ -454,7 +430,7 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
                           {s.score}% Eligibility Summary
                         </span>
                       )}
-                      {s?.recommendation && (
+                      {s?.recommendation && s.agreed === undefined && (
                         <span
                           className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
                             s.recommendation === "include"
@@ -464,7 +440,7 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
                               : "bg-amber-50 border-amber-200 text-amber-800"
                           }`}
                         >
-                          AI decision: {getRecommendationLabel(s.recommendation)}
+                          AI recommendation: {getRecommendationLabel(s.recommendation)}
                         </span>
                       )}
                       <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
@@ -486,6 +462,31 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
 
                   </div>
 
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleSetDecision(r.id, true)}
+                      className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer shadow-2xs ${
+                        isIncluded
+                          ? "bg-emerald-700 text-white font-bold"
+                          : "bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                      }`}
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      Include
+                    </button>
+                    <button
+                      onClick={() => handleSetDecision(r.id, false)}
+                      className={`flex items-center gap-1 px-3 py-1.5 text-xs font-mono rounded-lg transition-all cursor-pointer shadow-2xs ${
+                        isExcluded
+                          ? "bg-rose-700 text-white font-bold"
+                          : "bg-white border border-rose-300 text-rose-700 hover:bg-rose-50"
+                      }`}
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Exclude
+                    </button>
+                  </div>
                 </div>
 
                 {/* AI Justification & Exclusion Reason selector */}
@@ -531,11 +532,28 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
                     {isExcluded && (
                       <div className="flex flex-wrap items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-200 rounded-lg">
                         <span className="font-mono text-[11px] font-bold text-rose-800 shrink-0">
-                          AI exclusion reason:
+                          PRISMA Item 16b Exclusion Reason:
                         </span>
-                        <span className="text-xs font-mono text-rose-800 font-semibold">
-                          {s.exclusionReason || "Out of scope / Criteria not met"}
-                        </span>
+                        <select
+                          value={s.exclusionReason || "Wrong study design"}
+                          onChange={(e) => handleSetDecision(r.id, false, e.target.value as any)}
+                          className="text-xs font-mono p-1 border border-rose-300 rounded bg-white text-rose-800 font-semibold"
+                        >
+                          <option value="Secondary literature / Review paper">Secondary literature / Review paper</option>
+                          <option value="Out of scope / Criteria not met">Out of scope / Criteria not met</option>
+                          <option value="Wrong population">Wrong population</option>
+                          <option value="Wrong population / context">Wrong population / context</option>
+                          <option value="Wrong intervention / exposure">Wrong intervention / exposure</option>
+                          <option value="Wrong phenomenon / contribution">Wrong phenomenon / contribution</option>
+                          <option value="Wrong comparator">Wrong comparator</option>
+                          <option value="Wrong outcome">Wrong outcome</option>
+                          <option value="Wrong study design">Wrong study design</option>
+                          <option value="Insufficient evidence in record">Insufficient evidence in record</option>
+                          <option value="Not accessible / full text unavailable">Not accessible / full text unavailable</option>
+                          <option value="Duplicate / non-original">Duplicate / non-original</option>
+                          <option value="Language barrier">Language barrier</option>
+                          <option value="Other">Other</option>
+                        </select>
                       </div>
                     )}
                   </div>
@@ -562,40 +580,6 @@ Bagi ulasan "${protocol.title}", sebanyak ${records.length} rekod telah melalui 
             );
           })
         )}
-      </div>
-
-      {/* PRISMA screening synthesis report */}
-      <div className="bg-white border border-slate-200 p-5 rounded-xl shadow-xs space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="text-lg font-bold text-slate-900">
-              Rumusan Keputusan Penerimaan dan Penolakan (PRISMA Synthesis Report)
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Anda boleh menyalin draf keputusan sintesis PRISMA ini terus untuk dimuatkan ke bab metodologi atau dokumen kajian anda.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={copyPrismaSynthesisReport}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
-          >
-            {summaryCopied ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" />
-                Disalin
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5 text-slate-500" />
-                Salin Rumusan
-              </>
-            )}
-          </button>
-        </div>
-        <pre className="whitespace-pre-wrap rounded-lg border border-indigo-100 bg-indigo-50/40 p-4 text-xs leading-relaxed text-slate-700 font-sans">
-          {prismaSynthesisReport}
-        </pre>
       </div>
     </div>
   );

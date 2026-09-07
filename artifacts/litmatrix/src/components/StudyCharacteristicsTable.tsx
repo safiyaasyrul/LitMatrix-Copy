@@ -46,7 +46,6 @@ export default function StudyCharacteristicsTable({
   onNavigateToScreening,
 }: StudyCharacteristicsTableProps) {
   const [extracting, setExtracting] = useState(false);
-  const [extractionProgress, setExtractionProgress] = useState(0);
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [groupByCategory, setGroupByCategory] = useState(true);
@@ -113,122 +112,65 @@ export default function StudyCharacteristicsTable({
     setVisibleColumns((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const NOT_REPORTED = "Not reported";
-  const NO_EXPLICIT_FINDING = "No explicit finding was reported in the available abstract.";
-
-  const extractAbstractFinding = (abstract: string) => {
-    const sentences = abstract
-      .replace(/\s+/g, " ")
-      .split(/(?<=[.!?])\s+/)
-      .map((sentence) => sentence.trim())
-      .filter(Boolean);
-    const findingSentences = sentences.filter((sentence) =>
-      /\b(found|findings?|showed|show|demonstrated|observed|associated|predicted|increased|decreased|higher|lower|improved|reduced|achieved|yielded|resulted|revealed|concluded|significant|accuracy|performance|emission|carbon|co2)\b/i.test(
-        sentence
-      )
-    );
-    const selected = (findingSentences.length > 0 ? findingSentences : sentences.slice(-1)).slice(0, 2);
-    const finding = selected.join(" ").trim();
-    if (!finding) return NO_EXPLICIT_FINDING;
-    const words = finding.split(/\s+/);
-    return words.length > 70 ? `${words.slice(0, 70).join(" ")}.` : finding;
-  };
-
-  const buildHeuristicCharacteristic = (r: SLRRecord): StudyCharacteristic => {
-    const firstAuthor = r.authors[0] ? r.authors[0].split(",")[0].trim() : "Author";
-    const year = r.year || "Year not reported";
-    const abstract = r.abstract || "";
-    const nMatch = abstract.match(/(?:n\s*=\s*|sample\s*of\s*|cohort\s*of\s*|dataset\s*of\s*|instances\s*=\s*)([0-9,]+)/i);
-    const designMatch = abstract.match(
-      /\b(randomized controlled trial|randomised controlled trial|cohort study|cross-sectional study|case study|survey study|qualitative study|mixed-methods study|simulation study|experimental study|benchmark study|observational study)\b/i
-    );
-
-    return {
-      recordId: r.id,
-      authorYear: `${firstAuthor} et al. (${year})`,
-      category: designMatch ? designMatch[1] : NOT_REPORTED,
-      country: NOT_REPORTED,
-      sampleSize: nMatch ? `N = ${nMatch[1]}` : NOT_REPORTED,
-      population: NOT_REPORTED,
-      interventionOrFocus: r.title || NOT_REPORTED,
-      comparator: NOT_REPORTED,
-      primaryOutcome: NOT_REPORTED,
-      studyDesign: designMatch ? designMatch[1] : NOT_REPORTED,
-      keyFinding: abstract ? extractAbstractFinding(abstract) : "No abstract was supplied.",
-    };
-  };
-
-  // Conservative fallback: never use an arbitrary abstract prefix as a finding.
+  // Conservative fallback: extract only what is explicitly present in the citation metadata.
   const runHeuristicExtraction = () => {
     if (includedRecords.length === 0) return;
-    onUpdateCharacteristics(includedRecords.map(buildHeuristicCharacteristic));
+    const generated: StudyCharacteristic[] = includedRecords.map((r) => {
+      const firstAuthor = r.authors[0] ? r.authors[0].split(",")[0].trim() : "Author";
+      const year = r.year || "Year not reported";
+      const abstract = r.abstract || "";
+      const title = r.title || "";
+
+      const nMatch = abstract.match(/(?:n\s*=\s*|sample\s*of\s*|cohort\s*of\s*|dataset\s*of\s*|instances\s*=\s*)([0-9,]+)/i);
+      const sampleSize = nMatch ? `N = ${nMatch[1]}` : "Not reported in citation metadata";
+
+      return {
+        recordId: r.id,
+        authorYear: `${firstAuthor} et al. (${year})`,
+        category: "Not categorized",
+        country: "Not reported",
+        sampleSize,
+        population: "Not reported",
+        interventionOrFocus: title.length > 65 ? title.slice(0, 65) + "..." : title,
+        comparator: "Not reported",
+        primaryOutcome: "Not reported",
+        studyDesign: "Not established from citation metadata",
+        keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; evidence extraction cannot be completed.",
+      };
+    });
+
+    onUpdateCharacteristics(generated);
     setErrorMessage(null);
-  };
-
-  const normalizeExtractedRow = (raw: any, record: SLRRecord): StudyCharacteristic => {
-    const fallback = buildHeuristicCharacteristic(record);
-    const clean = (value: unknown, fallbackValue: string) =>
-      typeof value === "string" && value.trim() ? value.trim() : fallbackValue;
-    const rawFinding = clean(raw?.keyFinding, fallback.keyFinding);
-    const normalizedFinding = rawFinding.replace(/\s+/g, " ");
-    const normalizedAbstract = (record.abstract || "").replace(/\s+/g, " ").trim();
-    const appearsToBeDump =
-      normalizedFinding.length > 520 ||
-      normalizedFinding.endsWith("...") ||
-      (normalizedAbstract.length > 120 &&
-        normalizedFinding.slice(0, 120) === normalizedAbstract.slice(0, 120));
-
-    return {
-      recordId: record.id,
-      authorYear: clean(raw?.authorYear, fallback.authorYear),
-      category: clean(raw?.category, fallback.category),
-      country: clean(raw?.country, fallback.country),
-      sampleSize: clean(raw?.sampleSize, fallback.sampleSize),
-      population: clean(raw?.population, fallback.population),
-      interventionOrFocus: clean(raw?.interventionOrFocus, fallback.interventionOrFocus),
-      comparator: clean(raw?.comparator, fallback.comparator),
-      primaryOutcome: clean(raw?.primaryOutcome, fallback.primaryOutcome),
-      studyDesign: clean(raw?.studyDesign, fallback.studyDesign),
-      keyFinding: appearsToBeDump ? fallback.keyFinding : normalizedFinding,
-    };
   };
 
   const handleAutoExtract = async () => {
     if (includedRecords.length === 0) return;
     setExtracting(true);
-    setExtractionProgress(0);
     setErrorMessage(null);
 
-    const batchSize = 5;
-    const extractedRows: StudyCharacteristic[] = [];
-    let fallbackCount = 0;
+    const payload = includedRecords.map((r) => ({
+      recordId: r.id,
+      title: r.title,
+      authors: r.authors,
+      year: r.year,
+      source: r.source,
+      abstract: (r.abstract || "").slice(0, 600),
+    }));
 
-    const extractBatch = async (batch: SLRRecord[]) => {
-      const payload = batch.map((r) => ({
-        recordId: r.id,
-        title: r.title,
-        authors: r.authors,
-        year: r.year,
-        source: r.source,
-        abstract: r.abstract || "",
-      }));
-      const prompt = `Extract structured study characteristics from each complete RIS citation record and its complete abstract.
+    const prompt = `Extract structured study characteristics from the supplied citation metadata and abstracts.
 Create concise thematic categories that emerge from the actual studies. Do not force clinical, software-architecture, or machine-learning categories unless those concepts are explicitly central to the study.
 
 EVIDENCE RULES:
 - Use only facts stated in the supplied title, abstract, authors, year, and source.
 - Never invent a country, sample size, comparator, outcome value, study design, validation result, or finding.
-- If a field cannot be established from the complete abstract and citation record, write exactly "Not reported".
+- If a field cannot be established, write exactly "Not reported".
 - Do not turn background statements or proposed future work into study findings.
 - Keep each recordId unchanged and return one row per supplied record.
-- Read the complete abstract before extracting. Do not use a fixed character window or copy the opening of the abstract.
-- The keyFinding must be one or two concise sentences describing the study's reported result, observation, comparison, or conclusion. Prefer the Results and Conclusion content. Do not quote or reproduce the abstract, do not end with an ellipsis, and keep it under 70 words. If no result is explicitly reported, write exactly "No explicit finding was reported in the available abstract."
-- "Not reported" is a missing-data label, not an evidence-quality judgment. Do not call an item weak, deficient, low quality, or high risk merely because it is not reported.
 
 Fields to extract:
 1. recordId: exact string from recordId
 2. authorYear: e.g. "Chen et al. (2023)"
-3. category: One concise evidence category grounded in an explicitly reported study design, dataset/population, method, or outcome. Do not invent a category; use "Not reported" when the record does not support one.
+3. category: A short theme grounded in the study topic
 4. country: e.g. "United States" or "Not reported"
 5. sampleSize: Explicit sample, dataset, participant, unit, material, document, or case count
 6. population: Unit, setting, system, or evidence source studied
@@ -243,39 +185,18 @@ ${JSON.stringify(payload)}
 
 Return ONLY a JSON array of objects conforming to the fields above, matching each recordId.`;
 
-      const text = await callAI(prompt, "You are a senior systematic-review data extraction specialist. Extract results from complete abstracts; never copy an abstract prefix.", aiConfig, 5000);
-      const parsed = parseJSONLoose(text);
-      const rows = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.characteristics) ? parsed.characteristics : [];
-      if (!rows.length) throw new Error("Could not parse AI response as a JSON array.");
-      const byId = new Map(rows.filter((row: any) => row?.recordId).map((row: any) => [row.recordId, row]));
-      return batch.map((record) => {
-        const raw = byId.get(record.id);
-        if (!raw) {
-          fallbackCount += 1;
-          return buildHeuristicCharacteristic(record);
-        }
-        return normalizeExtractedRow(raw, record);
-      });
-    };
-
     try {
-      for (let index = 0; index < includedRecords.length; index += batchSize) {
-        const batch = includedRecords.slice(index, index + batchSize);
-        try {
-          extractedRows.push(...(await extractBatch(batch)));
-        } catch (error) {
-          console.warn("AI extraction batch error:", error);
-          fallbackCount += batch.length;
-          extractedRows.push(...batch.map(buildHeuristicCharacteristic));
-        }
-        setExtractionProgress(Math.round((Math.min(index + batch.length, includedRecords.length) / includedRecords.length) * 100));
+      const text = await callAI(prompt, "You are a senior data extraction specialist for systematic reviews.", aiConfig);
+      const parsed = parseJSONLoose(text);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        onUpdateCharacteristics(parsed);
+      } else {
+        throw new Error("Could not parse AI response as JSON array.");
       }
-      onUpdateCharacteristics(extractedRows);
-      setErrorMessage(
-        fallbackCount > 0
-          ? `${fallbackCount} record${fallbackCount === 1 ? "" : "s"} used conservative abstract parsing because the provider did not return a complete structured row.`
-          : null
-      );
+    } catch (e: any) {
+      console.warn("AI extraction error:", e);
+      setErrorMessage(`AI Extraction Notice: ${e.message || "Request failed"}. Automatic rule-based extraction was applied as a fallback.`);
+      runHeuristicExtraction();
     } finally {
       setExtracting(false);
     }
@@ -291,7 +212,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
     const newRow: StudyCharacteristic = {
       recordId: `custom-${Date.now()}`,
       authorYear: "New Author (2024)",
-      category: "Not reported",
+      category: "Uncategorized",
       country: "Not reported",
       sampleSize: "Not reported",
       population: "Not reported",
@@ -390,9 +311,6 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
             <p className="text-xs text-slate-500 mt-1">
               Construct Table 1 tailored to your review domain. Group by categories or paradigms, and customize or drop inapplicable columns such as country or sample size.
             </p>
-            <p className="mt-2 max-w-4xl rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-900">
-              Extraction is limited to citation metadata and available abstracts. Missing fields remain “Not reported”; this table is not a substitute for full-text extraction or verification.
-            </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
@@ -402,7 +320,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {extracting ? `Extracting Data (${extractionProgress}%)...` : "AI Auto-Extract Characteristics"}
+              {extracting ? "Extracting Data..." : "AI Auto-Extract Characteristics"}
             </button>
             <button
               onClick={runHeuristicExtraction}
