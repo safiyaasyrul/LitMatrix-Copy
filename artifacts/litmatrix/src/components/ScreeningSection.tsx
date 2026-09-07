@@ -3,9 +3,14 @@ import { SLRRecord, ScreeningDecision, SLRProtocol } from "../types/slr";
 import {
   Sparkles,
   AlertCircle,
+  Download,
+  FileText,
 } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 import StudyCharacteristicsTable from "./StudyCharacteristicsTable";
+
+const MAX_INCLUDED_RECORDS = 99;
+const STRICT_SCREENING_THRESHOLD = 85;
 
 interface ScreeningSectionProps {
   records: SLRRecord[];
@@ -31,6 +36,81 @@ export default function ScreeningSection({
   const includedCount = screeningPool.filter((r) => screening[r.id]?.agreed === true).length;
   const excludedCount = screeningPool.filter((r) => screening[r.id]?.agreed === false).length;
   const pendingCount = screeningPool.filter((r) => screening[r.id]?.agreed === undefined).length;
+  const exclusionBreakdown = screeningPool.reduce<Record<string, number>>((acc, record) => {
+    const decision = screening[record.id];
+    if (decision?.agreed === false) {
+      const reason = decision.exclusionReason || "Other";
+      acc[reason] = (acc[reason] || 0) + 1;
+    }
+    return acc;
+  }, {});
+
+  const enforceInclusionLimit = (
+    decisions: Record<string, ScreeningDecision>
+  ): Record<string, ScreeningDecision> => {
+    const rankedCandidates = screeningPool
+      .filter((record) => decisions[record.id]?.agreed === true)
+      .sort((a, b) => (decisions[b.id]?.score || 0) - (decisions[a.id]?.score || 0));
+
+    rankedCandidates.slice(MAX_INCLUDED_RECORDS).forEach((record) => {
+      const previous = decisions[record.id];
+      decisions[record.id] = {
+        ...previous,
+        decision: "exclude",
+        agreed: false,
+        exclusionReason: "Other",
+        reason: `The record met the minimum title and abstract screening threshold but ranked outside the ${MAX_INCLUDED_RECORDS} strongest protocol matches. It was excluded from the bounded synthesis set; full-text eligibility was not assessed.`,
+      };
+    });
+
+    return decisions;
+  };
+
+  const downloadPrismaSynthesisReport = () => {
+    const includedRecords = screeningPool.filter((record) => screening[record.id]?.agreed === true);
+    const report = [
+      `# PRISMA Synthesis Report`,
+      ``,
+      `## Review`,
+      protocol.title || "Untitled systematic review",
+      ``,
+      `## Study-selection summary`,
+      `- Uploaded records assessed: ${screeningPool.length}`,
+      `- Records with screening decisions: ${includedCount + excludedCount}`,
+      `- Records pending screening: ${pendingCount}`,
+      `- Records included in the bounded synthesis set: ${includedCount}`,
+      `- Records excluded: ${excludedCount}`,
+      `- Maximum synthesis set: ${MAX_INCLUDED_RECORDS} records`,
+      ``,
+      `All uploaded records are assessed against the documented protocol. Inclusion requires explicit support in the supplied title and abstract. Missing or ambiguous evidence is not treated as confirmation of eligibility. Full-text eligibility is not claimed.`,
+      ``,
+      `## Exclusion reasons`,
+      ...(Object.entries(exclusionBreakdown).length > 0
+        ? Object.entries(exclusionBreakdown).map(([reason, count]) => `- ${reason}: ${count}`)
+        : ["- No exclusions recorded."]),
+      ``,
+      `## Included records and screening justifications`,
+      ...(includedRecords.length > 0
+        ? includedRecords.map((record, index) => {
+            const authors = record.authors?.join(", ") || "Authors not reported";
+            const source = record.source || "Source not reported";
+            const reason = screening[record.id]?.reason || "No justification recorded.";
+            return `${index + 1}. **${record.title}** — ${authors} — ${source}\n   ${reason}`;
+          })
+        : ["No records are currently included."]),
+      ``,
+      `## Evidence-synthesis status`,
+      `This report summarizes uploaded citation records and title/abstract screening decisions. Narrative findings should be generated only from information contained in the uploaded records or separately verified full texts. No pooled effects, heterogeneity statistics, risk-of-bias judgments, or certainty ratings are inferred.`,
+    ].join("\n");
+
+    const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "PRISMA_Synthesis_Report.md";
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   // AI-assisted screening
   const runAIScreening = async () => {
@@ -55,13 +135,17 @@ export default function ScreeningSection({
           abstract: (r.abstract || "").slice(0, 500),
         }));
 
+        const effectiveThreshold = Math.max(
+          STRICT_SCREENING_THRESHOLD,
+          protocol.selectionProcess.screeningThreshold || 0
+        );
         const prompt = `Systematic Review Protocol Title: "${protocol.title}"
 Inclusion Criteria: ${protocol.eligibilityCriteria.inclusion.join("; ")}
 Exclusion Criteria: ${protocol.eligibilityCriteria.exclusion.join("; ")}
 
-Review the following studies using the supplied title, abstract, and protocol criteria. Do not infer eligibility from keyword overlap or a numeric title-match threshold.
-Calculate an overall eligibility score (0-100) and concise justification:
-If score < 80, choose exclusion reason: "Secondary literature / Review paper" | "Out of scope / Keyword mismatch" | "Wrong population" | "Wrong intervention / exposure" | "Wrong comparator" | "Wrong outcome" | "Wrong study design" | "Not accessible / full text unavailable" | "Duplicate / non-original" | "Language barrier" | "Other".
+Apply a strict title-and-abstract screening gate to every study. Include only when the supplied title or abstract explicitly supports the review population, intervention or exposure, outcome, and eligible study design. Do not infer eligibility from keyword overlap, topic similarity, or absent information. Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage pending full-text verification.
+Calculate an overall eligibility score (0-100) and give a concise, criterion-specific justification.
+If score < ${effectiveThreshold}, choose the best-supported exclusion reason: "Secondary literature / Review paper" | "Out of scope / Keyword mismatch" | "Wrong population" | "Wrong intervention / exposure" | "Wrong comparator" | "Wrong outcome" | "Wrong study design" | "Not accessible / full text unavailable" | "Duplicate / non-original" | "Language barrier" | "Other".
 
 Studies:
 ${JSON.stringify(payload)}
@@ -87,7 +171,7 @@ Return ONLY a JSON array:
           if (Array.isArray(parsed)) {
             parsed.forEach((p: any) => {
               const finalScore = p.score ?? null;
-              const isInclude = finalScore !== null && finalScore >= (protocol.selectionProcess.screeningThreshold || 80);
+              const isInclude = finalScore !== null && finalScore >= effectiveThreshold;
 
               nextScreening[p.id] = {
                 score: finalScore,
@@ -106,7 +190,7 @@ Return ONLY a JSON array:
         }
 
         setProgress(Math.round(((b + 1) / totalBatches) * 100));
-        onUpdateScreening({ ...nextScreening });
+        onUpdateScreening({ ...enforceInclusionLimit(nextScreening) });
       }
     } finally {
       screeningRunRef.current = false;
@@ -140,7 +224,7 @@ Return ONLY a JSON array:
               Study Selection & Screening Review
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Screen all imported records against the documented protocol criteria. Table 1 below records the academic justification for each included paper.
+              Screen every imported record using a strict title and abstract evidence gate. The bounded synthesis set retains no more than 99 of the strongest protocol matches.
             </p>
           </div>
 
@@ -178,6 +262,69 @@ Return ONLY a JSON array:
         screeningRecords={screeningPool.filter((record) => screening[record.id]?.agreed === true)}
         screening={screening}
       />
+
+      <section className="bg-slate-950 text-slate-100 border border-slate-800 p-6 rounded-xl shadow-sm space-y-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="font-mono text-[10px] text-indigo-300 uppercase tracking-wider font-bold">
+              Uploaded Records · PRISMA 2020 Evidence Summary
+            </div>
+            <h3 className="text-xl font-bold mt-1 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-indigo-300" />
+              PRISMA Synthesis Report
+            </h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+              Automatically summarizes all uploaded records, current screening outcomes, exclusion reasons, and the included synthesis set without claiming unverified full-text results.
+            </p>
+          </div>
+          <button
+            onClick={downloadPrismaSynthesisReport}
+            disabled={screeningPool.length === 0}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-slate-950 bg-white hover:bg-slate-100 disabled:bg-slate-700 disabled:text-slate-400 rounded-lg transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download Report
+          </button>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+          {[
+            ["Uploaded", screeningPool.length],
+            ["Screened", includedCount + excludedCount],
+            ["Included", includedCount],
+            ["Excluded", excludedCount],
+            ["Pending", pendingCount],
+          ].map(([label, value]) => (
+            <div key={label} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
+              <div className="text-[10px] font-mono uppercase text-slate-500">{label}</div>
+              <div className="text-xl font-bold mt-1">{value}</div>
+            </div>
+          ))}
+        </div>
+
+        <div className="grid md:grid-cols-2 gap-5 text-xs">
+          <div>
+            <h4 className="font-mono font-bold text-slate-200 mb-2">Selection summary</h4>
+            <p className="text-slate-400 leading-relaxed">
+              All {screeningPool.length} uploaded records form the screening pool. Inclusion requires explicit protocol support in the supplied title and abstract. The final synthesis set is limited to the {MAX_INCLUDED_RECORDS} highest-supported records.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-mono font-bold text-slate-200 mb-2">Recorded exclusion reasons</h4>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(exclusionBreakdown).length > 0 ? (
+                Object.entries(exclusionBreakdown).map(([reason, count]) => (
+                  <span key={reason} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300">
+                    {reason}: {count}
+                  </span>
+                ))
+              ) : (
+                <span className="text-slate-500">No exclusions recorded yet.</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
