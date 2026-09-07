@@ -28,6 +28,7 @@ const authorYearLabel = (record: SLRRecord) =>
   `${firstAuthorSurname(record)} et al. (${record.year || "n.d."})`;
 
 const RECORD_NOT_REPORTED = "Not reported in the supplied record";
+const OUTCOME_CLUSTER = "Outcomes, performance, and reported effects";
 
 const buildStudiesFromRecords = (records: SLRRecord[]): SynthesisStudy[] =>
   records.map((record) => ({
@@ -105,10 +106,72 @@ const clusterStudies = (studies: SynthesisStudy[]) => {
 const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 const studyCitationLine = (study: SynthesisStudy) => {
-  const finding = (study.keyFinding || "No finding was reported in the supplied record.")
+  const rawFinding = (study.keyFinding || "No finding was reported in the supplied record.")
     .replace(/\s+/g, " ")
     .trim();
-  return `${study.authorYear}: ${finding}`;
+  const finding = rawFinding.split(/(?<=[.!?])\s+/)[0].slice(0, 220).trim();
+  return `${study.authorYear}: ${finding}${rawFinding.length > 220 ? "…" : ""}`;
+};
+
+const themeTerms = (studies: SynthesisStudy[]) => {
+  const stopWords = new Set([
+    "about", "across", "after", "among", "based", "between", "could", "from",
+    "into", "more", "other", "reported", "record", "records", "study", "studies",
+    "their", "these", "those", "using", "with", "within", "not", "supplied",
+    "information", "described", "details", "available", "included",
+  ]);
+  const counts = new Map<string, number>();
+  studies.forEach((study) => {
+    const text = [
+      study.interventionOrFocus,
+      study.primaryOutcome,
+      study.keyFinding,
+    ].join(" ").toLowerCase();
+    text.match(/[a-z][a-z0-9]{3,}/g)?.forEach((word) => {
+      if (!stopWords.has(word) && !word.includes("reported")) {
+        counts.set(word, (counts.get(word) || 0) + 1);
+      }
+    });
+  });
+  return Array.from(counts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 4)
+    .map(([word]) => word);
+};
+
+const outcomeFocuses = (studies: SynthesisStudy[]) => {
+  const focuses = studies.map((study) => {
+    const suppliedOutcome = study.primaryOutcome?.trim();
+    if (suppliedOutcome && suppliedOutcome !== RECORD_NOT_REPORTED) {
+      return suppliedOutcome.split(/[.;]/)[0].slice(0, 80).trim();
+    }
+    const keywords = themeTerms([study]).slice(0, 2);
+    return keywords.join(" and ") || "reported findings";
+  });
+  return Array.from(new Set(focuses)).slice(0, 4);
+};
+
+const buildThematicDiscussion = (
+  cluster: { key: string; studies: SynthesisStudy[] },
+  suppliedProse = "",
+) => {
+  if (cluster.studies.length === 0) {
+    return `No included records were assigned to the ${cluster.key.toLowerCase()} cluster.`;
+  }
+
+  const terms = themeTerms(cluster.studies);
+  const topicPhrase = terms.length > 0 ? terms.join(", ") : "the reported study findings";
+  const discussion = cluster.key === OUTCOME_CLUSTER
+    ? (() => {
+        const focuses = outcomeFocuses(cluster.studies);
+        const focusPhrase = focuses.join("; ");
+        return `The ${cluster.key.toLowerCase()} cluster comprises ${cluster.studies.length} included record${cluster.studies.length === 1 ? "" : "s"} organized around ${topicPhrase}. The reported outcome focuses include ${focusPhrase}. These records are therefore compared by outcome family, considering how each study evaluates performance or reported effects, rather than treating unlike measures as a single pooled result.`;
+      })()
+    : `The ${cluster.key.toLowerCase()} cluster comprises ${cluster.studies.length} included record${cluster.studies.length === 1 ? "" : "s"} with recurring emphasis on ${topicPhrase}. The records are discussed together because these shared features provide a thematic basis for comparing the reported approaches and findings.`;
+
+  const supplied = formatClusterProse(suppliedProse, cluster.studies);
+  const citationEvidence = cluster.studies.map(studyCitationLine).join("\n\n");
+  return `${discussion}\n\n${citationEvidence || supplied}`;
 };
 
 const formatClusterProse = (prose: string, studies: SynthesisStudy[]) => {
@@ -139,7 +202,7 @@ const formatClusterProse = (prose: string, studies: SynthesisStudy[]) => {
 const fallbackSubtopics = (studies: SynthesisStudy[]) =>
   clusterStudies(studies).map((cluster, index) => ({
     title: `${index + 1}. ${cluster.key} evidence`,
-    prose: formatClusterProse("", cluster.studies),
+    prose: buildThematicDiscussion(cluster),
   }));
 
 const normalizeSubtopics = (subtopics: any[], studies: SynthesisStudy[]) => {
@@ -151,9 +214,9 @@ const normalizeSubtopics = (subtopics: any[], studies: SynthesisStudy[]) => {
       : `${index + 1}. ${cluster.key} evidence`;
     return {
       title: title.replace(/^\d+\.\s*/, `${index + 1}. `),
-      prose: formatClusterProse(
+      prose: buildThematicDiscussion(
+        cluster,
         typeof supplied?.prose === "string" ? supplied.prose : "",
-        cluster.studies,
       ),
     };
   });
