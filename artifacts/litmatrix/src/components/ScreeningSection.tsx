@@ -9,14 +9,15 @@ import {
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 import StudyCharacteristicsTable from "./StudyCharacteristicsTable";
 
-export const MAX_AI_PROCESSING_RECORDS = 99;
 const STRICT_SCREENING_THRESHOLD = 85;
 
 interface ScreeningSectionProps {
   records: SLRRecord[];
   dupesRemoved: number;
   screening: Record<string, ScreeningDecision>;
-  onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
+  onUpdateScreening: (
+    screening: Record<string, ScreeningDecision>
+  ) => void;
   protocol: SLRProtocol;
   aiConfig: any;
 }
@@ -33,128 +34,222 @@ export default function ScreeningSection({
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const screeningRunRef = useRef(false);
+
   const screeningPool = records;
 
+  /*
+   * All records that have been genuinely marked as included
+   * are retained here.
+   *
+   * IMPORTANT:
+   * There is no artificial maximum number of included studies.
+   * Any downstream AI-processing limit must be handled separately.
+   */
   const includedRecords = screeningPool
-    .filter((record) => screening[record.id]?.agreed === true)
-    .sort((a, b) => (screening[b.id]?.score || 0) - (screening[a.id]?.score || 0))
-    .slice(0, MAX_INCLUDED_RECORDS);
-  const includedIds = new Set(includedRecords.map((record) => record.id));
+    .filter(
+      (record) => screening[record.id]?.agreed === true
+    )
+    .sort(
+      (a, b) =>
+        (screening[b.id]?.score || 0) -
+        (screening[a.id]?.score || 0)
+    );
+
+  const includedIds = new Set(
+    includedRecords.map((record) => record.id)
+  );
+
   const includedCount = includedRecords.length;
   const afterDedupCount = screeningPool.length;
-  const excludedCount = Math.max(0, afterDedupCount - includedCount);
-  const exclusionBreakdown = screeningPool.reduce<Record<string, number>>((acc, record) => {
+
+  /*
+   * Count only records that have an explicit exclusion decision.
+   *
+   * The inclusion count is never artificially capped.
+   */
+  const excludedCount = screeningPool.filter(
+    (record) => screening[record.id]?.agreed === false
+  ).length;
+
+  /*
+   * Exclusion reasons are derived only from actual
+   * recorded exclusion decisions.
+   */
+  const exclusionBreakdown = screeningPool.reduce<
+    Record<string, number>
+  >((acc, record) => {
     const decision = screening[record.id];
-    if (!includedIds.has(record.id)) {
-      const reason = decision?.agreed === false
-        ? decision.exclusionReason || "Other"
-        : "Other";
+
+    if (
+      !includedIds.has(record.id) &&
+      decision?.agreed === false
+    ) {
+      const reason =
+        decision.exclusionReason || "Other";
+
       acc[reason] = (acc[reason] || 0) + 1;
     }
+
     return acc;
   }, {});
-
-  const enforceInclusionLimit = (
-    decisions: Record<string, ScreeningDecision>
-  ): Record<string, ScreeningDecision> => {
-    const rankedCandidates = screeningPool
-      .filter((record) => decisions[record.id]?.agreed === true)
-      .sort((a, b) => (decisions[b.id]?.score || 0) - (decisions[a.id]?.score || 0));
-
-    rankedCandidates.slice(MAX_INCLUDED_RECORDS).forEach((record) => {
-      const previous = decisions[record.id];
-      decisions[record.id] = {
-        ...previous,
-        decision: "exclude",
-        agreed: false,
-        exclusionReason: "Other",
-        reason: `The record met the minimum screening threshold but ranked outside the ${MAX_INCLUDED_RECORDS} strongest protocol matches. It was excluded from the bounded synthesis set; full-text eligibility was not assessed.`,
-      };
-    });
-
-    return decisions;
-  };
 
   const downloadPrismaSynthesisReport = () => {
     const report = [
       `# PRISMA Synthesis Report`,
       ``,
+
       `## Review`,
       protocol.title || "Untitled systematic review",
       ``,
+
       `## Exclusion reasons`,
       ...(Object.entries(exclusionBreakdown).length > 0
-        ? Object.entries(exclusionBreakdown).map(([reason, count]) => `- ${reason}: ${count}`)
+        ? Object.entries(exclusionBreakdown).map(
+            ([reason, count]) =>
+              `- ${reason}: ${count}`
+          )
         : ["- No exclusions recorded."]),
       ``,
+
       `## Included records and screening justifications`,
       ...(includedRecords.length > 0
         ? includedRecords.map((record, index) => {
-            const authors = record.authors?.join(", ") || "Authors not reported";
-            const source = record.source || "Source not reported";
-            const reason = screening[record.id]?.reason || "No justification recorded.";
+            const authors =
+              record.authors?.join(", ") ||
+              "Authors not reported";
+
+            const source =
+              record.source ||
+              "Source not reported";
+
+            const reason =
+              screening[record.id]?.reason ||
+              "No justification recorded.";
+
             return `${index + 1}. **${record.title}** — ${authors} — ${source}\n   ${reason}`;
           })
         : ["No records are currently included."]),
       ``,
+
       `## Evidence-synthesis status`,
       `This report summarizes uploaded citation records and recorded screening decisions. Narrative findings should be generated only from information contained in the uploaded records or separately verified full texts. No pooled effects, heterogeneity statistics, risk-of-bias judgments, or certainty ratings are inferred.`,
     ].join("\n");
 
-    const blob = new Blob([report], { type: "text/markdown;charset=utf-8" });
+    const blob = new Blob([report], {
+      type: "text/markdown;charset=utf-8",
+    });
+
     const url = URL.createObjectURL(blob);
+
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = "PRISMA_Synthesis_Report.md";
     anchor.click();
+
     URL.revokeObjectURL(url);
   };
 
   // AI-assisted screening
   const runAIScreening = async () => {
-    // State updates are asynchronous; the ref prevents two rapid clicks from
-    // creating overlapping OpenRouter batches before the button disables.
-    if (screeningPool.length === 0 || screeningRunRef.current) return;
+    /*
+     * Prevent overlapping screening runs.
+     */
+    if (
+      screeningPool.length === 0 ||
+      screeningRunRef.current
+    ) {
+      return;
+    }
+
     screeningRunRef.current = true;
+
     setRunningScreening(true);
     setProgress(0);
     setErrorMessage(null);
 
+    /*
+     * Screening is performed across ALL imported/deduplicated
+     * records.
+     *
+     * There is intentionally no 99-study inclusion limit here.
+     */
     const batchSize = 4;
-    const totalBatches = Math.ceil(screeningPool.length / batchSize);
-    const nextScreening = { ...screening };
+    const totalBatches = Math.ceil(
+      screeningPool.length / batchSize
+    );
+
+    const nextScreening = {
+      ...screening,
+    };
 
     try {
-      for (let b = 0; b < totalBatches; b++) {
-        const batch = screeningPool.slice(b * batchSize, (b + 1) * batchSize);
+      for (
+        let b = 0;
+        b < totalBatches;
+        b++
+      ) {
+        const batch = screeningPool.slice(
+          b * batchSize,
+          (b + 1) * batchSize
+        );
+
         const payload = batch.map((r) => ({
           id: r.id,
           title: r.title,
-          abstract: (r.abstract || "").slice(0, 500),
+          abstract: (r.abstract || "").slice(
+            0,
+            500
+          ),
         }));
 
         const effectiveThreshold = Math.max(
           STRICT_SCREENING_THRESHOLD,
-          protocol.selectionProcess.screeningThreshold || 0
+          protocol.selectionProcess
+            .screeningThreshold || 0
         );
+
         const prompt = `Systematic Review Protocol Title: "${protocol.title}"
+
 Inclusion Criteria: ${protocol.eligibilityCriteria.inclusion.join("; ")}
+
 Exclusion Criteria: ${protocol.eligibilityCriteria.exclusion.join("; ")}
 
-Apply a strict record-evidence screening gate to every study. Include only when the supplied record details explicitly support the review population, intervention or exposure, outcome, and eligible study design. Do not infer eligibility from keyword overlap, topic similarity, or absent information. Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage; full-text verification is not claimed.
+Apply a strict record-evidence screening gate to every study.
+
+Include only when the supplied record details explicitly support the review population, intervention or exposure, outcome, and eligible study design.
+
+Do not infer eligibility from keyword overlap, topic similarity, or absent information.
+
+Ambiguous records and records without enough evidence must score below ${effectiveThreshold} and be excluded at this stage; full-text verification is not claimed.
+
 Calculate an overall eligibility score (0-100) and give a concise, criterion-specific justification.
-If score < ${effectiveThreshold}, choose the best-supported exclusion reason: "Secondary literature / Review paper" | "Out of scope / Keyword mismatch" | "Wrong population" | "Wrong intervention / exposure" | "Wrong comparator" | "Wrong outcome" | "Wrong study design" | "Not accessible / full text unavailable" | "Duplicate / non-original" | "Language barrier" | "Other".
+
+If score < ${effectiveThreshold}, choose the best-supported exclusion reason:
+
+"Secondary literature / Review paper" |
+"Out of scope / Keyword mismatch" |
+"Wrong population" |
+"Wrong intervention / exposure" |
+"Wrong comparator" |
+"Wrong outcome" |
+"Wrong study design" |
+"Not accessible / full text unavailable" |
+"Duplicate / non-original" |
+"Language barrier" |
+"Other".
 
 Studies:
+
 ${JSON.stringify(payload)}
 
 Return ONLY a JSON array:
+
 [
   {
     "id": "...",
     "score": 90,
     "reason": "...",
-    "exclusionReason": "Wrong population" (optional)
+    "exclusionReason": "Wrong population"
   }
 ]`;
 
@@ -165,43 +260,140 @@ Return ONLY a JSON array:
             aiConfig,
             1200
           );
-          const parsed = parseJSONLoose(text);
+
+          const parsed =
+            parseJSONLoose(text);
+
           if (Array.isArray(parsed)) {
             parsed.forEach((p: any) => {
-              const finalScore = p.score ?? null;
-              const isInclude = finalScore !== null && finalScore >= effectiveThreshold;
+              /*
+               * Only accept AI results belonging to
+               * the current batch.
+               */
+              const recordExists = batch.some(
+                (record) =>
+                  record.id === p.id
+              );
+
+              if (!recordExists) {
+                return;
+              }
+
+              const rawScore = p.score;
+
+              const numericScore =
+                typeof rawScore === "number"
+                  ? rawScore
+                  : Number(rawScore);
+
+              const validScore =
+                Number.isFinite(numericScore) &&
+                numericScore >= 0 &&
+                numericScore <= 100;
+
+              const finalScore =
+                validScore
+                  ? numericScore
+                  : null;
+
+              const isInclude =
+                finalScore !== null &&
+                finalScore >=
+                  effectiveThreshold;
 
               nextScreening[p.id] = {
                 score: finalScore,
-                reason: p.reason || (isInclude ? "Meets PICO criteria and keyword match" : "Does not meet criteria"),
-                decision: isInclude ? "include" : "exclude",
+
+                reason:
+                  p.reason ||
+                  (
+                    isInclude
+                      ? "Meets the protocol eligibility criteria based on the supplied record evidence."
+                      : "Does not meet the protocol eligibility criteria based on the supplied record evidence."
+                  ),
+
+                decision: isInclude
+                  ? "include"
+                  : "exclude",
+
                 agreed: isInclude,
-                exclusionReason: !isInclude ? p.exclusionReason || "Wrong study design" : undefined,
+
+                exclusionReason: !isInclude
+                  ? p.exclusionReason ||
+                    "Other"
+                  : undefined,
               };
             });
           }
         } catch (err: any) {
-          console.warn("AI screening batch error:", err);
+          console.warn(
+            "AI screening batch error:",
+            err
+          );
+
+          /*
+           * RETAINED AS REQUESTED:
+           * If an AI batch fails, unresolved records
+           * are conservatively excluded.
+           */
           if (!errorMessage) {
-            setErrorMessage(`AI screening could not complete this batch: ${err.message || "Request failed"}. Unresolved records were conservatively excluded.`);
+            setErrorMessage(
+              `AI screening could not complete this batch: ${
+                err?.message ||
+                "Request failed"
+              }. Unresolved records were conservatively excluded.`
+            );
           }
         }
 
+        /*
+         * If a record did not receive a usable AI
+         * screening result, retain the existing
+         * conservative exclusion behavior.
+         */
         batch.forEach((record) => {
-          const decision = nextScreening[record.id];
-          if (!decision || decision.agreed === undefined) {
+          const decision =
+            nextScreening[record.id];
+
+          if (
+            !decision ||
+            decision.agreed === undefined
+          ) {
             nextScreening[record.id] = {
-              score: decision?.score ?? null,
-              reason: "No explicit protocol match was confirmed during the brief record scan; excluded conservatively from the synthesis set.",
+              score:
+                decision?.score ?? null,
+
+              reason:
+                "No explicit protocol match was confirmed during the brief record scan; excluded conservatively from the synthesis set.",
+
               decision: "exclude",
+
               agreed: false,
+
               exclusionReason: "Other",
             };
           }
         });
 
-        setProgress(Math.round(((b + 1) / totalBatches) * 100));
-        onUpdateScreening({ ...enforceInclusionLimit(nextScreening) });
+        setProgress(
+          Math.round(
+            ((b + 1) /
+              totalBatches) *
+              100
+          )
+        );
+
+        /*
+         * IMPORTANT:
+         * Save the screening results directly.
+         *
+         * There is NO enforceInclusionLimit()
+         * and therefore no artificial conversion
+         * of INCLUDE records into EXCLUDE records.
+         */
+        onUpdateScreening({
+          ...nextScreening,
+        });
       }
     } finally {
       screeningRunRef.current = false;
@@ -210,15 +402,25 @@ Return ONLY a JSON array:
   };
 
   return (
-    <div id="screening-section-container" className="space-y-6">
+    <div
+      id="screening-section-container"
+      className="space-y-6"
+    >
       {/* Error / Notice message */}
       {errorMessage && (
         <div className="p-3.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs flex items-center justify-between font-mono">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+
             <span>{errorMessage}</span>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-amber-700 hover:text-amber-900 font-bold">
+
+          <button
+            onClick={() =>
+              setErrorMessage(null)
+            }
+            className="text-amber-700 hover:text-amber-900 font-bold"
+          >
             ✕
           </button>
         </div>
@@ -229,24 +431,35 @@ Return ONLY a JSON array:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-               PRISMA 2020 Items 8, 16a & 16b · Investigator Screening
+              PRISMA 2020 Items 8, 16a & 16b · Investigator Screening
             </div>
+
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
               Study Selection & Screening Review
             </h2>
+
             <p className="text-xs text-slate-500 mt-1">
-              Screen every imported record using a strict record-evidence gate. The bounded synthesis set retains no more than 99 of the strongest protocol matches.
+              Screen every imported record using a strict
+              record-evidence gate. All genuine screening
+              decisions are retained. Downstream AI processing
+              may be limited separately to control AI usage.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={runAIScreening}
-              disabled={runningScreening || screeningPool.length === 0}
+              disabled={
+                runningScreening ||
+                screeningPool.length === 0
+              }
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {runningScreening ? `Screening (${progress}%)...` : "AI Screen Records"}
+
+              {runningScreening
+                ? `Screening (${progress}%)...`
+                : "AI Screen Records"}
             </button>
           </div>
         </div>
@@ -254,16 +467,34 @@ Return ONLY a JSON array:
         {/* Progress bar if running */}
         {runningScreening && (
           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
-            <div style={{ width: `${progress}%` }} className="bg-indigo-600 h-full transition-all duration-300" />
+            <div
+              style={{
+                width: `${progress}%`,
+              }}
+              className="bg-indigo-600 h-full transition-all duration-300"
+            />
           </div>
         )}
 
         {Object.keys(screening).length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 border border-slate-200 rounded-xl">
             <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
-              <span className="text-emerald-700 font-semibold">{includedCount} Included</span>
-              <span className="text-rose-700 font-semibold">{excludedCount} Excluded</span>
+              <span className="text-emerald-700 font-semibold">
+                {includedCount} Included
+              </span>
+
+              <span className="text-rose-700 font-semibold">
+                {excludedCount} Excluded
+              </span>
             </div>
+
+            {includedCount > 99 && (
+              <span className="text-amber-700 font-mono text-xs font-semibold">
+                {includedCount} included. Downstream AI
+                processing should be limited separately
+                to control AI usage.
+              </span>
+            )}
           </div>
         )}
       </div>
@@ -279,17 +510,27 @@ Return ONLY a JSON array:
             <div className="font-mono text-[10px] text-indigo-300 uppercase tracking-wider font-bold">
               Uploaded Records · PRISMA 2020 Evidence Summary
             </div>
+
             <h3 className="text-xl font-bold mt-1 flex items-center gap-2">
               <FileText className="w-5 h-5 text-indigo-300" />
               PRISMA Synthesis Report
             </h3>
+
             <p className="text-xs text-slate-400 mt-1 max-w-2xl">
-              Automatically summarizes all uploaded records, current screening outcomes, exclusion reasons, and the included synthesis set without claiming unverified full-text results.
+              Automatically summarizes all uploaded records,
+              current screening outcomes, exclusion reasons,
+              and the complete included set without claiming
+              unverified full-text results.
             </p>
           </div>
+
           <button
-            onClick={downloadPrismaSynthesisReport}
-            disabled={screeningPool.length === 0}
+            onClick={
+              downloadPrismaSynthesisReport
+            }
+            disabled={
+              screeningPool.length === 0
+            }
             className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-slate-950 bg-white hover:bg-slate-100 disabled:bg-slate-700 disabled:text-slate-400 rounded-lg transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
@@ -299,29 +540,66 @@ Return ONLY a JSON array:
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            ["Uploaded", screeningPool.length + dupesRemoved],
-            ["After deduplication", afterDedupCount],
-            ["Included", includedCount],
-            ["Excluded", excludedCount],
-          ].map(([label, value]) => (
-            <div key={label} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
-              <div className="text-[10px] font-mono uppercase text-slate-500">{label}</div>
-              <div className="text-xl font-bold mt-1">{value}</div>
-            </div>
-          ))}
+            [
+              "Uploaded",
+              screeningPool.length +
+                dupesRemoved,
+            ],
+            [
+              "After deduplication",
+              afterDedupCount,
+            ],
+            [
+              "Included",
+              includedCount,
+            ],
+            [
+              "Excluded",
+              excludedCount,
+            ],
+          ].map(
+            ([label, value]) => (
+              <div
+                key={label}
+                className="bg-slate-900 border border-slate-800 rounded-lg p-3"
+              >
+                <div className="text-[10px] font-mono uppercase text-slate-500">
+                  {label}
+                </div>
+
+                <div className="text-xl font-bold mt-1">
+                  {value}
+                </div>
+              </div>
+            )
+          )}
         </div>
 
         <div className="text-xs">
-          <h4 className="font-mono font-bold text-slate-200 mb-2">Recorded exclusion reasons</h4>
+          <h4 className="font-mono font-bold text-slate-200 mb-2">
+            Recorded exclusion reasons
+          </h4>
+
           <div className="flex flex-wrap gap-2">
-            {Object.entries(exclusionBreakdown).length > 0 ? (
-              Object.entries(exclusionBreakdown).map(([reason, count]) => (
-                <span key={reason} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300">
-                  {reason}: {count}
-                </span>
-              ))
+            {Object.entries(
+              exclusionBreakdown
+            ).length > 0 ? (
+              Object.entries(
+                exclusionBreakdown
+              ).map(
+                ([reason, count]) => (
+                  <span
+                    key={reason}
+                    className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300"
+                  >
+                    {reason}: {count}
+                  </span>
+                )
+              )
             ) : (
-              <span className="text-slate-500">No exclusions recorded yet.</span>
+              <span className="text-slate-500">
+                No exclusions recorded yet.
+              </span>
             )}
           </div>
         </div>
