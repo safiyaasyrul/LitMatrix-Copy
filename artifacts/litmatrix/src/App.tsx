@@ -339,6 +339,20 @@ export default function App() {
     const afterDedupCount = records.length;
     const includedCount = includedRecords.length;
     const excludedCount = Math.max(0, afterDedupCount - includedCount);
+    const databaseBreakdown = records.reduce<Record<string, number>>((breakdown, record) => {
+      const sources = record.databaseSources?.length
+        ? record.databaseSources
+        : [record.databaseSource || "Other databases"];
+      const normalizedSources = Array.from(new Set(sources.map((source) => {
+        if (/scopus/i.test(source)) return "Scopus";
+        if (/web\s*of\s*science|wos/i.test(source)) return "Web of Science";
+        return "Other databases";
+      })));
+      normalizedSources.forEach((source) => {
+        breakdown[source] = (breakdown[source] || 0) + 1;
+      });
+      return breakdown;
+    }, {});
 
     return {
       uploaded: uploadedCount,
@@ -354,6 +368,7 @@ export default function App() {
       assessedExcluded: 0,
       exclusionReasonsBreakdown,
       included: includedCount,
+      databaseBreakdown,
       fullTextAssessmentRecorded: false,
     };
   }, [records, screening, dupesRemoved, includedRecords, excludedRecords, exclusionReasonsBreakdown]);
