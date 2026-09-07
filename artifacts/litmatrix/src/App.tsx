@@ -482,7 +482,7 @@ export default function App() {
     },
     {
       id: "screening",
-      label: "AI Selection & Exclusions",
+      label: "Study Selection & Exclusions",
       badge: "Items 8, 16a, 16b",
       icon: CheckCircle,
     },
@@ -687,7 +687,7 @@ export default function App() {
             />
           )}
 
-          {/* Stage 5: AI & Dual-Reviewer Screening */}
+          {/* Stage 5: Study Screening */}
           {activeStage === 4 && (
             <ScreeningSection
               records={records}
