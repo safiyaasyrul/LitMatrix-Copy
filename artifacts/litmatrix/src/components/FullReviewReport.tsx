@@ -201,8 +201,7 @@ export default function FullReviewReport({
     md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
     md += `| --- | --- | --- |\n`;
     screenedRecords.forEach((record) => {
-      const c = characteristicByRecordId.get(record.id);
-      const justification = c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.";
+      const justification = screening[record.id]?.reason || "No screening justification recorded. Full-text eligibility was not verified.";
       md += `| ${getArticleRecord(record).replace(/\|/g, "/")} | ${getScreeningStatus(record)} | ${justification.replace(/\|/g, "/")} |\n`;
     });
     md += `\n`;
@@ -363,12 +362,11 @@ export default function FullReviewReport({
     </thead>
     <tbody>
       ${screenedRecords.map((record) => {
-        const c = characteristicByRecordId.get(record.id);
         return `
         <tr>
           <td><strong>${getArticleRecord(record)}</strong></td>
           <td>${getScreeningStatus(record)}</td>
-          <td>${c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
+          <td>${screening[record.id]?.reason || "No screening justification recorded. Full-text eligibility was not verified."}</td>
         </tr>
       `;
       }).join("")}
@@ -648,7 +646,6 @@ export default function FullReviewReport({
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {screenedRecords.map((record) => {
-                    const c = characteristicByRecordId.get(record.id);
                     return (
                       <tr key={record.id} className="hover:bg-slate-50/50">
                         <td className="p-2.5 text-slate-900">
@@ -656,7 +653,7 @@ export default function FullReviewReport({
                         </td>
                         <td className="p-2.5 whitespace-nowrap">{getScreeningStatus(record)}</td>
                         <td className="p-2.5 text-slate-700">
-                          {c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}
+                          {screening[record.id]?.reason || "No screening justification recorded. Full-text eligibility was not verified."}
                         </td>
                       </tr>
                     );

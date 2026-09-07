@@ -13,8 +13,6 @@ interface ScreeningSectionProps {
   onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
   protocol: SLRProtocol;
   aiConfig: any;
-  characteristics: import("../types/slr").StudyCharacteristic[];
-  onUpdateCharacteristics: (chars: import("../types/slr").StudyCharacteristic[]) => void;
 }
 
 export default function ScreeningSection({
@@ -23,8 +21,6 @@ export default function ScreeningSection({
   onUpdateScreening,
   protocol,
   aiConfig,
-  characteristics,
-  onUpdateCharacteristics,
 }: ScreeningSectionProps) {
   const [runningScreening, setRunningScreening] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -187,12 +183,8 @@ Return ONLY a JSON array:
 
       <StudyCharacteristicsTable
         screeningRecords={screeningPool}
-        characteristics={characteristics}
-        onUpdateCharacteristics={onUpdateCharacteristics}
         onUpdateScreening={onUpdateScreening}
         screening={screening}
-        protocol={protocol}
-        aiConfig={aiConfig}
       />
     </div>
   );

@@ -668,8 +668,6 @@ export default function App() {
               onUpdateScreening={setScreening}
               protocol={protocol}
               aiConfig={activeAIConfig}
-              characteristics={characteristics}
-              onUpdateCharacteristics={setCharacteristics}
             />
           )}
 
