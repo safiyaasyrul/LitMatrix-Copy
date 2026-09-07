@@ -26,7 +26,7 @@ export default function ScreeningSection({
   const [progress, setProgress] = useState(0);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const screeningRunRef = useRef(false);
-  const screeningPool = records.slice(0, 100);
+  const screeningPool = records;
 
   const includedCount = screeningPool.filter((r) => screening[r.id]?.agreed === true).length;
   const excludedCount = screeningPool.filter((r) => screening[r.id]?.agreed === false).length;
@@ -140,7 +140,7 @@ Return ONLY a JSON array:
               Study Selection & Screening Review
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Select up to 100 records for further screening against the documented protocol criteria. Table 1 below records why each selected record was included or excluded.
+              Screen all imported records against the documented protocol criteria. Table 1 below records the academic justification for each included paper.
             </p>
           </div>
 
@@ -163,13 +163,6 @@ Return ONLY a JSON array:
           </div>
         )}
 
-        {records.length > 100 && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
-            <strong>Screening pool limited to 100 records.</strong>{" "}
-            {records.length - 100} additional records remain outside further screening until the pool is changed.
-          </div>
-        )}
-
         {Object.keys(screening).length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 border border-slate-200 rounded-xl">
             <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
@@ -182,8 +175,7 @@ Return ONLY a JSON array:
       </div>
 
       <StudyCharacteristicsTable
-        screeningRecords={screeningPool}
-        onUpdateScreening={onUpdateScreening}
+        screeningRecords={screeningPool.filter((record) => screening[record.id]?.agreed === true)}
         screening={screening}
       />
     </div>

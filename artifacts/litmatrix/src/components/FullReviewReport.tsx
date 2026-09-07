@@ -4,7 +4,6 @@ import {
   SLRRecord,
   ScreeningDecision,
   StudyCharacteristic,
-  RiskOfBiasItem,
   SynthesisResult,
   GradeCertaintyItem,
   DiscussionSections,
@@ -19,7 +18,6 @@ interface FullReviewReportProps {
   screenedRecords: SLRRecord[];
   screening: Record<string, ScreeningDecision>;
   characteristics: StudyCharacteristic[];
-  riskOfBias: RiskOfBiasItem[];
   synthesis: SynthesisResult;
   gradeItems: GradeCertaintyItem[];
   discussion: DiscussionSections;
@@ -33,7 +31,6 @@ export default function FullReviewReport({
   screenedRecords,
   screening,
   characteristics,
-  riskOfBias,
   synthesis,
   gradeItems,
   discussion,
@@ -50,7 +47,6 @@ export default function FullReviewReport({
 
   const objectives = protocol.secondaryObjectives || [
     "Describe the evidence by themes grounded in the included records",
-    "Appraise methodological quality using criteria appropriate to the study designs",
   ];
 
   // Helper for generating PICOC narrative paragraph in Methods
@@ -134,7 +130,6 @@ export default function FullReviewReport({
       "Evidence Synthesis",
        "Narrative Synthesis",
        "Study Characteristics",
-      "Methodological Quality",
       ...Array.from(categoriesMap.keys()).slice(0, 3),
     ].filter(Boolean);
 
@@ -190,9 +185,6 @@ export default function FullReviewReport({
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
     md += `The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not recorded and are not claimed here.\n\n`;
 
-    md += `### 2.5 Methodological Quality and Systematic Assessment Methodology\n`;
-    md += `Methodological rigor and potential threats to validity were systematically assessed using ${protocol.riskOfBiasMethods.toolName || "a domain-tailored engineering quality checklist"}. The appraisal systematically evaluated study design formulation, benchmark data adequacy, measurement precision, baseline comparability, and experimental repeatability.\n\n`;
-
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
     md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
@@ -206,15 +198,7 @@ export default function FullReviewReport({
     });
     md += `\n`;
 
-    md += `### 3.3 Methodological Quality and Rigor Assessment (Table 2)\n\n`;
-    md += `| Study | Study Design & Setup | Benchmark Data Adequacy | Measurement Methodology | Baseline Validation | Repeatability & Reporting | Overall Rigor | Methodological Justification |\n`;
-    md += `| --- | --- | --- | --- | --- | --- | --- | --- |\n`;
-    riskOfBias.forEach((r) => {
-      md += `| ${r.authorYear} | ${r.d1Selection} | ${r.d2Performance} | ${r.d3Attrition} | ${r.d4Detection} | ${r.d5Reporting} | ${r.overall} | ${r.justification.replace(/\|/g, "/")} |\n`;
-    });
-    md += `\n`;
-
-    md += `### 3.4 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
+    md += `### 3.3 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
     synthesis.subtopics.forEach((sub) => {
       md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
@@ -224,7 +208,7 @@ export default function FullReviewReport({
     }
 
     if (gradeItems.length > 0) {
-      md += `### 3.5 Optional Certainty of Evidence Assessment\n\n`;
+       md += `### 3.4 Optional Certainty of Evidence Assessment\n\n`;
       md += `A certainty assessment was included only because it was explicitly populated by the reviewer. It was not generated automatically.\n\n`;
       md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
       md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
@@ -233,8 +217,8 @@ export default function FullReviewReport({
       });
       md += `\n`;
     } else {
-      md += `### 3.5 Certainty Assessment\n\n`;
-      md += `GRADE was not applied. The heterogeneous engineering evidence was assessed using domain-appropriate methodological quality criteria instead.\n\n`;
+       md += `### 3.4 Certainty Assessment\n\n`;
+       md += `GRADE was not applied. No certainty assessment was recorded for this review.\n\n`;
     }
 
     md += `## 4. Discussion\n\n`;
@@ -342,9 +326,6 @@ export default function FullReviewReport({
   <h3>2.4 Selection Process</h3>
   <p>The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.</p>
 
-  <h3>2.5 Methodological Quality and Risk of Bias Assessment Methods</h3>
-  <p>Methodological quality and potential validity threats were systematically assessed using ${protocol.riskOfBiasMethods.toolName || "a domain-tailored engineering quality checklist"} evaluating study design, benchmark data adequacy, measurement methodology, baseline comparability, and experimental repeatability.</p>
-
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
@@ -373,38 +354,7 @@ export default function FullReviewReport({
     </tbody>
   </table>
 
-  <h3>3.3 Methodological Quality and Rigor Assessment (Table 2)</h3>
-  <div class="table-caption">Table 2: Methodological Quality and Rigor Appraisal Matrix</div>
-  <table>
-    <thead>
-      <tr>
-        <th>Study</th>
-        <th style="text-align: center;">Study Design & Setup</th>
-        <th style="text-align: center;">Data Adequacy</th>
-        <th style="text-align: center;">Measurement Methodology</th>
-        <th style="text-align: center;">Baseline Validation</th>
-        <th style="text-align: center;">Repeatability & Reporting</th>
-        <th style="text-align: center;">Overall Rigor</th>
-        <th>Methodological Justification</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${riskOfBias.map((r) => `
-        <tr>
-          <td><strong>${r.authorYear}</strong></td>
-          <td style="text-align: center;">${formatBadge(r.d1Selection)}</td>
-          <td style="text-align: center;">${formatBadge(r.d2Performance)}</td>
-          <td style="text-align: center;">${formatBadge(r.d3Attrition)}</td>
-          <td style="text-align: center;">${formatBadge(r.d4Detection)}</td>
-          <td style="text-align: center;">${formatBadge(r.d5Reporting)}</td>
-          <td style="text-align: center;">${formatBadge(r.overall)}</td>
-          <td>${r.justification}</td>
-        </tr>
-      `).join("")}
-    </tbody>
-  </table>
-
-  <h3>3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+  <h3>3.3 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
   ${synthesis.subtopics.map((st) => `
     <h4>${st.title}</h4>
     <p>${st.prose}</p>
@@ -599,10 +549,6 @@ export default function FullReviewReport({
               The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.
             </p>
 
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Quality and Rigor Assessment Methods</h3>
-            <p className="text-justify">
-              Methodological quality and potential threats to validity were systematically evaluated using {protocol.riskOfBiasMethods.toolName || "an engineering quality appraisal checklist"} covering experimental setup, benchmark data adequacy, measurement methodology, baseline comparability, and repeatability.
-            </p>
           </div>
         </section>
 
@@ -663,46 +609,9 @@ export default function FullReviewReport({
             </div>
           </div>
 
-          {/* Table 2: Methodological Quality and Rigor Appraisal */}
-          <div className="space-y-2 pt-4">
-            <div className="text-xs font-mono font-bold text-slate-900">
-              Table 2: Methodological Quality and Rigor Assessment Matrix
-            </div>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-left text-[11px] font-sans">
-                <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
-                  <tr>
-                    <th className="p-2 font-bold">Study</th>
-                    <th className="p-2 font-bold text-center">Design & Setup</th>
-                    <th className="p-2 font-bold text-center">Data Adequacy</th>
-                    <th className="p-2 font-bold text-center">Measurement</th>
-                    <th className="p-2 font-bold text-center">Baseline Validation</th>
-                    <th className="p-2 font-bold text-center">Repeatability</th>
-                    <th className="p-2 font-bold text-center">Overall Rigor</th>
-                    <th className="p-2 font-bold">Appraisal Justification</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {riskOfBias.map((r, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="p-2 font-mono font-semibold">{r.authorYear}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d1Selection}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d2Performance}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d3Attrition}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d4Detection}</td>
-                      <td className="p-2 text-center font-mono text-[10px]">{r.d5Reporting}</td>
-                      <td className="p-2 text-center font-mono font-bold text-indigo-700">{r.overall}</td>
-                      <td className="p-2 text-slate-600 text-[10px]">{r.justification}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
           {/* Narrative Synthesis with Cross-Author Similarities */}
           <div className="space-y-3 pt-4">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+             <h3 className="font-bold text-slate-900 text-sm font-mono">3.3 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
             {synthesis.subtopics.map((st, i) => (
               <div key={i} className="space-y-1">
                 <h4 className="font-bold text-xs text-slate-900 font-mono">{st.title}</h4>

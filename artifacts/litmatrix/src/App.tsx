@@ -4,7 +4,6 @@ import {
   SLRRecord,
   ScreeningDecision,
   StudyCharacteristic,
-  RiskOfBiasItem,
   SynthesisResult,
   GradeCertaintyItem,
   DiscussionSections,
@@ -22,7 +21,6 @@ import {
   sampleRecords,
   sampleScreening,
   sampleCharacteristics,
-  sampleRiskOfBias,
   sampleSynthesis,
   sampleGradeItems,
   sampleDiscussion,
@@ -34,7 +32,6 @@ import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
-import RiskOfBiasSection from "./components/RiskOfBiasSection";
 import SynthesisSection from "./components/SynthesisSection";
 import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
@@ -57,7 +54,6 @@ import {
   UploadCloud,
   CheckCircle,
   GitBranch,
-  ShieldCheck,
   BarChart2,
   Award,
   BookOpen,
@@ -100,11 +96,6 @@ export default function App() {
 
   const [characteristics, setCharacteristics] = useState<StudyCharacteristic[]>(() => {
     const saved = localStorage.getItem("slr_chars_v1");
-    return saved ? JSON.parse(saved) : [];
-  });
-
-  const [riskOfBias, setRiskOfBias] = useState<RiskOfBiasItem[]>(() => {
-    const saved = localStorage.getItem("slr_rob_v1");
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -235,10 +226,6 @@ export default function App() {
   }, [characteristics]);
 
   useEffect(() => {
-    localStorage.setItem("slr_rob_v1", JSON.stringify(riskOfBias));
-  }, [riskOfBias]);
-
-  useEffect(() => {
     localStorage.setItem("slr_synthesis_v1", JSON.stringify(synthesis));
   }, [synthesis]);
 
@@ -272,12 +259,12 @@ export default function App() {
 
   // Derived included records
   const includedRecords = useMemo(() => {
-    return records.slice(0, 100).filter((r) => screening[r.id]?.agreed === true);
+    return records.filter((r) => screening[r.id]?.agreed === true);
   }, [records, screening]);
 
   // Derived excluded records
   const excludedRecords = useMemo(() => {
-    return records.slice(0, 100).filter((r) => screening[r.id]?.agreed === false);
+    return records.filter((r) => screening[r.id]?.agreed === false);
   }, [records, screening]);
 
   // Exclusion reasons breakdown for PRISMA Item 16b
@@ -294,7 +281,7 @@ export default function App() {
   // Full-text retrieval/assessment is not tracked by this application.
   const prismaCounts = useMemo(() => {
     const totalIdentified = records.length + (dupesRemoved || 0);
-      const screenedCount = records.slice(0, 100).filter((r) => screening[r.id]?.agreed !== undefined).length;
+      const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
 
@@ -341,7 +328,6 @@ export default function App() {
       setDupesRemoved(284);
       setScreening(sampleScreening);
       setCharacteristics(sampleCharacteristics);
-      setRiskOfBias(sampleRiskOfBias);
       setSynthesis(sampleSynthesis);
       setGradeItems([]);
       setDiscussion(sampleDiscussion);
@@ -355,7 +341,7 @@ export default function App() {
   const handleStartBlankReview = () => {
     if (
       window.confirm(
-        "Start a blank review? This will clear all records, screening decisions, characteristics, risk of bias, and reset the protocol template for your own research topic."
+        "Start a blank review? This will clear all records, screening decisions, characteristics, and reset the protocol template for your own research topic."
       )
     ) {
       setProtocol(BLANK_PROTOCOL);
@@ -363,7 +349,6 @@ export default function App() {
       setDupesRemoved(0);
       setScreening({});
       setCharacteristics([]);
-      setRiskOfBias([]);
       setSynthesis({
         characteristicsTable: [],
         metaAnalysisCategories: [],
@@ -397,7 +382,6 @@ export default function App() {
       Object.fromEntries(Object.entries(current).filter(([recordId]) => recordIds.has(recordId)))
     );
     setCharacteristics((current) => current.filter((item) => recordIds.has(item.recordId)));
-    setRiskOfBias((current) => current.filter((item) => recordIds.has(item.recordId)));
     setSynthesis({
       subtopics: [],
       keyFindingsTable: [],
@@ -452,12 +436,6 @@ export default function App() {
       label: "PRISMA Flow Diagram",
       badge: "Item 16a",
       icon: GitBranch,
-    },
-    {
-      id: "rob",
-      label: "Risk of Bias & Quality (Table 2)",
-      badge: "Items 11 & 18",
-      icon: ShieldCheck,
     },
     {
       id: "synthesis",
@@ -563,7 +541,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-               11 Stages
+               10 Stages
             </span>
           </div>
 
@@ -690,20 +668,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 7: Risk of Bias (Table 2) */}
+          {/* Stage 7: Narrative / Thematic Synthesis */}
           {activeStage === 6 && (
-            <RiskOfBiasSection
-              includedRecords={includedRecords}
-              riskOfBias={riskOfBias}
-              onUpdateRiskOfBias={setRiskOfBias}
-              aiConfig={activeAIConfig}
-              characteristics={characteristics}
-              onNavigateToScreening={() => setActiveStage(4)}
-            />
-          )}
-
-          {/* Stage 8: Narrative / Thematic Synthesis */}
-          {activeStage === 7 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
@@ -714,8 +680,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 9: GRADE Certainty of Evidence */}
-          {activeStage === 8 && (
+          {/* Stage 8: GRADE Certainty of Evidence */}
+          {activeStage === 7 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
@@ -726,8 +692,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 10: 4-Part Discussion */}
-          {activeStage === 9 && (
+          {/* Stage 9: 4-Part Discussion */}
+          {activeStage === 8 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -739,15 +705,14 @@ export default function App() {
             />
           )}
 
-          {/* Stage 11: Consolidated Manuscript */}
-          {activeStage === 10 && (
+          {/* Stage 10: Consolidated Manuscript */}
+          {activeStage === 9 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
-              screenedRecords={records.slice(0, 100)}
+              screenedRecords={includedRecords}
               screening={screening}
               characteristics={characteristics}
-              riskOfBias={riskOfBias}
               synthesis={synthesis}
               gradeItems={gradeItems}
               discussion={discussion}

@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import { AlertCircle, Check, Copy, FileSpreadsheet, Table, X } from "lucide-react";
+import { AlertCircle, Copy, FileSpreadsheet, Table } from "lucide-react";
 import { ScreeningDecision, SLRRecord } from "../types/slr";
 
 interface StudyCharacteristicsTableProps {
   screeningRecords: SLRRecord[];
-  onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
   screening: Record<string, ScreeningDecision>;
 }
 
@@ -19,33 +18,9 @@ const articleInformation = (record: SLRRecord) => {
 
 export default function StudyCharacteristicsTable({
   screeningRecords,
-  onUpdateScreening,
   screening,
 }: StudyCharacteristicsTableProps) {
   const [copied, setCopied] = useState(false);
-
-  const handleSetDecision = (
-    recordId: string,
-    agreed: boolean,
-    exclusionReason?: ScreeningDecision["exclusionReason"]
-  ) => {
-    const existing = screening[recordId] || {
-      score: null,
-      reason: "Manual investigator evaluation",
-      decision: agreed ? "include" : "exclude",
-    };
-    onUpdateScreening({
-      ...screening,
-      [recordId]: {
-        ...existing,
-        agreed,
-        decision: agreed ? "include" : "exclude",
-        exclusionReason: agreed
-          ? undefined
-          : exclusionReason || existing.exclusionReason || "Wrong study design",
-      },
-    });
-  };
 
   const exportCSV = () => {
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -53,11 +28,7 @@ export default function StudyCharacteristicsTable({
       ["Article Information (Title, Author & Journal)", "Screening Status", "Academic Screening Justification"],
       ...screeningRecords.map((record) => [
         articleInformation(record),
-        screening[record.id]?.agreed === true
-          ? "Included"
-          : screening[record.id]?.agreed === false
-          ? "Excluded"
-          : "Pending",
+        "Included",
         screening[record.id]?.reason || JUSTIFICATION_PLACEHOLDER,
       ]),
     ];
@@ -76,12 +47,7 @@ export default function StudyCharacteristicsTable({
       "| --- | --- | --- |",
       ...screeningRecords.map((record) => {
         const justification = screening[record.id]?.reason || JUSTIFICATION_PLACEHOLDER;
-        const status = screening[record.id]?.agreed === true
-          ? "INCLUDED"
-          : screening[record.id]?.agreed === false
-          ? "EXCLUDED"
-          : "PENDING";
-        return `| ${articleInformation(record).replace(/\|/g, "/")} | ${status} | ${justification.replace(/\|/g, "/")} |`;
+        return `| ${articleInformation(record).replace(/\|/g, "/")} | INCLUDED | ${justification.replace(/\|/g, "/")} |`;
       }),
     ];
     await navigator.clipboard.writeText(lines.join("\n"));
@@ -101,7 +67,7 @@ export default function StudyCharacteristicsTable({
               Comprehensive Screening Decision Table
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Grouped by article title, author, journal, and the academic reason for inclusion or exclusion.
+              Included papers grouped by article title, author, journal, and the academic screening justification.
             </p>
           </div>
 
@@ -131,9 +97,9 @@ export default function StudyCharacteristicsTable({
       {screeningRecords.length === 0 ? (
         <div className="bg-[#050505] border border-slate-500/80 p-6 rounded-2xl text-center space-y-3">
           <AlertCircle className="w-8 h-8 text-amber-300 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-100">No Records in the Screening Pool</h3>
+            <h3 className="text-sm font-bold text-slate-100">No Included Records Yet</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            This table populates from the first 100 records selected for further screening.
+              Run AI screening to identify included records and populate their academic justifications.
           </p>
         </div>
       ) : (
@@ -150,7 +116,6 @@ export default function StudyCharacteristicsTable({
               <tbody className="divide-y divide-slate-700/90">
                 {screeningRecords.map((record) => {
                   const justification = screening[record.id]?.reason || JUSTIFICATION_PLACEHOLDER;
-                  const decision = screening[record.id];
                   return (
                     <tr key={record.id} className="hover:bg-white/[0.04] align-top">
                       <td className="py-3.5 px-3.5 text-slate-100">
@@ -163,74 +128,10 @@ export default function StudyCharacteristicsTable({
                         </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-[10px] font-semibold uppercase ${
-                            screening[record.id]?.agreed === true
-                              ? "border-emerald-700/70 bg-emerald-950/70 text-emerald-300"
-                              : screening[record.id]?.agreed === false
-                              ? "border-rose-700/70 bg-rose-950/70 text-rose-300"
-                              : "border-slate-600 bg-slate-800 text-slate-300"
-                          }`}
-                        >
-                          {screening[record.id]?.agreed === true ? (
-                            <Check className="h-3 w-3" />
-                          ) : null}
-                          {screening[record.id]?.agreed === true
-                            ? "Included"
-                            : screening[record.id]?.agreed === false
-                            ? "Excluded"
-                            : "Pending"}
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700/70 bg-emerald-950/70 px-2 py-1 font-mono text-[10px] font-semibold uppercase text-emerald-300">
+                          Included
                         </span>
                         <div className="mt-1 text-[10px] text-slate-500">Title/abstract</div>
-                        <div className="mt-2 flex flex-wrap gap-1.5">
-                          <button
-                            onClick={() => handleSetDecision(record.id, true)}
-                            className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] font-semibold ${
-                              decision?.agreed === true
-                                ? "border-emerald-700 bg-emerald-700 text-white"
-                                : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
-                            }`}
-                          >
-                            <Check className="h-3 w-3" />
-                            Include
-                          </button>
-                          <button
-                            onClick={() => handleSetDecision(record.id, false)}
-                            className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] font-semibold ${
-                              decision?.agreed === false
-                                ? "border-rose-700 bg-rose-700 text-white"
-                                : "border-rose-300 text-rose-700 hover:bg-rose-50"
-                            }`}
-                          >
-                            <X className="h-3 w-3" />
-                            Exclude
-                          </button>
-                        </div>
-                        {decision?.agreed === false && (
-                          <select
-                            value={decision.exclusionReason || "Wrong study design"}
-                            onChange={(event) =>
-                              handleSetDecision(
-                                record.id,
-                                false,
-                                event.target.value as ScreeningDecision["exclusionReason"]
-                              )
-                            }
-                            className="mt-2 max-w-[190px] rounded border border-rose-300 bg-white px-1 py-1 text-[10px] text-rose-800"
-                          >
-                            <option value="Secondary literature / Review paper">Secondary literature / Review paper</option>
-                            <option value="Out of scope / Keyword mismatch">Out of scope / Keyword mismatch</option>
-                            <option value="Wrong population">Wrong population</option>
-                            <option value="Wrong intervention / exposure">Wrong intervention / exposure</option>
-                            <option value="Wrong comparator">Wrong comparator</option>
-                            <option value="Wrong outcome">Wrong outcome</option>
-                            <option value="Wrong study design">Wrong study design</option>
-                            <option value="Not accessible / full text unavailable">Not accessible / full text unavailable</option>
-                            <option value="Duplicate / non-original">Duplicate / non-original</option>
-                            <option value="Language barrier">Language barrier</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        )}
                       </td>
                       <td className="py-3 px-3 text-slate-300 leading-relaxed">
                         {justification}
@@ -243,7 +144,7 @@ export default function StudyCharacteristicsTable({
           </div>
           <div className="flex items-center gap-2 border-t border-slate-700 bg-[#111111] px-4 py-3 text-[11px] text-slate-400">
             <Table className="h-3.5 w-3.5 text-amber-300" />
-            Status and justification come directly from the recorded title/abstract screening decision. Full-text eligibility was not verified.
+            Included status and justification come directly from the recorded title/abstract screening decision. Full-text eligibility was not verified.
           </div>
         </div>
       )}
