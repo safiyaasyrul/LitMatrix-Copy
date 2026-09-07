@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import { SLRProtocol, SLRRecord, SynthesisResult, StudyCharacteristic } from "../types/slr";
 import { Sparkles, BarChart2, BookOpen, Layers, Download, CheckCircle, RefreshCw, AlertCircle, Zap, Tag, Quote, Filter, Copy } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
@@ -272,36 +272,6 @@ export default function SynthesisSection({
   const [activeTab, setActiveTab] = useState<"prose" | "groups" | "table">("prose");
   const [groupingMode, setGroupingMode] = useState<"category" | "intervention" | "design" | "outcome">("category");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const normalizationInFlight = useRef<string | null>(null);
-
-  useEffect(() => {
-    const studies = getSynthesisStudies(includedRecords, characteristics);
-    if (studies.length === 0 || synthesis.subtopics.length === 0) return;
-
-    const normalizedSubtopics = normalizeSubtopics(synthesis.subtopics, studies);
-    const normalizedSignature = JSON.stringify(normalizedSubtopics);
-    const changed = normalizedSubtopics.some((subtopic, index) =>
-      subtopic.title !== synthesis.subtopics[index]?.title
-      || subtopic.prose !== synthesis.subtopics[index]?.prose
-    );
-    if (!changed) return;
-    if (normalizationInFlight.current === normalizedSignature) return;
-    normalizationInFlight.current = normalizedSignature;
-
-    onUpdateSynthesis({
-      ...synthesis,
-      suggestedTitle: synthesis.suggestedTitle || suggestReviewTitle(studies, normalizedSubtopics),
-      subtopics: normalizedSubtopics,
-      keyFindingsTable: normalizedSubtopics.map((subtopic, index) => ({
-        topic: subtopic.title.replace(/^\d+\.\s*/, ""),
-        summary: subtopic.prose,
-        consistency: synthesis.keyFindingsTable[index]?.consistency || "Not assessed quantitatively",
-        evidenceBase: synthesis.keyFindingsTable[index]?.evidenceBase
-          || `${clusterStudies(studies)[index].studies.length} screened-in record${clusterStudies(studies)[index].studies.length === 1 ? "" : "s"}`,
-      })),
-    });
-  }, [includedRecords, characteristics, synthesis, onUpdateSynthesis]);
-
   // Group characteristics dynamically
   const getGroupedCharacteristics = () => {
     const map = new Map<string, StudyCharacteristic[]>();
