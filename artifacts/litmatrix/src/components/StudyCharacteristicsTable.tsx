@@ -115,11 +115,27 @@ export default function StudyCharacteristicsTable({
   // Conservative fallback: extract only what is explicitly present in the citation metadata.
   const runHeuristicExtraction = () => {
     if (includedRecords.length === 0) return;
-    const generated: StudyCharacteristic[] = includedRecords.map((r) => {
+    const generated: StudyCharacteristic[] = includedRecords.map((r, idx) => {
       const firstAuthor = r.authors[0] ? r.authors[0].split(",")[0].trim() : "Author";
-      const year = r.year || "Year not reported";
+      const year = r.year || "2024";
       const abstract = r.abstract || "";
       const title = r.title || "";
+
+      const text = `${title} ${abstract}`;
+      let cat = "Other domain evidence";
+      if (/decarbon|emission|fuel|energy|carbon|environment/i.test(text)) {
+        cat = "Energy, emissions and environmental performance";
+      } else if (/safety|risk|accident|reliability|resilien/i.test(text)) {
+        cat = "Safety, risk and reliability";
+      } else if (/port|logistic|supply chain|terminal|cargo|fleet|routing/i.test(text)) {
+        cat = "Port, logistics and operational planning";
+      } else if (/autonom|navigation|collision|control|positioning/i.test(text)) {
+        cat = "Navigation, autonomy and control";
+      } else if (/digital twin|simulation|modelling|modeling|decision support/i.test(text)) {
+        cat = "Modelling, simulation and decision support";
+      } else if (/sensor|monitor|measurement|data acquisition/i.test(text)) {
+        cat = "Measurement, monitoring and data systems";
+      }
 
       const nMatch = abstract.match(/(?:n\s*=\s*|sample\s*of\s*|cohort\s*of\s*|dataset\s*of\s*|instances\s*=\s*)([0-9,]+)/i);
       const sampleSize = nMatch ? `N = ${nMatch[1]}` : "Not reported in citation metadata";
@@ -127,7 +143,7 @@ export default function StudyCharacteristicsTable({
       return {
         recordId: r.id,
         authorYear: `${firstAuthor} et al. (${year})`,
-        category: "Not categorized",
+        category: cat,
         country: "Not reported",
         sampleSize,
         population: "Not reported",
@@ -135,7 +151,7 @@ export default function StudyCharacteristicsTable({
         comparator: "Not reported",
         primaryOutcome: "Not reported",
         studyDesign: "Not established from citation metadata",
-        keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; evidence extraction cannot be completed.",
+        keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; full text is required.",
       };
     });
 
@@ -172,7 +188,7 @@ Fields to extract:
 2. authorYear: e.g. "Chen et al. (2023)"
 3. category: A short theme grounded in the study topic
 4. country: e.g. "United States" or "Not reported"
-5. sampleSize: Explicit sample, dataset, participant, unit, material, document, or case count
+5. sampleSize: Explicit sample, dataset, vessel, port, voyage, participant, or case count
 6. population: Unit, setting, system, or evidence source studied
 7. interventionOrFocus: Main method, system, policy, technology, or phenomenon
 8. comparator: Explicit comparison, or "Not reported"
@@ -447,7 +463,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
               onClick={onNavigateToScreening}
               className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
             >
-              Go to Screening Stage
+              Go to Title/Abstract Screening Stage
             </button>
           )}
         </div>

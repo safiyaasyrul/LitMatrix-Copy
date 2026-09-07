@@ -9,34 +9,18 @@ export interface SLRRecord {
   databaseSource?: "Scopus" | "Web of Science" | "PubMed" | "Google Scholar" | "IEEE Xplore" | "Cochrane" | "Other" | string;
   databaseSources?: string[];
   studyType?: string;
-  fullTextStatus?: "not_sought" | "sought" | "retrieved" | "not_retrieved";
-  fullTextEligibility?: "not_assessed" | "eligible" | "ineligible" | "unclear";
-  fullTextExclusionReason?: string;
-  fullTextNotes?: string;
 }
 
 export interface ScreeningDecision {
   score: number | null; // 0 - 100
   reason: string;
   decision: "include" | "exclude";
-  recommendation?: "include" | "exclude" | "maybe";
   agreed?: boolean; // human confirmation
-  criteriaAnswers?: {
-    populationContext: "Yes" | "No" | "Unclear";
-    phenomenon: "Yes" | "No" | "Unclear";
-    researchContribution: "Yes" | "No" | "Unclear";
-    studyType: "Yes" | "No" | "Unclear";
-    requiredEvidence: "Yes" | "No" | "Unclear";
-  };
   exclusionReason?:
     | "Secondary literature / Review paper"
-    | "Out of scope / Criteria not met"
     | "Out of scope / Keyword mismatch"
     | "Wrong population"
-    | "Wrong population / context"
     | "Wrong intervention / exposure"
-    | "Wrong phenomenon / contribution"
-    | "Insufficient evidence in record"
     | "Wrong comparator"
     | "Wrong outcome"
     | "Wrong study design"
@@ -116,60 +100,9 @@ export interface SynthesisCategory {
 }
 
 export interface SynthesisResult {
-  status?: "evidence_map" | "finalized";
-  descriptiveSynthesis?: {
-    overview: string;
-    comparisons: {
-      recordIds: string[];
-      findingComparison: string;
-      sharedPattern: string;
-      differences: string;
-    }[];
-  };
-  studyEvidence?: {
-    recordId: string;
-    studyLabel: string;
-    finding: string;
-    assignedResearchQuestions: string[];
-  }[];
   subtopics: {
     title: string;
     prose: string;
-    recordIds?: string[];
-  }[];
-  rqFindings?: {
-    rqId: string;
-    question: string;
-    synthesizedAnswer: string;
-    dominantPatterns: string;
-    contradictions: string;
-    evidenceGaps: string;
-    contributingRecordIds: string[];
-  }[];
-  crossStudySynthesis?: {
-    overallPatterns: string;
-    contradictions: string;
-    evidenceGaps: string;
-    implications: string;
-  };
-  clusters?: {
-    title: string;
-    description: string;
-    sharedPattern: string;
-    differences: string;
-    recordIds: string[];
-  }[];
-  researchGaps?: {
-    gap: string;
-    evidenceBasis: string;
-    affectedResearchQuestions: string[];
-    recordIds: string[];
-  }[];
-  futureResearchAgenda?: {
-    priority: string;
-    rationale: string;
-    suggestedApproach: string;
-    linkedGap: string;
   }[];
   keyFindingsTable: {
     topic: string;

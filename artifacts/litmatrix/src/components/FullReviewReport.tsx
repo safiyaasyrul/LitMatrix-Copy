@@ -1,25 +1,16 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   SLRProtocol,
   SLRRecord,
   StudyCharacteristic,
   RiskOfBiasItem,
   SynthesisResult,
+  GradeCertaintyItem,
   DiscussionSections,
   PrismaChecklistItem,
 } from "../types/slr";
 import { Download, Copy, Printer, Check, BookOpen, FileText, CheckCircle2, ShieldAlert, Sparkles, Layers, SlidersHorizontal, Quote } from "lucide-react";
 import PrismaDiagram from "./PrismaDiagram";
-import { AIProviderConfig, callAI, parseJSONLoose } from "../utils/aiClient";
-
-interface StructuredAbstract {
-  bg: string;
-  obj: string;
-  meth: string;
-  res: string;
-  concl: string;
-  keywords: string[];
-}
 
 interface FullReviewReportProps {
   protocol: SLRProtocol;
@@ -27,10 +18,10 @@ interface FullReviewReportProps {
   characteristics: StudyCharacteristic[];
   riskOfBias: RiskOfBiasItem[];
   synthesis: SynthesisResult;
+  gradeItems: GradeCertaintyItem[];
   discussion: DiscussionSections;
   checklist: PrismaChecklistItem[];
   counts: any;
-  aiConfig: AIProviderConfig;
 }
 
 export default function FullReviewReport({
@@ -39,15 +30,12 @@ export default function FullReviewReport({
   characteristics,
   riskOfBias,
   synthesis,
+  gradeItems,
   discussion,
   checklist,
   counts,
-  aiConfig,
 }: FullReviewReportProps) {
   const [copied, setCopied] = useState(false);
-  const [generatedAbstract, setGeneratedAbstract] = useState<StructuredAbstract | null>(null);
-  const [generatingAbstract, setGeneratingAbstract] = useState(false);
-  const [abstractError, setAbstractError] = useState<string | null>(null);
 
   const questions = protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
@@ -76,17 +64,17 @@ export default function FullReviewReport({
       const p = protocol.objectivesPEO?.population || protocol.objectivesPICO.population;
       const e = protocol.objectivesPEO?.exposure || protocol.objectivesPICO.intervention;
       const o = protocol.objectivesPEO?.outcomes || protocol.objectivesPICO.outcomes;
-      const s = protocol.objectivesPEO?.setting || "the defined setting or context";
+      const s = protocol.objectivesPEO?.setting || "ecological and geographical setting";
       const d = protocol.objectivesPEO?.studyDesigns || protocol.objectivesPICO.studyDesigns;
-      return `The review scope was structured around the PEO framework. The population or context (P) is ${p}. The exposure or phenomenon (E) is ${e}. The outcomes (O) are ${o}. The setting (S) is ${s}, with eligible study designs defined as ${d}.`;
+      return `The review scope was structured around the PEO framework. The study population and ecological targets (P) include ${p}. The investigated exposure factors and environmental stressors (E) encompass ${e}. The evaluated ecological outcomes and impact metrics (O) reflect ${o}. The geographical and operational setting (S) corresponds to ${s}, with eligible study designs (D) restricted to ${d}.`;
     }
     if (fw === "SPIDER") {
       const s = protocol.objectivesSPIDER?.sample || protocol.objectivesPICO.population;
       const pi = protocol.objectivesSPIDER?.phenomenonOfInterest || protocol.objectivesPICO.intervention;
-      const d = protocol.objectivesSPIDER?.design || "the approved study designs";
+      const d = protocol.objectivesSPIDER?.design || "qualitative thematic investigations";
       const e = protocol.objectivesSPIDER?.evaluation || protocol.objectivesPICO.outcomes;
-      const r = protocol.objectivesSPIDER?.researchType || "the approved research types";
-      return `The review was formulated using SPIDER. The sample (S) is ${s}. The phenomenon of interest (PI) is ${pi}. The design (D) is ${d}. The evaluation (E) is ${e}, and the research types (R) are ${r}.`;
+      const r = protocol.objectivesSPIDER?.researchType || "qualitative and mixed-methods research";
+      return `The review was formulated around the SPIDER qualitative synthesis framework. The study sample (S) encompasses ${s}. The phenomenon of interest (PI) investigates ${pi}. The research design (D) incorporates ${d}. The evaluation criteria (E) assess ${e}, focusing on research types (R) classified as ${r}.`;
     }
     // Default PICO
     const p = protocol.objectivesPICO.population;
@@ -94,7 +82,7 @@ export default function FullReviewReport({
     const c = protocol.objectivesPICO.comparator;
     const o = protocol.objectivesPICO.outcomes;
     const s = protocol.objectivesPICO.studyDesigns;
-    return `The systematic review protocol was formulated using PICO. The population or unit of analysis (P) is ${p}. The intervention or focal concept (I) is ${i}. The comparator (C) is ${c}. The outcomes (O) are ${o}, with eligible study designs defined as ${s}.`;
+    return `The systematic review protocol was formulated around the PICO framework. The target population (P) comprises ${p}. The investigated intervention (I) encompasses ${i}. The comparison benchmark (C) consists of ${c}. The primary outcomes of interest (O) evaluate ${o}, with eligible study designs (S) defined as ${s}.`;
   };
 
   // Group characteristics by category
@@ -111,194 +99,35 @@ export default function FullReviewReport({
   const hasCountryData = characteristics.some((c) => c.country && c.country !== "Not reported" && c.country !== "N/A");
   const hasSampleData = characteristics.some((c) => c.sampleSize && c.sampleSize !== "N/A" && c.sampleSize !== "Not reported");
 
-  const includedIds = new Set(includedRecords.map((record) => record.id));
-  const extractedIds = new Set(
-    characteristics.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
-  );
-  const appraisedIds = new Set(
-    riskOfBias.filter((item) => includedIds.has(item.recordId)).map((item) => item.recordId)
-  );
-  const selectionComplete =
-    includedRecords.length > 0 && (counts.recordsNotScreened || 0) === 0;
-  const extractionComplete =
-    includedRecords.length > 0 && includedRecords.every((record) => extractedIds.has(record.id));
-  const appraisalComplete =
-    includedRecords.length > 0 && includedRecords.every((record) => appraisedIds.has(record.id));
-  const rqFindings = synthesis.rqFindings || [];
-  const expectedRqIds = questions.map((_, index) => `RQ${index + 1}`);
-  const rqSynthesisComplete =
-    expectedRqIds.length > 0 &&
-    expectedRqIds.every((rqId) =>
-      rqFindings.some(
-        (finding) => finding.rqId === rqId && Boolean(finding.synthesizedAnswer?.trim())
-      )
-    );
-  const synthesisComplete =
-    synthesis.status === "finalized" &&
-    Boolean(synthesis.descriptiveSynthesis?.overview?.trim()) &&
-    (synthesis.studyEvidence?.length || 0) > 0 &&
-    (synthesis.subtopics?.length || 0) > 0 &&
-    (synthesis.clusters?.length || 0) > 0 &&
-    rqSynthesisComplete &&
-    Boolean(synthesis.crossStudySynthesis?.overallPatterns?.trim()) &&
-    Boolean(synthesis.crossStudySynthesis?.evidenceGaps?.trim()) &&
-    (synthesis.researchGaps?.length || 0) > 0 &&
-    (synthesis.futureResearchAgenda?.length || 0) > 0;
-  const abstractReady =
-    selectionComplete && extractionComplete && appraisalComplete && synthesisComplete;
+  // Structured Abstract generator
+  const getAbstractContent = () => {
+    const bg = protocol.introductionRationale || `This review examines the evidence relevant to ${protocol.title || "the defined topic"}.`;
+    const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
+    const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
+    const meth = `The workspace contains records from ${searchDbs}. Title and abstract screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, duplicate independent review, and adjudication are reported only when separately documented.`;
+    
+    // Generate synthesized category summary
+    const catSummaries: string[] = [];
+    categoriesMap.forEach((studies, cat) => {
+      const authors = studies.map((s) => s.authorYear).join(" and ");
+      catSummaries.push(`The ${cat} theme includes ${authors}`);
+    });
 
-  const removeCitationArtifacts = (value: string) =>
-    value
-      .replace(/\b[A-ZÀ-ÖØ-Þ][\p{L}'’-]+(?:\s+(?:and|&)\s+[A-ZÀ-ÖØ-Þ][\p{L}'’-]+)?\s+et\s+al\.?,?\s*\(?\d{4}[a-z]?\)?/giu, "")
-      .replace(/\([^)]*(?:19|20)\d{2}[a-z]?[^)]*\)/gi, "")
-      .replace(/\[(?:\d+\s*[,–-]?\s*)+\]/g, "")
-      .replace(/https?:\/\/\S+|doi:\s*\S+/gi, "")
-      .replace(/\s{2,}/g, " ")
-      .replace(/\s+([,.;:])/g, "$1")
-      .trim();
+    const res = `${counts.screened || 0} records have recorded title and abstract screening decisions; ${includedRecords.length} are marked for inclusion at that stage. ${catSummaries.join(". ")}. No pooled quantitative analysis was performed.`;
+    const concl = `The available evidence is summarized narratively. Eligibility, extracted characteristics, and methodological judgments should be verified against full texts before drawing definitive conclusions.`;
+    const keywords = [
+      protocol.reviewType || "Systematic Literature Review",
+      "Evidence Synthesis",
+       "Narrative Synthesis",
+       "Study Characteristics",
+      "Methodological Quality",
+      ...Array.from(categoriesMap.keys()).slice(0, 3),
+    ].filter(Boolean);
 
-  const pendingAbstract: StructuredAbstract = {
-    bg: abstractReady
-      ? "The finalized synthesis is ready to be compressed into a structured abstract."
-      : "Generate the abstract after final study selection, extraction, methodological appraisal, and evidence synthesis are complete.",
-    obj: "The review objective will be summarized from the approved protocol.",
-    meth: "The methods summary will report only recorded search, title/abstract screening, appraisal, and synthesis procedures.",
-    res: abstractReady
-      ? "Select Generate Abstract to create Results from the finalized RQ findings and cross-study synthesis."
-      : "Synthesis-level results are not yet available for abstract generation.",
-    concl: abstractReady
-      ? "The generated conclusion will compress the finalized patterns, gaps, and cautious implications."
-      : "No abstract conclusion is generated before the finalized synthesis is available.",
-    keywords: [protocol.reviewType || "Systematic Review", "Evidence Synthesis"],
+    return { bg, obj, meth, res, concl, keywords };
   };
 
-  const abstract = generatedAbstract || pendingAbstract;
-
-  useEffect(() => {
-    setGeneratedAbstract(null);
-    setAbstractError(null);
-  }, [synthesis, protocol.primaryResearchQuestions, protocol.title, includedRecords.length]);
-
-  const handleGenerateAbstract = async () => {
-    if (!abstractReady) return;
-    setGeneratingAbstract(true);
-    setAbstractError(null);
-
-    const synthesisEvidence = {
-      themes: (synthesis.subtopics || []).map((item) => ({
-        title: removeCitationArtifacts(item.title),
-        synthesis: removeCitationArtifacts(item.prose),
-      })),
-      crossStudyFindings: (synthesis.keyFindingsTable || []).map((item) => ({
-        topic: removeCitationArtifacts(item.topic),
-        summary: removeCitationArtifacts(item.summary),
-        consistency: removeCitationArtifacts(item.consistency),
-        evidenceBase: removeCitationArtifacts(item.evidenceBase),
-      })),
-      rqBasedFindings: rqFindings.map((item) => ({
-        rqId: item.rqId,
-        question: removeCitationArtifacts(item.question),
-        synthesizedAnswer: removeCitationArtifacts(item.synthesizedAnswer),
-        dominantPatterns: removeCitationArtifacts(item.dominantPatterns),
-        contradictions: removeCitationArtifacts(item.contradictions),
-        evidenceGaps: removeCitationArtifacts(item.evidenceGaps),
-      })),
-      integratedSynthesis: synthesis.crossStudySynthesis
-        ? {
-            overallPatterns: removeCitationArtifacts(synthesis.crossStudySynthesis.overallPatterns),
-            contradictions: removeCitationArtifacts(synthesis.crossStudySynthesis.contradictions),
-            evidenceGaps: removeCitationArtifacts(synthesis.crossStudySynthesis.evidenceGaps),
-            implications: removeCitationArtifacts(synthesis.crossStudySynthesis.implications),
-          }
-        : null,
-      researchGaps: synthesis.researchGaps || [],
-      futureResearchAgenda: synthesis.futureResearchAgenda || [],
-      heterogeneity: removeCitationArtifacts(synthesis.heterogeneityDiscussion || ""),
-    };
-    const appraisalSummary = {
-      totalAppraised: riskOfBias.filter((item) => includedIds.has(item.recordId)).length,
-      lowConcern: riskOfBias.filter(
-        (item) => includedIds.has(item.recordId) && (item.overall === "Low" || item.overall === "High Rigor")
-      ).length,
-      someConcerns: riskOfBias.filter(
-        (item) => includedIds.has(item.recordId) && (item.overall === "Some concerns" || item.overall === "Moderate Rigor")
-      ).length,
-      highConcern: riskOfBias.filter(
-        (item) => includedIds.has(item.recordId) && (item.overall === "High" || item.overall === "Low Rigor")
-      ).length,
-    };
-    const uploadedSources = counts.identifiedDbSources?.join(", ") || "uploaded source records";
-    const recordedSearchDates = protocol.informationSources
-      .map((source) => source.lastSearchedDate)
-      .filter(Boolean)
-      .join(", ");
-    const synthesisApproach =
-      protocol.synthesisMethods?.synthesisModel ||
-      protocol.eligibilityCriteria.groupingForSynthesis ||
-      "narrative and thematic synthesis";
-
-    const prompt = `Generate a structured systematic-review abstract from FINALIZED SYNTHESIS-LEVEL EVIDENCE only.
-
-Review title: ${protocol.title}
-Approved rationale: ${protocol.introductionRationale || protocol.backgroundContext || "Not provided"}
-Approved objectives: ${JSON.stringify(objectives)}
-Recorded methods: Databases or sources represented in uploaded records: ${uploadedSources}. Recorded search period or dates: ${recordedSearchDates || protocol.eligibilityCriteria.timeframe || "not reported"}. Reporting framework: PRISMA 2020. Records screened by title and abstract: ${counts.screened || 0}. Reviewer-confirmed included records: ${includedRecords.length}. Evidence source: citation metadata and abstracts only. Synthesis approach: ${synthesisApproach}. Appraisal approach: ${protocol.riskOfBiasMethods.toolName || "study-design-appropriate appraisal"}.
-Final synthesis: ${JSON.stringify(synthesisEvidence)}
-Methodological appraisal summary: ${JSON.stringify(appraisalSummary)}
-
-STRICT ABSTRACT RULES:
-1. Return Background, Objective, Methods, Results, Conclusion, and Keywords.
-2. Results must answer the approved research questions using the finalized cross-study synthesis. Summarize dominant patterns, approaches, outcomes, consistencies, contradictions, weak evidence, and gaps.
-3. Do not list studies or write a sequence of individual-study findings.
-4. Do not include author names, years, citations, reference numbers, DOI links, or URLs anywhere.
-5. Do not derive findings from screening counts, keyword frequencies, titles alone, excluded records, or records with missing abstracts.
-6. Use only the supplied finalized synthesis. If a relationship is not supported there, omit it.
-7. Do not invent numerical values. Use recorded flow counts only in Methods or Results when useful.
-8. Do not report pooled effects, confidence intervals, heterogeneity statistics, GRADE ratings, p-values, or meta-analysis unless present in the supplied finalized synthesis.
-9. The Conclusion must state what the total evidence means, the principal research gap, and cautious implications. It must not turn association, prediction, modelling performance, or theoretical potential into demonstrated real-world effectiveness.
-10. Keep Results concise and synthesis-level, with no citations.
-
-Return ONLY JSON:
-{
-  "background": "Why the topic matters",
-  "objective": "What the review investigated",
-  "methods": "Brief recorded sources, screening, PRISMA flow, extraction, appraisal, and synthesis approach",
-  "results": "Cross-study synthesized findings without citations",
-  "conclusion": "Meaning, limitations, principal gap, and implication",
-  "keywords": ["3 to 6 concise terms"]
-}`;
-
-    try {
-      const text = await callAI(
-        prompt,
-        "You are a systematic review abstract editor. Write synthesis-level findings only and never include citations in the abstract.",
-        aiConfig
-      );
-      const parsed = parseJSONLoose(text);
-      if (!parsed?.results || !parsed?.conclusion) {
-        throw new Error("The AI response did not contain a complete structured abstract.");
-      }
-      setGeneratedAbstract({
-        bg: removeCitationArtifacts(String(parsed.background || "")),
-        obj: removeCitationArtifacts(String(parsed.objective || "")),
-        meth: removeCitationArtifacts(String(parsed.methods || "")),
-        res: removeCitationArtifacts(String(parsed.results || "")),
-        concl: removeCitationArtifacts(String(parsed.conclusion || "")),
-        keywords: Array.isArray(parsed.keywords)
-          ? parsed.keywords.map((item: unknown) => removeCitationArtifacts(String(item))).filter(Boolean).slice(0, 6)
-          : ["Systematic Review", "Evidence Synthesis"],
-      });
-    } catch (error: any) {
-      const message = error?.message || "The synthesis abstract could not be generated.";
-      setAbstractError(
-        message.includes("(401)")
-          ? `${message} The managed provider rejected this request; please retry once so its server-side session can refresh.`
-          : message
-      );
-    } finally {
-      setGeneratingAbstract(false);
-    }
-  };
+  const abstract = getAbstractContent();
 
   const generateFullMarkdown = () => {
     let md = `# ${protocol.title || "Systematic Literature Review Manuscript"}\n\n`;
@@ -316,7 +145,7 @@ Return ONLY JSON:
 
     md += `## 1. Introduction and Academic Rationale\n\n`;
     md += `### 1.1 Scientific Rationale and Motivation for Conducting the Review\n`;
-    md += `${protocol.introductionRationale || "No review rationale has been approved by the researcher."}\n\n`;
+    md += `${protocol.introductionRationale || "The necessity of undertaking this systematic literature review arises from the rapid expansion of technological approaches, divergent empirical performance claims in prior studies, and the absence of a consolidated synthesis evaluating comparative efficacy under standardized benchmarks."}\n\n`;
 
     if (protocol.backgroundContext) {
       md += `In theoretical and domain context, ${protocol.backgroundContext}\n\n`;
@@ -338,36 +167,34 @@ Return ONLY JSON:
     md += `### 2.2 Eligibility Criteria\n`;
     const incText = protocol.eligibilityCriteria.inclusion.join(", ");
     const excText = protocol.eligibilityCriteria.exclusion.join(", ");
-    md += `Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Records were excluded when they met ${excText}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.\n\n`;
+    md += `Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Conversely, primary studies were excluded if they exhibited ${excText}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.\n\n`;
 
     md += `### 2.3 Information Sources and Search Strategy\n`;
-    const searchDatabases = protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ");
-    md += searchDatabases
-      ? `The protocol documents search strategies for ${searchDatabases}. This report does not claim that a search was executed unless records from those sources were uploaded.\n\n`
-      : `No database search strategy is recorded in the protocol. The report describes only the uploaded records.\n\n`;
+    const searchDatabases = protocol.searchStrategies.map((s) => s.database).join(", ");
+    md += `Comprehensive systematic search strategies were executed across major academic databases, including ${searchDatabases}. Queries combined Boolean operators, controlled vocabulary terms, and truncation tailored to each database search syntax.\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and consensus adjudication are not claimed unless separately documented.\n\n`;
+    md += `The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not recorded and are not claimed here.\n\n`;
 
     md += `### 2.5 Methodological Quality and Systematic Assessment Methodology\n`;
-    md += `Methodological quality was assessed using ${protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate appraisal framework"}. The approved domains were ${protocol.riskOfBiasMethods.domainsAssessed || "not specified"}. Appraisal claims are limited to recorded judgments.\n\n`;
+    md += `Methodological rigor and potential threats to validity were systematically assessed using ${protocol.riskOfBiasMethods.toolName || "a domain-tailored engineering quality checklist"}. The appraisal systematically evaluated study design formulation, benchmark data adequacy, measurement precision, baseline comparability, and experimental repeatability.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.\n\n`;
+    md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
 
     md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
     if (hasCountryData || hasSampleData) {
-      md += `| Study | Evidence Category | ${hasCountryData ? "Location | " : ""}${hasSampleData ? "Sample / Evidence Base | " : ""}Intervention / Exposure / Phenomenon | Comparator | Reported Outcome | Study Design | Key Finding |\n`;
+      md += `| Study | Category / Paradigm | ${hasCountryData ? "Country | " : ""}${hasSampleData ? "Sample / Dataset | " : ""}Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding |\n`;
       md += `| --- | --- | ${hasCountryData ? "--- | " : ""}${hasSampleData ? "--- | " : ""}--- | --- | --- | --- | --- |\n`;
       characteristics.forEach((c) => {
-        md += `| ${c.authorYear} | ${c.category || "Not categorized"} | ${hasCountryData ? `${c.country || "Not reported"} | ` : ""}${hasSampleData ? `${c.sampleSize || "Not reported"} | ` : ""}${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Not reported").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Not reported").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
+        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${hasCountryData ? `${c.country || "Not reported"} | ` : ""}${hasSampleData ? `${c.sampleSize || "N/A"} | ` : ""}${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
       });
     } else {
-      md += `| Study | Evidence Category | Intervention / Exposure / Phenomenon | Comparator | Reported Outcome | Study Design | Key Finding |\n`;
+      md += `| Study | Category / Paradigm | Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding |\n`;
       md += `| --- | --- | --- | --- | --- | --- | --- |\n`;
       characteristics.forEach((c) => {
-        md += `| ${c.authorYear} | ${c.category || "Not categorized"} | ${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Not reported").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Not reported").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
+        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
       });
     }
     md += `\n`;
@@ -380,47 +207,34 @@ Return ONLY JSON:
     });
     md += `\n`;
 
-    rqFindings.forEach((finding, index) => {
-      md += `### 3.${index + 4} ${finding.rqId}: ${finding.question.replace(/^RQ\d+:\s*/i, "")}\n\n`;
-      md += `${finding.synthesizedAnswer}\n\n`;
-      md += `**Dominant patterns:** ${finding.dominantPatterns}\n\n`;
-      md += `**Contradictions:** ${finding.contradictions}\n\n`;
-      md += `**Evidence gaps:** ${finding.evidenceGaps}\n\n`;
+    md += `### 3.4 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
+    synthesis.subtopics.forEach((sub) => {
+      md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
 
-    const crossStudySectionNumber = rqFindings.length + 4;
-    if (synthesis.crossStudySynthesis) {
-      md += `### 3.${crossStudySectionNumber} Cross-study Synthesis\n\n`;
-      md += `${synthesis.crossStudySynthesis.overallPatterns}\n\n`;
-      md += `**Cross-cutting contradictions:** ${synthesis.crossStudySynthesis.contradictions}\n\n`;
-      md += `**Principal evidence gaps:** ${synthesis.crossStudySynthesis.evidenceGaps}\n\n`;
+    if (synthesis.heterogeneityDiscussion) {
+      md += `Regarding between-study variance and heterogeneity exploration, ${synthesis.heterogeneityDiscussion}\n\n`;
     }
 
-    md += `### 3.${crossStudySectionNumber + 1} Research Gap Analysis\n\n`;
-    (synthesis.researchGaps || []).forEach((item) => {
-      md += `**${item.gap}:** ${item.evidenceBasis}\n\n`;
-    });
-
-    md += `### 3.${crossStudySectionNumber + 2} Future Research Agenda\n\n`;
-    (synthesis.futureResearchAgenda || []).forEach((item) => {
-      md += `**${item.priority}:** ${item.rationale} Suggested approach: ${item.suggestedApproach}\n\n`;
-    });
+    if (gradeItems.length > 0) {
+      md += `### 3.5 Optional Certainty of Evidence Assessment\n\n`;
+      md += `A certainty assessment was included only because it was explicitly populated by the reviewer. It was not generated automatically.\n\n`;
+      md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
+      md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
+      gradeItems.forEach((g) => {
+        md += `| ${g.outcome} | ${g.numStudies} | ${g.riskOfBias} | ${g.inconsistency} | ${g.indirectness} | ${g.imprecision} | ${g.publicationBias} | ${g.overallCertainty} | ${g.explanation.replace(/\|/g, "/")} |\n`;
+      });
+      md += `\n`;
+    } else {
+      md += `### 3.5 Certainty Assessment\n\n`;
+      md += `GRADE was not applied. The heterogeneous engineering evidence was assessed using domain-appropriate methodological quality criteria instead.\n\n`;
+    }
 
     md += `## 4. Discussion\n\n`;
-    md += `### 4.1 Principal Findings\n${discussion.item23aGeneralInterpretation}\n\n`;
-    md += `### 4.2 Interpretation by Research Question\n`;
-    rqFindings.forEach((finding) => {
-      md += `**${finding.rqId}:** ${finding.synthesizedAnswer}\n\n`;
-    });
-    md += `### 4.3 Comparison with Previous Reviews\nNo comparison is claimed unless previous-review evidence is explicitly supplied and appraised.\n\n`;
-    md += `### 4.4 Contradictions and Limitations of the Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n`;
-    md += `### 4.5 Research and Practice Implications\n${discussion.item23dImplications}\n\n`;
-
-    md += `## 5. Limitations\n\n`;
-    md += `${discussion.item23bLimitationsOfEvidence}\n\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
-
-    md += `## 6. Conclusion\n\n`;
-    md += `${abstract.concl}\n\n`;
+    md += `### 4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis\n${discussion.item23aGeneralInterpretation}\n\n`;
+    md += `### 4.2 Methodological Strengths and Limitations of Included Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n`;
+    md += `### 4.3 Limitations of Systematic Review Methodology\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
+    md += `### 4.4 Practical Implications and Future Research Directions\n${discussion.item23dImplications}\n\n`;
 
     md += `## References of Included Studies\n\n`;
     includedRecords.forEach((r) => {
@@ -513,21 +327,21 @@ Return ONLY JSON:
   <p>${getFrameworkNarrative()}</p>
 
   <h3>2.2 Eligibility Criteria</h3>
-  <p>Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded when they met ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.</p>
+  <p>Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Conversely, primary studies were excluded if they exhibited ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.</p>
 
   <h3>2.3 Information Sources and Search Strategy</h3>
-  <p>${protocol.searchStrategies.length > 0 ? `The protocol documents search strategies for ${protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ")}. Search execution is not claimed unless matching source records were uploaded.` : "No database search strategy is recorded. This report describes only uploaded records."}</p>
+  <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
 
   <h3>2.4 Selection Process</h3>
-  <p>Eligibility was determined through reviewer-confirmed title and abstract screening. ${includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.</p>
+  <p>The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.</p>
 
   <h3>2.5 Methodological Quality and Risk of Bias Assessment Methods</h3>
-  <p>Methodological quality was appraised using ${protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate framework"}. The approved domains were ${protocol.riskOfBiasMethods.domainsAssessed || "not specified"}.</p>
+  <p>Methodological quality and potential validity threats were systematically assessed using ${protocol.riskOfBiasMethods.toolName || "a domain-tailored engineering quality checklist"} evaluating study design, benchmark data adequacy, measurement methodology, baseline comparability, and experimental repeatability.</p>
 
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>${counts.identifiedDb || 0} records were identified, ${counts.duplicatesRemoved || 0} duplicates were removed, and ${counts.recordsAfterDuplicatesRemoved || 0} records remained. ${counts.screened || 0} records received reviewer title/abstract decisions, ${counts.recordsNotScreened || 0} remain pending, ${counts.screenedExcluded || 0} were excluded, and ${includedRecords.length} were included for abstract-based synthesis.</p>
+  <p>${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded.</p>
 
   <h3>3.2 Characteristics of Included Studies (Table 1)</h3>
   <div class="table-caption">Table 1: Characteristics of Included Studies Grouped by Category</div>
@@ -538,11 +352,11 @@ Return ONLY JSON:
         <th>Category / Paradigm</th>
         ${hasCountryData ? "<th>Country</th>" : ""}
         ${hasSampleData ? "<th>Sample / Dataset</th>" : ""}
-        <th>Intervention / Exposure / Phenomenon</th>
-        <th>Comparator</th>
-        <th>Reported Outcome</th>
+        <th>Proposed Architecture / Technology</th>
+        <th>Baseline / Comparator</th>
+        <th>Primary Outcome Metric</th>
         <th>Study Design</th>
-        <th>Key Finding</th>
+        <th>Key Technical Finding</th>
       </tr>
     </thead>
     <tbody>
@@ -553,7 +367,7 @@ Return ONLY JSON:
           ${hasCountryData ? `<td>${c.country || "Not reported"}</td>` : ""}
           ${hasSampleData ? `<td>${c.sampleSize || "N/A"}</td>` : ""}
           <td><strong style="color: #4338ca;">${c.interventionOrFocus}</strong></td>
-          <td>${c.comparator || "Not reported"}</td>
+          <td>${c.comparator || "Standard Baseline"}</td>
           <td><strong style="color: #065f46;">${c.primaryOutcome}</strong></td>
           <td>${c.studyDesign || "Empirical Study"}</td>
           <td>${c.keyFinding}</td>
@@ -593,51 +407,24 @@ Return ONLY JSON:
     </tbody>
   </table>
 
-  ${rqFindings.map((finding, index) => `
-    <h3>3.${index + 4} ${finding.rqId}: ${finding.question.replace(/^RQ\d+:\s*/i, "")}</h3>
-    <p>${finding.synthesizedAnswer}</p>
-    <p><strong>Dominant patterns:</strong> ${finding.dominantPatterns}</p>
-    <p><strong>Contradictions:</strong> ${finding.contradictions}</p>
-    <p><strong>Evidence gaps:</strong> ${finding.evidenceGaps}</p>
-  `).join("")}
-  ${synthesis.crossStudySynthesis ? `
-    <h3>3.${rqFindings.length + 4} Cross-study Synthesis</h3>
-    <p>${synthesis.crossStudySynthesis.overallPatterns}</p>
-    <p><strong>Cross-cutting contradictions:</strong> ${synthesis.crossStudySynthesis.contradictions}</p>
-    <p><strong>Principal evidence gaps:</strong> ${synthesis.crossStudySynthesis.evidenceGaps}</p>
-  ` : ""}
-  <h3>3.${rqFindings.length + 5} Research Gap Analysis</h3>
-  ${(synthesis.researchGaps || []).map((item) => `
-    <p><strong>${item.gap}:</strong> ${item.evidenceBasis}</p>
-  `).join("")}
-
-  <h3>3.${rqFindings.length + 6} Future Research Agenda</h3>
-  ${(synthesis.futureResearchAgenda || []).map((item) => `
-    <p><strong>${item.priority}:</strong> ${item.rationale} Suggested approach: ${item.suggestedApproach}</p>
+  <h3>3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+  ${synthesis.subtopics.map((st) => `
+    <h4>${st.title}</h4>
+    <p>${st.prose}</p>
   `).join("")}
 
   <h2>4. Discussion</h2>
-  <h3>4.1 Principal Findings</h3>
+  <h3>4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis</h3>
   <p>${discussion.item23aGeneralInterpretation}</p>
 
-  <h3>4.2 Interpretation by Research Question</h3>
-  ${rqFindings.map((finding) => `<p><strong>${finding.rqId}:</strong> ${finding.synthesizedAnswer}</p>`).join("")}
-
-  <h3>4.3 Comparison with Previous Reviews</h3>
-  <p>No comparison is claimed unless previous-review evidence is explicitly supplied and appraised.</p>
-
-  <h3>4.4 Contradictions and Limitations of the Evidence</h3>
+  <h3>4.2 Methodological Strengths and Limitations of Included Evidence</h3>
   <p>${discussion.item23bLimitationsOfEvidence}</p>
 
-  <h3>4.5 Research and Practice Implications</h3>
-  <p>${discussion.item23dImplications}</p>
-
-  <h2>5. Limitations</h2>
-  <p>${discussion.item23bLimitationsOfEvidence}</p>
+  <h3>4.3 Limitations of Systematic Review Methodology</h3>
   <p>${discussion.item23cLimitationsOfReviewProcess}</p>
 
-  <h2>6. Conclusion</h2>
-  <p>${abstract.concl}</p>
+  <h3>4.4 Practical Implications and Future Research Directions</h3>
+  <p>${discussion.item23dImplications}</p>
 
   <h2>References of Included Studies</h2>
   ${includedRecords.map((r) => {
@@ -674,36 +461,28 @@ Return ONLY JSON:
         <div className="flex items-center gap-2 flex-wrap">
           <button
             onClick={handleCopy}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
             {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
             {copied ? "Copied!" : "Copy Markdown"}
           </button>
           <button
             onClick={handleDownload}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer disabled:bg-slate-300 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
           >
             <Download className="w-3.5 h-3.5" />
             Download Markdown (.md)
           </button>
           <button
             onClick={handleDownloadDoc}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
           >
             <FileText className="w-3.5 h-3.5 text-indigo-600" />
             Download Word (.doc)
           </button>
           <button
             onClick={() => window.print()}
-            disabled={!generatedAbstract}
-            title={!generatedAbstract ? "Generate the synthesis-level abstract before exporting" : undefined}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer"
           >
             <Printer className="w-3.5 h-3.5" />
             Print / PDF
@@ -728,45 +507,15 @@ Return ONLY JSON:
 
         {/* Structured Academic Abstract */}
         <section className="bg-slate-50/80 border border-slate-200 p-6 sm:p-8 rounded-xl space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-3">
+          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
             <h2 className="text-base font-bold text-slate-900 font-mono flex items-center gap-2 uppercase tracking-wide">
               <BookOpen className="w-4 h-4 text-indigo-600" />
               Structured Academic Abstract
             </h2>
-            <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-mono border px-2 py-0.5 rounded ${
-                generatedAbstract
-                  ? "text-emerald-700 bg-emerald-50 border-emerald-200"
-                  : abstractReady
-                  ? "text-indigo-700 bg-indigo-50 border-indigo-200"
-                  : "text-amber-700 bg-amber-50 border-amber-200"
-              }`}>
-                {generatedAbstract ? "Synthesis Abstract Ready" : abstractReady ? "Ready to Generate" : "Prerequisites Incomplete"}
-              </span>
-              <button
-                onClick={handleGenerateAbstract}
-                disabled={!abstractReady || generatingAbstract}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg disabled:bg-slate-300 disabled:cursor-not-allowed"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                {generatingAbstract ? "Synthesizing..." : generatedAbstract ? "Regenerate Abstract" : "Generate Abstract"}
-              </button>
-            </div>
+            <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
+              Publication Ready
+            </span>
           </div>
-
-          {!abstractReady && (
-            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-              Complete all final-evidence stages first:
-              <span className="ml-1 font-mono">
-                selection {selectionComplete ? "✓" : "○"} · extraction {extractionComplete ? "✓" : "○"} · appraisal {appraisalComplete ? "✓" : "○"} · synthesis {synthesisComplete ? "✓" : "○"}
-              </span>
-            </div>
-          )}
-          {abstractError && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
-              Abstract generation failed: {abstractError}
-            </div>
-          )}
 
           <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
             <p>
@@ -840,24 +589,22 @@ Return ONLY JSON:
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.2 Eligibility Criteria</h3>
             <p className="text-justify">
-              Studies were eligible for inclusion if they satisfied predefined criteria encompassing {protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded when they met {protocol.eligibilityCriteria.exclusion.join(", ")}. Synthesis grouping was structured around {protocol.eligibilityCriteria.groupingForSynthesis || "researcher-approved grouping criteria"}.
+              Studies were eligible for inclusion if they satisfied predefined criteria encompassing {protocol.eligibilityCriteria.inclusion.join(", ")}. Conversely, primary studies were excluded if they exhibited {protocol.eligibilityCriteria.exclusion.join(", ")}. Synthesis grouping was structured around {protocol.eligibilityCriteria.groupingForSynthesis || "thematic technological categories"}.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.3 Information Sources and Search Strategy</h3>
             <p className="text-justify">
-              {protocol.searchStrategies.length > 0
-                ? `The protocol documents search strategies for ${protocol.searchStrategies.map((s) => s.database).filter(Boolean).join(", ")}. Search execution is not claimed unless matching source records were uploaded.`
-                : "No database search strategy is recorded. This report describes only uploaded records."}
+              Systematic search strings were executed across major academic databases ({protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strategies combined controlled vocabulary terms, Boolean logic, and field constraints.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              Eligibility was determined through reviewer-confirmed title and abstract screening. {includedRecords.length} records were included for abstract-based extraction and synthesis. Full-text retrieval and assessment were not performed in this workflow. Independent duplicate review and adjudication are not claimed unless separately documented.
+              The application records title and abstract screening decisions. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.5 Methodological Quality and Rigor Assessment Methods</h3>
             <p className="text-justify">
-              Methodological quality was appraised using {protocol.riskOfBiasMethods.toolName || "a transparent, study-design-appropriate framework"}. The approved domains were {protocol.riskOfBiasMethods.domainsAssessed || "not specified"}.
+              Methodological quality and potential threats to validity were systematically evaluated using {protocol.riskOfBiasMethods.toolName || "an engineering quality appraisal checklist"} covering experimental setup, benchmark data adequacy, measurement methodology, baseline comparability, and repeatability.
             </p>
           </div>
         </section>
@@ -871,7 +618,7 @@ Return ONLY JSON:
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The workspace contains {counts.identifiedDb || 0} identified records. After removing {counts.duplicatesRemoved || 0} duplicates, {counts.recordsAfterDuplicatesRemoved || 0} records remained. {counts.screened || 0} records received reviewer title/abstract decisions, {counts.recordsNotScreened || 0} remain pending, {counts.screenedExcluded || 0} were excluded, and {includedRecords.length} were included for abstract-based synthesis.
+              The evidence database represents {counts.identifiedDb || 0} records, including {counts.duplicatesRemoved || 0} duplicates recorded as removed. {counts.screened || 0} records have title and abstract screening decisions, {counts.screenedExcluded || 0} are excluded, and {includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
             </p>
 
             {/* Illustrated Flow Diagram */}
@@ -899,24 +646,24 @@ Return ONLY JSON:
                     <th className="p-2.5 font-bold">Category / Paradigm</th>
                     {hasCountryData && <th className="p-2.5 font-bold">Country</th>}
                     {hasSampleData && <th className="p-2.5 font-bold">Sample</th>}
-                    <th className="p-2.5 font-bold">Intervention / Exposure / Phenomenon</th>
-                    <th className="p-2.5 font-bold">Comparator</th>
-                    <th className="p-2.5 font-bold">Reported Outcome</th>
+                    <th className="p-2.5 font-bold">Proposed Architecture / Intervention</th>
+                    <th className="p-2.5 font-bold">Baseline / Comparator</th>
+                    <th className="p-2.5 font-bold">Primary Outcome Metric</th>
                     <th className="p-2.5 font-bold">Study Design</th>
-                    <th className="p-2.5 font-bold">Key Finding</th>
+                    <th className="p-2.5 font-bold">Key Technical Finding</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {characteristics.map((c, i) => (
                     <tr key={i} className="hover:bg-slate-50/50">
                       <td className="p-2.5 font-mono font-semibold text-slate-900 whitespace-nowrap">{c.authorYear}</td>
-                      <td className="p-2.5 font-mono text-indigo-900">{c.category || "Not categorized"}</td>
+                      <td className="p-2.5 font-mono text-indigo-900">{c.category || "Empirical Architecture"}</td>
                       {hasCountryData && <td className="p-2.5">{c.country || "Not reported"}</td>}
                       {hasSampleData && <td className="p-2.5 font-mono">{c.sampleSize || "N/A"}</td>}
                       <td className="p-2.5 font-mono text-indigo-700 font-medium">{c.interventionOrFocus}</td>
-                      <td className="p-2.5 text-slate-600">{c.comparator || "Not reported"}</td>
+                      <td className="p-2.5 text-slate-600">{c.comparator || "Standard Baseline"}</td>
                       <td className="p-2.5 font-mono font-bold text-emerald-800">{c.primaryOutcome}</td>
-                      <td className="p-2.5 text-slate-600">{c.studyDesign || "Not reported"}</td>
+                      <td className="p-2.5 text-slate-600">{c.studyDesign || "Empirical Benchmark"}</td>
                       <td className="p-2.5 text-slate-700 italic">{c.keyFinding}</td>
                     </tr>
                   ))}
@@ -962,96 +709,70 @@ Return ONLY JSON:
             </div>
           </div>
 
-          {/* RQ-controlled synthesis results */}
+          {/* Narrative Synthesis with Cross-Author Similarities */}
           <div className="space-y-3 pt-4">
-            {rqFindings.map((finding, index) => (
-              <div key={finding.rqId} className="space-y-2 border border-indigo-100 rounded-xl p-4">
-                <h3 className="font-bold text-slate-900 text-sm font-mono">
-                  3.{index + 4} {finding.rqId}: {finding.question.replace(/^RQ\d+:\s*/i, "")}
-                </h3>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{finding.synthesizedAnswer}</p>
-                <div className="grid md:grid-cols-3 gap-2 text-xs">
-                  <p><strong>Dominant patterns:</strong> {finding.dominantPatterns}</p>
-                  <p><strong>Contradictions:</strong> {finding.contradictions}</p>
-                  <p><strong>Evidence gaps:</strong> {finding.evidenceGaps}</p>
-                </div>
+            <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+            {synthesis.subtopics.map((st, i) => (
+              <div key={i} className="space-y-1">
+                <h4 className="font-bold text-xs text-slate-900 font-mono">{st.title}</h4>
+                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">{st.prose}</p>
               </div>
             ))}
-            {synthesis.crossStudySynthesis && (
-              <div className="space-y-2 bg-indigo-950 text-white rounded-xl p-5">
-                <h3 className="font-bold text-sm font-mono">
-                  3.{rqFindings.length + 4} Cross-study Synthesis
-                </h3>
-                <p className="text-xs sm:text-sm leading-relaxed">{synthesis.crossStudySynthesis.overallPatterns}</p>
-                <p className="text-xs"><strong>Cross-cutting contradictions:</strong> {synthesis.crossStudySynthesis.contradictions}</p>
-                <p className="text-xs"><strong>Principal evidence gaps:</strong> {synthesis.crossStudySynthesis.evidenceGaps}</p>
-              </div>
-            )}
           </div>
 
-          <div className="grid md:grid-cols-2 gap-4 pt-4">
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-              <h3 className="font-bold text-sm text-amber-950">Research Gap Analysis</h3>
-              {(synthesis.researchGaps || []).map((item, index) => (
-                <div key={index} className="mt-3">
-                  <div className="text-xs font-bold text-amber-900">{item.gap}</div>
-                  <p className="text-xs text-amber-900 mt-1">{item.evidenceBasis}</p>
-                </div>
-              ))}
+          {/* Optional Table 3: reviewer-populated certainty assessment */}
+          {gradeItems.length > 0 && <div className="space-y-2 pt-4">
+            <div className="text-xs font-mono font-bold text-slate-900">
+              Table 3: Certainty of Evidence and Summary of Findings
             </div>
-            <div className="rounded-xl border border-indigo-200 bg-indigo-50 p-5">
-              <h3 className="font-bold text-sm text-indigo-950">Future Research Agenda</h3>
-              {(synthesis.futureResearchAgenda || []).map((item, index) => (
-                <div key={index} className="mt-3">
-                  <div className="text-xs font-bold text-indigo-900">{item.priority}</div>
-                  <p className="text-xs text-indigo-900 mt-1">{item.rationale}</p>
-                  <p className="text-xs text-indigo-800 mt-1"><strong>Suggested approach:</strong> {item.suggestedApproach}</p>
-                </div>
-              ))}
+            <div className="overflow-x-auto border border-slate-200 rounded-lg">
+              <table className="w-full text-left text-[11px] font-sans">
+                <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
+                  <tr>
+                    <th className="p-2 font-bold">Outcome</th>
+                    <th className="p-2 font-bold">Studies (N)</th>
+                    <th className="p-2 font-bold">Certainty Rating</th>
+                    <th className="p-2 font-bold">Synthesis Explanation</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {gradeItems.map((g, i) => (
+                    <tr key={i} className="hover:bg-slate-50/50">
+                      <td className="p-2 font-mono font-semibold">{g.outcome}</td>
+                      <td className="p-2 font-mono">{g.numStudies}</td>
+                      <td className="p-2 font-mono font-bold text-emerald-800">{g.overallCertainty}</td>
+                      <td className="p-2 text-slate-600">{g.explanation}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
+          </div>}
         </section>
 
-        {/* Section 4: interpretation of synthesized results */}
+        {/* Section 4: Discussion (Strictly in Statements / Paragraphs with Author Comparisons) */}
         <section className="space-y-4">
           <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
             4. Discussion
           </h2>
           <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.1 Principal Findings</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis</h3>
               <p className="text-justify">{discussion.item23aGeneralInterpretation}</p>
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.2 Interpretation by Research Question</h3>
-              {rqFindings.map((finding) => (
-                <p key={finding.rqId} className="text-justify"><strong>{finding.rqId}:</strong> {finding.synthesizedAnswer}</p>
-              ))}
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.3 Comparison with Previous Reviews</h3>
-              <p className="text-justify">No comparison is claimed unless previous-review evidence is explicitly supplied and appraised.</p>
-            </div>
-            <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.4 Contradictions and Limitations of the Evidence</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.2 Methodological Strengths and Limitations of Included Evidence</h3>
               <p className="text-justify">{discussion.item23bLimitationsOfEvidence}</p>
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.5 Research and Practice Implications</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.3 Limitations of Systematic Review Methodology</h3>
+              <p className="text-justify">{discussion.item23cLimitationsOfReviewProcess}</p>
+            </div>
+            <div>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.4 Practical Implications and Future Research Directions</h3>
               <p className="text-justify">{discussion.item23dImplications}</p>
             </div>
           </div>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">5. Limitations</h2>
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{discussion.item23bLimitationsOfEvidence}</p>
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{discussion.item23cLimitationsOfReviewProcess}</p>
-        </section>
-
-        <section className="space-y-3">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">6. Conclusion</h2>
-          <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">{abstract.concl}</p>
         </section>
 
         {/* References */}

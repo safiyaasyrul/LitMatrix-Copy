@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SLRRecord, RiskOfBiasItem, StudyCharacteristic, SLRProtocol } from "../types/slr";
+import { SLRRecord, RiskOfBiasItem, StudyCharacteristic } from "../types/slr";
 import {
   Sparkles,
   ShieldCheck,
@@ -27,11 +27,10 @@ interface RiskOfBiasSectionProps {
   onUpdateRiskOfBias: (items: RiskOfBiasItem[]) => void;
   aiConfig: any;
   characteristics?: StudyCharacteristic[];
-  protocol: SLRProtocol;
   onNavigateToScreening?: () => void;
 }
 
-export type AppraisalFramework = "adaptive" | "threats_validity" | "clinical_rob2";
+export type AppraisalFramework = "engineering" | "threats_validity" | "clinical_rob2";
 export type PresentationMode = "scorecard" | "traffic_light" | "narrative_summary";
 
 export default function RiskOfBiasSection({
@@ -40,29 +39,23 @@ export default function RiskOfBiasSection({
   onUpdateRiskOfBias,
   aiConfig,
   characteristics = [],
-  protocol,
   onNavigateToScreening,
 }: RiskOfBiasSectionProps) {
   const [evaluating, setEvaluating] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [editingIdx, setEditingIdx] = useState<number | null>(null);
 
-  // Start with a transparent adaptive framework unless the approved protocol
-  // explicitly names a validated clinical instrument.
-  const [appraisalFramework, setAppraisalFramework] = useState<AppraisalFramework>(
-    /(?:rob\s*2|robins-i|cochrane)/i.test(protocol.riskOfBiasMethods.toolName || "")
-      ? "clinical_rob2"
-      : "adaptive"
-  );
+  // Framework and presentation mode state: Default to Engineering framework with Rigor Scorecard presentation
+  const [appraisalFramework, setAppraisalFramework] = useState<AppraisalFramework>("engineering");
   const [presentationMode, setPresentationMode] = useState<PresentationMode>("scorecard");
 
   // Domain labels depending on framework
-  const adaptiveDomains = [
-    { key: "d1Selection", label: "Study Design Appropriateness" },
-    { key: "d2Performance", label: "Evidence or Sample Adequacy" },
-    { key: "d3Attrition", label: "Data Collection & Measurement Validity" },
-    { key: "d4Detection", label: "Analysis & Interpretation Validity" },
-    { key: "d5Reporting", label: "Transparency & Reporting Completeness" },
+  const engineeringDomains = [
+    { key: "d1Selection", label: "Study Design & Experimental Setup" },
+    { key: "d2Performance", label: "Benchmark Data & Sample Adequacy" },
+    { key: "d3Attrition", label: "Measurement Methodology & Metrics" },
+    { key: "d4Detection", label: "Baseline Validation & Comparative Rigor" },
+    { key: "d5Reporting", label: "Repeatability, Reproducibility & Code Openness" },
   ];
 
   const threatsDomains = [
@@ -82,13 +75,13 @@ export default function RiskOfBiasSection({
   ];
 
   const activeDomains =
-    appraisalFramework === "adaptive"
-      ? adaptiveDomains
+    appraisalFramework === "engineering"
+      ? engineeringDomains
       : appraisalFramework === "threats_validity"
       ? threatsDomains
       : clinicalDomains;
 
-  // Conservative fallback: limited abstract evidence is a concern, not a low-risk
+  // Conservative fallback: missing full-text evidence is a concern, not a low-risk
   // judgment. Citation metadata cannot establish methodological quality.
   const runHeuristicAppraisal = () => {
     if (includedRecords.length === 0) return;
@@ -100,7 +93,7 @@ export default function RiskOfBiasSection({
 
       const hasMethods = /method|experiment|simulation|survey|case study|model|measure/i.test(abstract);
       const hasValidation = /validat|replicat|sensitivity|uncertainty|calibrat/i.test(abstract);
-      const hasDataSource = /data|dataset|evidence|sample|participant|source|material|corpus/i.test(abstract);
+      const hasDataSource = /data|dataset|observ|sample|voyage|vessel|port|field/i.test(abstract);
       const concern = !hasMethods || !hasValidation || !hasDataSource;
 
       return {
@@ -141,16 +134,14 @@ export default function RiskOfBiasSection({
     });
 
     let criteriaInstructions = "";
-    if (appraisalFramework === "adaptive") {
-      criteriaInstructions = `Use a transparent appraisal framework adapted to the supplied study designs and review topic.
-Approved or proposed tool: ${protocol.riskOfBiasMethods.toolName || "No validated instrument specified"}.
-Approved appraisal domains: ${protocol.riskOfBiasMethods.domainsAssessed || "Study design, evidence adequacy, measurement validity, analysis validity, and reporting completeness"}.
-- d1Selection: "Low" | "Some concerns" | "High" (Study design appropriateness)
-- d2Performance: "Low" | "Some concerns" | "High" (Evidence or sample adequacy)
-- d3Attrition: "Low" | "Some concerns" | "High" (Data collection and measurement validity)
-- d4Detection: "Low" | "Some concerns" | "High" (Analysis and interpretation validity)
-- d5Reporting: "Low" | "Some concerns" | "High" (Transparency and reporting completeness)
-- overall: "Low" | "Some concerns" | "High"`;
+    if (appraisalFramework === "engineering") {
+      criteriaInstructions = `Evaluate methodological quality for engineering, environmental, and computational studies across 5 criteria:
+- d1Selection: "Low" | "Some concerns" | "High" (Study Design & Experimental Setup Rigor)
+- d2Performance: "Low" | "Some concerns" | "High" (Benchmark Data / Sample Adequacy)
+- d3Attrition: "Low" | "Some concerns" | "High" (Measurement Methodology & Metric Precision)
+- d4Detection: "Low" | "Some concerns" | "High" (Baseline Validation & Comparative Superiority)
+- d5Reporting: "Low" | "Some concerns" | "High" (Repeatability, Reproducibility & Openness)
+- overall: "Low" | "Some concerns" | "High" (Overall Methodological Rigor)`;
     } else if (appraisalFramework === "threats_validity") {
       criteriaInstructions = `Evaluate empirical threats to validity across 5 dimensions:
 - d1Selection: "Low" | "Some concerns" | "High" (Construct Validity)
@@ -172,7 +163,7 @@ Approved appraisal domains: ${protocol.riskOfBiasMethods.domainsAssessed || "Stu
      const prompt = `Following PRISMA 2020 Items 11 & 18, evaluate methodological quality using the domain-appropriate framework below:
 ${criteriaInstructions}
 - justification: 1-2 concise sentences summarizing the technical evidence, baseline comparability, and experimental reproducibility.
-Do not infer any judgment from citation metadata alone. Use "Some concerns" or "High" when the supplied material does not establish a criterion. Do not introduce terminology from an unrelated discipline, and never claim independent reviewers or completed validation unless supplied.
+Do not infer any judgment from citation metadata alone. Use "Some concerns" or "High" when the abstract does not establish a criterion. Never use clinical terminology for engineering or environmental studies, and never claim full-text verification, independent reviewers, or completed validation unless supplied.
 
 Studies:
 ${JSON.stringify(payload)}
@@ -180,7 +171,7 @@ ${JSON.stringify(payload)}
 Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Selection, d2Performance, d3Attrition, d4Detection, d5Reporting, overall, justification }.`;
 
     try {
-      const text = await callAI(prompt, "You are a domain-agnostic systematic review appraisal methodologist. Adapt the appraisal to the supplied study designs and approved protocol.", aiConfig);
+      const text = await callAI(prompt, "You are a senior systematic review quality auditor specializing in engineering and empirical research methods.", aiConfig);
       const parsed = parseJSONLoose(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
         onUpdateRiskOfBias(parsed);
@@ -290,7 +281,7 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
               Study Quality & Methodological Rigor Assessment
             </h2>
             <p className="text-xs text-slate-500 mt-1 max-w-3xl">
-              Use a validated instrument when it fits the included study designs. Otherwise apply a transparent, researcher-approved framework adapted to the evidence.
+              Systematic quality evaluation tailored to your domain. For engineering reviews, assess experimental setup, dataset adequacy, measurement methodology, baseline validation, and repeatability without forcing clinical traffic-light matrices.
             </p>
           </div>
 
@@ -331,14 +322,14 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
               Appraisal Framework:
             </span>
             <button
-              onClick={() => setAppraisalFramework("adaptive")}
+              onClick={() => setAppraisalFramework("engineering")}
               className={`px-2.5 py-1 rounded-md font-mono text-xs cursor-pointer transition-colors ${
-                appraisalFramework === "adaptive"
+                appraisalFramework === "engineering"
                   ? "bg-indigo-600 text-white font-semibold shadow-2xs"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200"
               }`}
             >
-              Adaptive Methodological Appraisal
+              Engineering & Computing Quality
             </button>
             <button
               onClick={() => setAppraisalFramework("threats_validity")}
@@ -410,8 +401,8 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
           </span>
         </div>
         <p className="text-slate-600 leading-relaxed">
-          {appraisalFramework === "adaptive"
-            ? "Quality appraisal uses a domain-tailored framework assessing study design, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness. Ratings are limited to information reported in the abstract and require reviewer verification."
+          {appraisalFramework === "engineering"
+            ? "Quality appraisal uses a domain-tailored framework assessing study design, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness. Ratings require user verification against the full text."
             : appraisalFramework === "threats_validity"
             ? "Empirical quality was evaluated using a comprehensive threats-to-validity framework encompassing construct validity, internal validity, external validity (generalizability), conclusion validity, and experimental reliability."
             : "Risk of bias was evaluated using the Cochrane RoB 2 / ROBINS-I tool across five standard bias domains (selection, performance, attrition, detection, and reporting)."}
@@ -424,7 +415,7 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
           <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
           <h3 className="text-sm font-bold text-amber-900">No Included Studies Available</h3>
           <p className="text-xs text-amber-700 max-w-md mx-auto">
-            Quality appraisal applies only to records included by the reviewer after title and abstract screening.
+            Quality appraisal applies to studies confirmed as included during screening.
           </p>
           {onNavigateToScreening && (
             <button
@@ -548,7 +539,7 @@ Return ONLY a JSON array of objects conforming to: { recordId, authorYear, d1Sel
               </h3>
               <div className="space-y-3 text-xs leading-relaxed text-slate-700 font-sans">
                 <p>
-                  Methodological appraisal was recorded for {riskOfBias.length} reviewer-included abstracts using the selected framework. {riskOfBias.filter((r) => r.overall === "Low").length} records have low-concern judgments and {riskOfBias.filter((r) => r.overall === "Some concerns").length} have some-concern judgments. These counts describe abstract-based reviewer judgments only.
+                  Methodological appraisal was systematically conducted across all {riskOfBias.length} included studies. For each study, evaluation encompassed experimental design formulation, benchmark data sufficiency, baseline comparability, metric rigor, and repeatability. Overall, {riskOfBias.filter((r) => r.overall === "Low").length} studies demonstrated high methodological rigor with minimal threats to internal validity, while {riskOfBias.filter((r) => r.overall === "Some concerns").length} studies exhibited moderate concerns primarily attributable to lack of external benchmark validation or incomplete artifact availability.
                 </p>
                 <p>
                   Regarding experimental baseline comparison, the majority of primary investigations incorporated established state-of-the-art benchmarks for comparative validation. However, potential threats to external validity were observed in studies relying exclusively on single-institution datasets without multi-site replication. Statistical reporting was found to be complete across core outcome metrics, supporting the overall reliability and reproducibility of the synthesized evidence base.

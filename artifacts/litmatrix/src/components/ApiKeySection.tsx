@@ -262,7 +262,7 @@ export default function ApiKeySection({
       </div>
 
       {/* Provider cards reveal one configuration panel at a time */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {[
           {
             id: "replit-managed" as SupportedAIProvider,

@@ -6,6 +6,7 @@ import {
   StudyCharacteristic,
   RiskOfBiasItem,
   SynthesisResult,
+  GradeCertaintyItem,
   DiscussionSections,
   PrismaChecklistItem,
   PrismaSChecklistItem,
@@ -23,6 +24,7 @@ import {
   sampleCharacteristics,
   sampleRiskOfBias,
   sampleSynthesis,
+  sampleGradeItems,
   sampleDiscussion,
   BLANK_PROTOCOL,
 } from "./data/sampleDataset";
@@ -35,7 +37,8 @@ import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
 import RiskOfBiasSection from "./components/RiskOfBiasSection";
-import EvidenceSynthesisStage, { EvidenceSynthesisPhase } from "./components/EvidenceSynthesisStage";
+import SynthesisSection from "./components/SynthesisSection";
+import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
@@ -59,6 +62,7 @@ import {
   Table,
   ShieldCheck,
   BarChart2,
+  Award,
   BookOpen,
   FileText,
   Sparkles,
@@ -116,6 +120,12 @@ export default function App() {
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion: parsed.heterogeneityDiscussion?.replace(/I²|p\s*=|pooled/gi, "") || "",
     };
+  });
+
+  const [gradeItems, setGradeItems] = useState<GradeCertaintyItem[]>(() => {
+    // GRADE is optional and is not appropriate by default for heterogeneous
+    // engineering evidence. Existing auto-generated rows are not trusted.
+    return [];
   });
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
@@ -236,6 +246,10 @@ export default function App() {
   }, [synthesis]);
 
   useEffect(() => {
+    localStorage.setItem("slr_grade_v1", JSON.stringify(gradeItems));
+  }, [gradeItems]);
+
+  useEffect(() => {
     localStorage.setItem("slr_discussion_v1", JSON.stringify(discussion));
   }, [discussion]);
 
@@ -259,8 +273,7 @@ export default function App() {
     return getActiveAIConfig(keysConfig);
   }, [keysConfig]);
 
-  // Reviewer-confirmed title/abstract decisions define final inclusion for this
-  // abstract-based review workflow.
+  // Derived included records
   const includedRecords = useMemo(() => {
     return records.filter((r) => screening[r.id]?.agreed === true);
   }, [records, screening]);
@@ -280,55 +293,29 @@ export default function App() {
     return acc;
   }, [excludedRecords, screening]);
 
-  // PRISMA flow counts are derived from the current record library and recorded
-  // reviewer decisions. A record can be present in the library before screening,
-  // so deduplicated and screened counts must remain separate.
+  // PRISMA flow counts are derived only from records and recorded screening decisions.
+  // Full-text retrieval/assessment is not tracked by this application.
   const prismaCounts = useMemo(() => {
     const totalIdentified = records.length + (dupesRemoved || 0);
     const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
-    const recordsNotScreenedCount = Math.max(records.length - screenedCount, 0);
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
-    const uploadedSourceNames = Array.from(
-      new Set(
-        records.flatMap((record) => {
-          const sources =
-            record.databaseSources && record.databaseSources.length > 0
-              ? record.databaseSources
-              : record.databaseSource
-              ? [record.databaseSource]
-              : [];
-          return sources.flatMap((source) =>
-            source
-              .split(",")
-              .map((value) => value.trim())
-              .filter(Boolean)
-          );
-        })
-      )
-    );
 
     return {
       identifiedDb: totalIdentified,
       identifiedOther: 0,
-      identifiedDbSources: uploadedSourceNames,
-      identifiedOtherSources: [],
       duplicatesRemoved: dupesRemoved || 0,
-      recordsAfterDuplicatesRemoved: records.length,
       screened: screenedCount,
-      recordsNotScreened: recordsNotScreenedCount,
       screenedExcluded: screenedExcludedCount,
+      soughtRetrieval: 0,
+      notRetrieved: 0,
+      assessed: 0,
+      assessedExcluded: 0,
       exclusionReasonsBreakdown,
       included: includedCount,
+      fullTextAssessmentRecorded: false,
     };
-  }, [
-    records,
-    screening,
-    dupesRemoved,
-    includedRecords,
-    excludedRecords,
-    exclusionReasonsBreakdown,
-  ]);
+  }, [records, screening, dupesRemoved, includedRecords, excludedRecords, exclusionReasonsBreakdown]);
 
   // Checklist item update helpers
   const handleUpdateChecklistItem = (itemNumber: string, updates: Partial<PrismaChecklistItem>) => {
@@ -359,6 +346,7 @@ export default function App() {
       setCharacteristics(sampleCharacteristics);
       setRiskOfBias(sampleRiskOfBias);
       setSynthesis(sampleSynthesis);
+      setGradeItems([]);
       setDiscussion(sampleDiscussion);
       setChecklist(initialPrismaChecklist);
       setPrismaSChecklist(initialPrismaSChecklist);
@@ -380,20 +368,13 @@ export default function App() {
       setCharacteristics([]);
       setRiskOfBias([]);
       setSynthesis({
-        status: undefined,
-        descriptiveSynthesis: undefined,
-        studyEvidence: [],
-        subtopics: [],
-        clusters: [],
-        rqFindings: [],
-        crossStudySynthesis: undefined,
-        researchGaps: [],
-        futureResearchAgenda: [],
-        keyFindingsTable: [],
+        characteristicsTable: [],
+        metaAnalysisCategories: [],
         forestPlotEstimates: [],
         pooledEffectEstimate: undefined,
         heterogeneityDiscussion: "",
       });
+      setGradeItems([]);
       setDiscussion({
         item23aGeneralInterpretation: "",
         item23bLimitationsOfEvidence: "",
@@ -421,20 +402,13 @@ export default function App() {
     setCharacteristics((current) => current.filter((item) => recordIds.has(item.recordId)));
     setRiskOfBias((current) => current.filter((item) => recordIds.has(item.recordId)));
     setSynthesis({
-      status: undefined,
-      descriptiveSynthesis: undefined,
-      studyEvidence: [],
       subtopics: [],
-      clusters: [],
-      rqFindings: [],
-      crossStudySynthesis: undefined,
-      researchGaps: [],
-      futureResearchAgenda: [],
       keyFindingsTable: [],
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion: "",
     });
+    setGradeItems([]);
     setDiscussion({
       item23aGeneralInterpretation: "",
       item23bLimitationsOfEvidence: "",
@@ -460,7 +434,7 @@ export default function App() {
     },
     {
       id: "protocol",
-      label: "Protocol & Review Questions",
+      label: "Protocol & PICO Objectives",
       badge: "Items 4, 5, 8–15",
       icon: FileSpreadsheet,
     },
@@ -500,15 +474,21 @@ export default function App() {
       badge: "Items 11 & 18",
       icon: ShieldCheck,
     },
-    { id: "descriptive", label: "Descriptive Synthesis", badge: "Study → Finding", icon: BarChart2 },
-    { id: "thematic", label: "Thematic Synthesis", badge: "Pattern → Theme", icon: BarChart2 },
-    { id: "clusters", label: "Cluster Analysis", badge: "Related Evidence", icon: BarChart2 },
-    { id: "cross-study", label: "Cross-study Evidence Synthesis", badge: "Items 13a–f", icon: BarChart2 },
-    { id: "gaps", label: "Research Gap Analysis", badge: "Evidence Gaps", icon: BarChart2 },
-    { id: "agenda", label: "Future Research Agenda", badge: "Research Priorities", icon: BarChart2 },
+    {
+      id: "synthesis",
+      label: "Narrative Synthesis",
+      badge: "Items 13a–f",
+      icon: BarChart2,
+    },
+    {
+      id: "grade",
+      label: "Optional Evidence Certainty",
+      badge: "Items 15 & 22",
+      icon: Award,
+    },
     {
       id: "discussion",
-      label: "Discussion & Interpretation",
+      label: "4-Part PRISMA Discussion",
       badge: "Items 23a–23d",
       icon: BookOpen,
     },
@@ -522,7 +502,7 @@ export default function App() {
 
   // Overall PRISMA compliance count
   const reportedCount = checklist.filter((c) => c.status === "Reported").length;
-  const compliancePct = Math.round((reportedCount / Math.max(checklist.length, 1)) * 100);
+  const compliancePct = Math.round((reportedCount / 27) * 100);
 
   return (
     <div id="prisma-workbench-root" className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white">
@@ -557,9 +537,9 @@ export default function App() {
           {/* Right Header Status */}
           <div className="flex items-center gap-2 sm:gap-3">
             <div className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-              <span className="text-xs font-mono text-slate-500">Checklist completion:</span>
+              <span className="text-xs font-mono text-slate-500">Compliance:</span>
               <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                {compliancePct}% ({reportedCount}/{checklist.length} entries)
+                {compliancePct}% ({reportedCount}/27 Items)
               </span>
             </div>
 
@@ -598,7 +578,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              17 Stages
+              13 Stages
             </span>
           </div>
 
@@ -732,7 +712,7 @@ export default function App() {
                   PRISMA 2020 Flow Diagram Generator
                 </h2>
                 <p className="text-xs text-slate-500 mt-1">
-                  Abstract-based flow of records through identification, title/abstract screening, and reviewer-confirmed inclusion, with SVG and high-resolution PNG download.
+                  Standardized flow of records through Identification, Screening, Eligibility, and Inclusion phases with SVG & High-Res PNG download.
                 </p>
               </div>
 
@@ -759,31 +739,36 @@ export default function App() {
               onUpdateRiskOfBias={setRiskOfBias}
               aiConfig={activeAIConfig}
               characteristics={characteristics}
-              protocol={protocol}
               onNavigateToScreening={() => setActiveStage(5)}
             />
           )}
 
-          {(["descriptive", "thematic", "clusters", "cross-study", "gaps", "agenda"] as EvidenceSynthesisPhase[]).map(
-            (phase, index) =>
-              activeStage === 9 + index && (
-                <React.Fragment key={phase}>
-                  <EvidenceSynthesisStage
-                    phase={phase}
-                    synthesis={synthesis}
-                    onUpdateSynthesis={setSynthesis}
-                    includedRecords={includedRecords}
-                    characteristics={characteristics}
-                    protocol={protocol}
-                    aiConfig={activeAIConfig}
-                    onNavigateToScreening={() => setActiveStage(5)}
-                  />
-                </React.Fragment>
-              )
+          {/* Stage 10: Narrative / Thematic Synthesis */}
+          {activeStage === 9 && (
+            <SynthesisSection
+              synthesis={synthesis}
+              onUpdateSynthesis={setSynthesis}
+              includedRecords={includedRecords}
+              characteristics={characteristics}
+              aiConfig={activeAIConfig}
+              onNavigateToScreening={() => setActiveStage(5)}
+            />
           )}
 
-          {/* Stage 16: Discussion */}
-          {activeStage === 15 && (
+          {/* Stage 11: GRADE Certainty of Evidence */}
+          {activeStage === 10 && (
+            <CertaintyGradeSection
+              gradeItems={gradeItems}
+              onUpdateGrade={setGradeItems}
+              includedRecords={includedRecords}
+              characteristics={characteristics}
+              aiConfig={activeAIConfig}
+              onNavigateToScreening={() => setActiveStage(5)}
+            />
+          )}
+
+          {/* Stage 12: 4-Part Discussion */}
+          {activeStage === 11 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -795,18 +780,18 @@ export default function App() {
             />
           )}
 
-          {/* Stage 17: Consolidated Manuscript */}
-          {activeStage === 16 && (
+          {/* Stage 13: Consolidated Manuscript */}
+          {activeStage === 12 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
               characteristics={characteristics}
               riskOfBias={riskOfBias}
               synthesis={synthesis}
+              gradeItems={gradeItems}
               discussion={discussion}
               checklist={checklist}
               counts={prismaCounts}
-              aiConfig={activeAIConfig}
             />
           )}
 

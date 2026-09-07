@@ -4,13 +4,13 @@ import { Download, RefreshCw, Layers } from "lucide-react";
 interface PrismaCounts {
   identifiedDb?: number;
   identifiedOther?: number;
-  identifiedDbSources?: string[];
-  identifiedOtherSources?: string[];
   duplicatesRemoved?: number;
-  recordsAfterDuplicatesRemoved?: number;
   screened?: number;
-  recordsNotScreened?: number;
   screenedExcluded?: number;
+  soughtRetrieval?: number;
+  notRetrieved?: number;
+  assessed?: number;
+  assessedExcluded?: number;
   exclusionReasonsBreakdown?: Record<string, number>;
   included?: number;
 }
@@ -26,13 +26,13 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
   const {
     identifiedDb = 0,
     identifiedOther = 0,
-    identifiedDbSources = [],
-    identifiedOtherSources = [],
     duplicatesRemoved = 0,
-    recordsAfterDuplicatesRemoved = 0,
     screened = 0,
-    recordsNotScreened = 0,
     screenedExcluded = 0,
+    soughtRetrieval = 0,
+    notRetrieved = 0,
+    assessed = 0,
+    assessedExcluded = 0,
     exclusionReasonsBreakdown = {},
     included = 0,
   } = counts;
@@ -54,7 +54,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
     const svgData = new XMLSerializer().serializeToString(svgRef.current);
     const canvas = document.createElement("canvas");
     canvas.width = 1900;
-    canvas.height = 900;
+    canvas.height = 1350;
     const ctx = canvas.getContext("2d");
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -76,7 +76,9 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
     img.src = url;
   };
 
-  const exclusionLines = Object.entries(exclusionReasonsBreakdown).map(([reason, count]) => `${reason}: n = ${count}`);
+  const exclusionLines = Object.entries(exclusionReasonsBreakdown).length > 0
+    ? Object.entries(exclusionReasonsBreakdown).map(([r, c]) => `• ${r}: n = ${c}`)
+    : ["• Scope / Ineligible: n = " + assessedExcluded];
 
   return (
     <div id="prisma-diagram-container" className="space-y-4">
@@ -114,7 +116,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
       <div className="border border-slate-200 bg-white p-4 sm:p-6 rounded-xl shadow-xs overflow-x-auto">
         <svg
           ref={svgRef}
-          viewBox="0 0 960 480"
+          viewBox="0 0 960 680"
           className="w-full min-w-[780px] h-auto"
           style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}
         >
@@ -146,19 +148,19 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
             {/* Box 1a: Databases */}
             <rect x="20" y="94" width="290" height="68" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
             <text x="32" y="116" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
-              Records uploaded from databases:
+              Records identified from databases:
             </text>
             <text x="32" y="134" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              {identifiedDbSources.length > 0 ? identifiedDbSources.join(", ") : "Uploaded files"} (n = {identifiedDb})
+              Scopus, WoS, PubMed (n = {identifiedDb})
             </text>
 
             {/* Box 1b: Other sources */}
             <rect x="330" y="94" width="280" height="68" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
             <text x="342" y="116" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
-              Records uploaded from other sources:
+              Records from other sources:
             </text>
             <text x="342" y="134" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              {identifiedOtherSources.length > 0 ? identifiedOtherSources.join(", ") : "None recorded"} (n = {identifiedOther})
+              Registers, Scholar, citations (n = {identifiedOther})
             </text>
 
             {/* Arrow connecting to deduplication */}
@@ -179,7 +181,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records after duplicates removed:
             </text>
             <text x="32" y="270" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {recordsAfterDuplicatesRemoved}) · Duplicates removed (n = {duplicatesRemoved})
+              (n = {screened}) · Duplicates removed (n = {duplicatesRemoved})
             </text>
 
             {/* Arrow down to title/abstract screening */}
@@ -191,7 +193,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records screened (title & abstract):
             </text>
             <text x="32" y="360" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {screened}) · Pending decision (n = {recordsNotScreened})
+              (n = {screened})
             </text>
 
             {/* Arrow right to excluded records */}
@@ -207,22 +209,79 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
             </text>
           </g>
 
-          {/* Phase 3: REVIEWER-CONFIRMED INCLUSION */}
+          {/* Phase 3: ELIGIBILITY & FULL-TEXT */}
           <g>
-            {/* Arrow down to included records */}
+            {/* Arrow down to retrieval */}
             <line x1="190" y1="378" x2="190" y2="410" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
 
-            <rect x="20" y="405" width="110" height="24" rx="4" fill="#059669" />
-            <text x="30" y="421" fontFamily="JetBrains Mono" fontWeight="600" fontSize="11" fill="#FFFFFF" letterSpacing="0.08em">
+            <rect x="20" y="405" width="110" height="24" rx="4" fill="#4F46E5" />
+            <text x="28" y="421" fontFamily="JetBrains Mono" fontWeight="600" fontSize="11" fill="#FFFFFF" letterSpacing="0.08em">
+              ELIGIBILITY
+            </text>
+
+            {/* Reports sought for retrieval */}
+            <rect x="20" y="436" width="340" height="56" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
+            <text x="32" y="458" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
+              Reports sought for retrieval:
+            </text>
+            <text x="32" y="476" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
+              (n = {soughtRetrieval})
+            </text>
+
+            {/* Arrow right to not retrieved */}
+            <line x1="360" y1="464" x2="440" y2="464" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
+            <rect x="440" y="436" width="310" height="56" rx="8" fill="#FEF2F2" stroke="#F87171" strokeWidth="1.2" filter="url(#card-shadow)" />
+            <text x="452" y="458" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#B91C1C">
+              Reports not retrieved:
+            </text>
+            <text x="452" y="476" fontFamily="JetBrains Mono" fontSize="11" fill="#991B1B">
+              (n = {notRetrieved}) · Paywalled or unobtainable
+            </text>
+
+            {/* Arrow down to assessed full-text */}
+            <line x1="190" y1="492" x2="190" y2="520" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
+
+            <rect x="20" y="520" width="340" height="58" rx="8" fill="#FFFFFF" stroke="#E2E8F0" strokeWidth="1.2" filter="url(#card-shadow)" />
+            <text x="32" y="542" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#0F172A">
+              Reports assessed for eligibility (Full-Text):
+            </text>
+            <text x="32" y="560" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
+              (n = {assessed})
+            </text>
+
+            {/* Arrow right to full text excluded with reasons */}
+            <line x1="360" y1="549" x2="440" y2="549" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
+
+            <rect x="440" y="515" width="480" height="74" rx="8" fill="#FEF2F2" stroke="#F87171" strokeWidth="1.2" filter="url(#card-shadow)" />
+            <text x="452" y="535" fontFamily="Plus Jakarta Sans" fontWeight="600" fontSize="12" fill="#B91C1C">
+              Reports excluded (Full-Text with reasons, Item 16b):
+            </text>
+            <text x="452" y="552" fontFamily="JetBrains Mono" fontSize="10.5" fill="#991B1B">
+              Total excluded (n = {assessedExcluded})
+            </text>
+            {exclusionLines.slice(0, 2).map((l, i) => (
+              <text key={i} x="452" y={568 + i * 14} fontFamily="JetBrains Mono" fontSize="9.5" fill="#7F1D1D">
+                {l.length > 60 ? l.slice(0, 58) + "…" : l}
+              </text>
+            ))}
+          </g>
+
+          {/* Phase 4: INCLUDED */}
+          <g>
+            {/* Arrow down to included */}
+            <line x1="190" y1="578" x2="190" y2="612" stroke="#64748B" strokeWidth="1.3" markerEnd="url(#prisma-arrow)" />
+
+            <rect x="20" y="605" width="110" height="24" rx="4" fill="#059669" />
+            <text x="30" y="621" fontFamily="JetBrains Mono" fontWeight="600" fontSize="11" fill="#FFFFFF" letterSpacing="0.08em">
               INCLUDED
             </text>
 
-            <rect x="20" y="436" width="410" height="42" rx="8" fill="#ECFDF5" stroke="#10B981" strokeWidth="1.5" filter="url(#card-shadow)" />
-            <text x="32" y="455" fontFamily="Plus Jakarta Sans" fontWeight="700" fontSize="13" fill="#065F46">
-              Records included after title/abstract screening:
+            <rect x="20" y="632" width="410" height="42" rx="8" fill="#ECFDF5" stroke="#10B981" strokeWidth="1.5" filter="url(#card-shadow)" />
+            <text x="32" y="652" fontFamily="Plus Jakarta Sans" fontWeight="700" fontSize="13" fill="#065F46">
+              Studies included in review & synthesis:
             </text>
-            <text x="32" y="470" fontFamily="JetBrains Mono" fontWeight="600" fontSize="12" fill="#047857">
-              (n = {included}) · Reviewer-confirmed for abstract-based synthesis
+            <text x="32" y="666" fontFamily="JetBrains Mono" fontWeight="600" fontSize="12" fill="#047857">
+              (n = {included} studies)
             </text>
           </g>
         </svg>
@@ -242,10 +301,8 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
         </div>
         <div className="p-4 bg-white border border-slate-200 rounded-xl shadow-2xs">
           <div className="font-mono text-[11px] text-slate-500 uppercase tracking-wider">Excluded</div>
-          <div className="font-mono text-xl font-bold text-rose-600 mt-0.5">{screenedExcluded}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
-            {exclusionLines.length > 0 ? "Reviewer-recorded reasons" : "Title/abstract exclusions"}
-          </div>
+          <div className="font-mono text-xl font-bold text-rose-600 mt-0.5">{screenedExcluded + assessedExcluded}</div>
+          <div className="text-[11px] text-slate-500 mt-0.5">Categorized by reasons</div>
         </div>
         <div className="p-4 bg-emerald-50/60 border border-emerald-200 rounded-xl shadow-2xs">
           <div className="font-mono text-[11px] text-emerald-800 uppercase tracking-wider font-semibold">Included in SLR</div>

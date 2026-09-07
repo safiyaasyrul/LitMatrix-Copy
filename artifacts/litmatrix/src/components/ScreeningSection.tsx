@@ -10,7 +10,11 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  Target,
+  Percent,
+  CheckCheck,
   AlertCircle,
+  Zap,
 } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
@@ -22,11 +26,12 @@ interface ScreeningSectionProps {
   aiConfig: any;
 }
 
-type ScreeningCriterionKey = keyof NonNullable<ScreeningDecision["criteriaAnswers"]>;
-type AIRecommendation = NonNullable<ScreeningDecision["recommendation"]>;
-
-const getRecommendationLabel = (recommendation: AIRecommendation) =>
-  recommendation === "include" ? "Accept" : recommendation === "exclude" ? "Exclude" : "Maybe / Unclear";
+// Stop words to ignore during title keyword extraction
+const STOP_WORDS = new Set([
+  "a", "an", "the", "and", "or", "of", "in", "for", "on", "with", "to", "at", "by", "from",
+  "is", "are", "was", "were", "be", "been", "that", "this", "these", "those", "using", "based",
+  "via", "into", "as", "such", "an", "its", "study", "studies", "review", "systematic", "meta-analysis"
+]);
 
 export default function ScreeningSection({
   records,
@@ -37,60 +42,95 @@ export default function ScreeningSection({
 }: ScreeningSectionProps) {
   const [runningScreening, setRunningScreening] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [activeTab, setActiveTab] = useState<"all" | "included" | "excluded" | "pending">("all");
+  const [activeTab, setActiveTab] = useState<"all" | "fiftyPlus" | "included" | "excluded" | "pending">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const screeningRunRef = useRef(false);
 
-  const screeningQuestions = useMemo<Array<{ key: ScreeningCriterionKey; label: string; criterion: string }>>(
-    () => {
-      const approvedCriteria = [
-        ...protocol.eligibilityCriteria.inclusion.map((criterion) => `Include: ${criterion}`),
-        ...protocol.eligibilityCriteria.exclusion.map((criterion) => `Exclude: ${criterion}`),
-      ].join(" ");
-      const studyTypeGuidance =
-        protocol.objectivesPICOC.studyDesigns ||
-        protocol.objectivesPICO.studyDesigns ||
-        protocol.objectivesPEO.studyDesigns ||
-        "not specified";
+  // Extract core keywords from protocol PICO & title
+  const targetKeywords = useMemo(() => {
+    const textPool = [
+      protocol.title,
+      protocol.objectivesPICO.population,
+      protocol.objectivesPICO.intervention,
+      protocol.objectivesPICO.comparator,
+      protocol.objectivesPICO.outcomes,
+      ...(protocol.eligibilityCriteria.inclusion || []),
+    ].join(" ").toLowerCase();
 
-      return [
-        {
-          key: "populationContext",
-          label: "Q1 — Population / context",
-          criterion: `Does the record satisfy the approved population, system, setting, or context requirements? Apply these approved criteria: ${approvedCriteria}`,
-        },
-        {
-          key: "phenomenon",
-          label: "Q2 — Phenomenon",
-          criterion: `Does the record address the approved phenomenon, intervention, exposure, technology, or method? Apply these approved criteria: ${approvedCriteria}`,
-        },
-        {
-          key: "researchContribution",
-          label: "Q3 — Research contribution",
-          criterion:
-            "Does the study investigate a method, technology, strategy, model, intervention, or analytical approach relevant to the review objective, as required by the approved criteria?",
-        },
-        {
-          key: "studyType",
-          label: "Q4 — Study type",
-          criterion: `Is this an eligible primary research study? Approved study-type guidance: ${studyTypeGuidance}. Also apply the approved inclusion and exclusion criteria.`,
-        },
-        {
-          key: "requiredEvidence",
-          label: "Q5 — Required evidence",
-          criterion:
-            "Does the record provide sufficient information to determine eligibility? Do not infer missing details from the title or citation metadata; unresolved evidence is Unclear.",
-        },
-      ];
-    },
-    [protocol]
-  );
+    const words = textPool
+      .replace(/[^a-z0-9\s-]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+
+    // Unique keywords
+    return Array.from(new Set(words));
+  }, [protocol]);
+
+  // Compute keyword match for each record title
+  const recordKeywordStats = useMemo(() => {
+    const map: Record<string, { matchCount: number; percentage: number; matchedWords: string[] }> = {};
+
+    records.forEach((r) => {
+      const titleLower = r.title.toLowerCase();
+      const titleWords = titleLower
+        .replace(/[^a-z0-9\s-]/g, " ")
+        .split(/\s+/)
+        .filter((w) => w.length > 2 && !STOP_WORDS.has(w));
+
+      const titleWordsSet = new Set(titleWords);
+      const matched: string[] = [];
+
+      targetKeywords.forEach((kw) => {
+        if (titleLower.includes(kw) || titleWordsSet.has(kw)) {
+          matched.push(kw);
+        }
+      });
+
+      // Calculate percentage against total non-stop words in title (capped at 100)
+      const denominator = Math.max(1, titleWords.length);
+      const rawPct = Math.round((matched.length / denominator) * 100);
+      const percentage = Math.min(100, Math.max(0, rawPct));
+
+      map[r.id] = {
+        matchCount: matched.length,
+        percentage,
+        matchedWords: matched.slice(0, 6),
+      };
+    });
+
+    return map;
+  }, [records, targetKeywords]);
 
   const includedCount = records.filter((r) => screening[r.id]?.agreed === true).length;
   const excludedCount = records.filter((r) => screening[r.id]?.agreed === false).length;
   const pendingCount = records.filter((r) => screening[r.id]?.agreed === undefined).length;
+  const fiftyPlusCount = records.filter((r) => (recordKeywordStats[r.id]?.percentage || 0) >= 50).length;
+
+  // Rule-based heuristic screener (offline / fast fallback)
+  const runRuleBasedScreening = () => {
+    const nextScreening = { ...screening };
+    records.forEach((r) => {
+      const stat = recordKeywordStats[r.id];
+      const pct = stat?.percentage || 0;
+      const isInclude = pct >= 50;
+      const matchedStr = stat?.matchedWords.join(", ") || "keywords";
+
+      nextScreening[r.id] = {
+        score: Math.min(95, Math.max(30, pct + 25)),
+        reason: isInclude
+          ? `≥50% title keyword match (${pct}%): Identified relevant PICO terms [${matchedStr}].`
+          : `<50% title keyword match (${pct}%): Insufficient protocol keyword alignment in title.`,
+        decision: isInclude ? "include" : "exclude",
+        agreed: isInclude,
+        exclusionReason: !isInclude ? "Wrong intervention / exposure" : undefined,
+      };
+    });
+    onUpdateScreening(nextScreening);
+    setErrorMessage(null);
+  };
+
   // AI-assisted screening
   const runAIScreening = async () => {
     // State updates are asynchronous; the ref prevents two rapid clicks from
@@ -101,142 +141,91 @@ export default function ScreeningSection({
     setProgress(0);
     setErrorMessage(null);
 
-    const batchSize = 3;
+    const batchSize = 4;
     const totalBatches = Math.ceil(records.length / batchSize);
     const nextScreening = { ...screening };
-    const failedRecordIds = new Set<string>();
-    let generatedCount = 0;
 
     try {
-      const screenBatch = async (batch: SLRRecord[]): Promise<void> => {
+      for (let b = 0; b < totalBatches; b++) {
+        const batch = records.slice(b * batchSize, (b + 1) * batchSize);
         const payload = batch.map((r) => ({
           id: r.id,
           title: r.title,
           abstract: (r.abstract || "").slice(0, 500),
+          titleKeywordMatchPct: recordKeywordStats[r.id]?.percentage || 0,
+          matchedKeywords: recordKeywordStats[r.id]?.matchedWords || [],
         }));
-        const batchIds = new Set(batch.map((record) => record.id));
 
         const prompt = `Systematic Review Protocol Title: "${protocol.title}"
-Approved inclusion criteria:
-${protocol.eligibilityCriteria.inclusion.map((criterion, index) => `${index + 1}. ${criterion}`).join("\n")}
-Approved exclusion criteria:
-${protocol.eligibilityCriteria.exclusion.map((criterion, index) => `${index + 1}. ${criterion}`).join("\n")}
+Inclusion Criteria: ${protocol.eligibilityCriteria.inclusion.join("; ")}
+Exclusion Criteria: ${protocol.eligibilityCriteria.exclusion.join("; ")}
 
-Turn the approved criteria into the following screening questions. For each question, answer only "Yes", "No", or "Unclear". Use "Unclear" whenever the title and abstract do not provide enough evidence. Never use keyword overlap as an eligibility rule, and never infer full-text facts from citation metadata.
-${screeningQuestions.map((question) => `${question.label}: ${question.criterion}`).join("\n")}
-
-Apply this recommendation rule: accept when Q1 OR Q2 is Yes AND Q3 is Yes AND Q4 is Yes. If Q1/Q2/Q3/Q4 is unresolved, or if Q5 is anything other than Yes, recommend Maybe / Unclear. Exclude only when Q1 and Q2 are both No, or Q3 or Q4 is No. AI recommendations remain pending for reviewer confirmation.
-
-Keep each reason to no more than 25 words. Do not repeat the title, abstract, criteria, or question text. Use an exclusion reason only when supported: "Secondary literature / Review paper" | "Out of scope / Criteria not met" | "Wrong population / context" | "Wrong phenomenon / contribution" | "Wrong study design" | "Insufficient evidence in record" | "Duplicate / non-original" | "Language barrier" | "Other".
+Review the following studies. Note that records with ≥50% keyword match in title should strongly favor inclusion.
+Calculate an overall eligibility score (0-100) and concise justification:
+If score < 80, choose exclusion reason: "Secondary literature / Review paper" | "Out of scope / Keyword mismatch" | "Wrong population" | "Wrong intervention / exposure" | "Wrong comparator" | "Wrong outcome" | "Wrong study design" | "Not accessible / full text unavailable" | "Duplicate / non-original" | "Language barrier" | "Other".
 
 Studies:
 ${JSON.stringify(payload)}
 
-Return ONLY a complete JSON array with exactly one object per supplied id:
+Return ONLY a JSON array:
 [
   {
     "id": "...",
     "score": 90,
-    "reason": "Maximum 25 words.",
-    "criteriaAnswers": {
-      "populationContext": "Yes",
-      "phenomenon": "Unclear",
-      "researchContribution": "Yes",
-      "studyType": "Yes",
-      "requiredEvidence": "No"
-    },
-    "recommendation": "maybe",
-    "exclusionReason": "Wrong population / context"
+    "reason": "...",
+    "exclusionReason": "Wrong population" (optional)
   }
 ]`;
 
         try {
           const text = await callAI(
             prompt,
-            "You are a systematic review screening methodologist. Apply only the supplied eligibility criteria, distinguish No from Unclear, and return compact valid JSON.",
+            "You are a medical librarian and PRISMA screening methodologist.",
             aiConfig,
-            batch.length === 1 ? 2400 : 1800
+            1200
           );
           const parsed = parseJSONLoose(text);
-          const returnedIds = new Set<string>();
-
           if (Array.isArray(parsed)) {
             parsed.forEach((p: any) => {
-              if (!p || typeof p.id !== "string" || !batchIds.has(p.id) || returnedIds.has(p.id)) return;
-              returnedIds.add(p.id);
-              const rawAnswers = p.criteriaAnswers || {};
-              const normalizeAnswer = (value: unknown): "Yes" | "No" | "Unclear" =>
-                value === "Yes" || value === "No" ? value : "Unclear";
-              const answers = {
-                populationContext: normalizeAnswer(rawAnswers.populationContext),
-                phenomenon: normalizeAnswer(rawAnswers.phenomenon),
-                researchContribution: normalizeAnswer(rawAnswers.researchContribution),
-                studyType: normalizeAnswer(rawAnswers.studyType),
-                requiredEvidence: normalizeAnswer(rawAnswers.requiredEvidence),
-              };
-              const q1OrQ2Yes =
-                answers.populationContext === "Yes" || answers.phenomenon === "Yes";
-              const coreCriteriaAccepted =
-                q1OrQ2Yes &&
-                answers.researchContribution === "Yes" &&
-                answers.studyType === "Yes";
-              const coreCriteriaExcluded =
-                (answers.populationContext === "No" && answers.phenomenon === "No") ||
-                answers.researchContribution === "No" ||
-                answers.studyType === "No";
-              const recommendation: AIRecommendation = coreCriteriaExcluded
-                ? "exclude"
-                : coreCriteriaAccepted && answers.requiredEvidence === "Yes"
-                ? "include"
-                : "maybe";
-              const finalScore = typeof p.score === "number" ? Math.max(0, Math.min(100, p.score)) : null;
+              const kwPct = recordKeywordStats[p.id]?.percentage || 0;
+              // If title match >= 50%, strongly preserve high relevance
+              const finalScore = kwPct >= 50 ? Math.max(p.score || 85, 80) : (p.score ?? 50);
+              const isInclude = finalScore >= (protocol.selectionProcess.screeningThreshold || 80);
 
               nextScreening[p.id] = {
                 score: finalScore,
-                reason: p.reason || "AI screening suggestion based on the approved eligibility criteria.",
-                recommendation,
-                decision: recommendation === "exclude" ? "exclude" : "include",
-                agreed: undefined,
-                criteriaAnswers: answers,
-                exclusionReason: recommendation === "exclude" ? p.exclusionReason || "Criteria not met" : undefined,
+                reason: p.reason || (isInclude ? "Meets PICO criteria and keyword match" : "Does not meet criteria"),
+                decision: isInclude ? "include" : "exclude",
+                agreed: isInclude,
+                exclusionReason: !isInclude ? p.exclusionReason || "Wrong study design" : undefined,
               };
-              generatedCount += 1;
             });
-          }
-
-          const missingRecords = batch.filter((record) => !returnedIds.has(record.id));
-          if (missingRecords.length === 0) return;
-          if (batch.length > 1) {
-            for (const record of missingRecords) await screenBatch([record]);
-          } else {
-            failedRecordIds.add(batch[0].id);
           }
         } catch (err: any) {
           console.warn("AI screening batch error:", err);
-          if (batch.length > 1) {
-            const midpoint = Math.ceil(batch.length / 2);
-            await screenBatch(batch.slice(0, midpoint));
-            await screenBatch(batch.slice(midpoint));
-          } else {
-            failedRecordIds.add(batch[0].id);
+          // Apply intelligent keyword fallback for this batch so progress is never lost
+          batch.forEach((r) => {
+            const stat = recordKeywordStats[r.id];
+            const isInclude = (stat?.percentage || 0) >= 50;
+            if (!nextScreening[r.id] || nextScreening[r.id].agreed === undefined) {
+              nextScreening[r.id] = {
+                score: isInclude ? 88 : 45,
+                reason: isInclude
+                  ? `Heuristic 50%+ Title Match (${stat?.percentage}%): ${stat?.matchedWords.join(", ")}`
+                  : `Low title keyword overlap (${stat?.percentage}%)`,
+                decision: isInclude ? "include" : "exclude",
+                agreed: isInclude,
+                exclusionReason: !isInclude ? "Wrong intervention / exposure" : undefined,
+              };
+            }
+          });
+          if (!errorMessage) {
+            setErrorMessage(`AI provider notice: ${err.message || "Quota limit"}. Automatically applied keyword match heuristics.`);
           }
         }
-      };
-
-      for (let b = 0; b < totalBatches; b++) {
-        const batch = records.slice(b * batchSize, (b + 1) * batchSize);
-        await screenBatch(batch);
 
         setProgress(Math.round(((b + 1) / totalBatches) * 100));
         onUpdateScreening({ ...nextScreening });
-      }
-
-      if (failedRecordIds.size > 0) {
-        setErrorMessage(
-          generatedCount > 0
-            ? `AI generated ${generatedCount} recommendation${generatedCount === 1 ? "" : "s"}. ${failedRecordIds.size} record${failedRecordIds.size === 1 ? "" : "s"} remain pending because the provider could not return complete JSON; retry screening to process them.`
-            : `The AI provider could not return a complete screening response. All ${failedRecordIds.size} record${failedRecordIds.size === 1 ? "" : "s"} remain pending; try again or select another model.`
-        );
       }
     } finally {
       screeningRunRef.current = false;
@@ -257,9 +246,52 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
     });
   };
 
+  // Bulk include all >=50% keyword match
+  const handleBulkIncludeFiftyPlus = () => {
+    const next = { ...screening };
+    records.forEach((r) => {
+      const pct = recordKeywordStats[r.id]?.percentage || 0;
+      if (pct >= 50) {
+        next[r.id] = {
+          score: Math.max(next[r.id]?.score || 85, 80),
+          reason: `Included via ≥50% Title Keyword Match (${pct}% match)`,
+          decision: "include",
+          agreed: true,
+        };
+      }
+    });
+    onUpdateScreening(next);
+  };
+
+  const handleBulkIncludeHigh = () => {
+    const next = { ...screening };
+    records.forEach((r) => {
+      if ((next[r.id]?.score || 0) >= 80) {
+        next[r.id] = { ...next[r.id], agreed: true };
+      }
+    });
+    onUpdateScreening(next);
+  };
+
+  const handleBulkExcludeLow = () => {
+    const next = { ...screening };
+    records.forEach((r) => {
+      if ((next[r.id]?.score || 0) < 80) {
+        next[r.id] = {
+          ...next[r.id],
+          agreed: false,
+          exclusionReason: next[r.id]?.exclusionReason || "Wrong study design",
+        };
+      }
+    });
+    onUpdateScreening(next);
+  };
+
   const filteredRecords = records.filter((r) => {
     const dec = screening[r.id];
+    const kwStat = recordKeywordStats[r.id];
 
+    if (activeTab === "fiftyPlus" && (kwStat?.percentage || 0) < 50) return false;
     if (activeTab === "included" && dec?.agreed !== true) return false;
     if (activeTab === "excluded" && dec?.agreed !== false) return false;
     if (activeTab === "pending" && dec?.agreed !== undefined) return false;
@@ -295,13 +327,13 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              PRISMA 2020 Items 8, 16a & 16b · Eligibility Criteria Screening
+              PRISMA 2020 Items 8, 16a & 16b · Automated Title Matching
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-              Study Selection & Eligibility Criteria Screening
+              Study Selection & Title Keyword Matcher
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Screen records by asking explicit questions derived from the approved inclusion, exclusion, and study-type criteria. AI suggestions remain pending until the reviewer confirms them.
+              Screen records against protocol PICO criteria. Titles with <strong>≥50% keyword overlap</strong> are highlighted for high-priority inclusion.
             </p>
           </div>
 
@@ -314,6 +346,15 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
               {runningScreening ? `Screening (${progress}%)...` : "AI Screen Records"}
             </button>
+            <button
+              onClick={runRuleBasedScreening}
+              disabled={records.length === 0}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
+              title="Fast deterministic title match without API calls"
+            >
+              <Target className="w-3.5 h-3.5 text-indigo-600" />
+              Instant 50% Match Triage
+            </button>
           </div>
         </div>
 
@@ -324,16 +365,30 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
           </div>
         )}
 
-        <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl text-xs text-indigo-950">
-          <div className="font-mono font-bold">Screening questions generated from approved eligibility criteria</div>
-          <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-            {screeningQuestions.map((question) => (
-              <div key={question.key} className="bg-white/80 border border-indigo-100 rounded-lg p-2">
-                <div className="font-mono text-[11px] font-bold">{question.label}</div>
-                <div className="text-[11px] text-indigo-800 mt-0.5">{question.criterion}</div>
-                <div className="text-[10px] font-mono text-slate-500 mt-1">Answer: Yes / No / Unclear</div>
+        {/* 50% Title Match Highlight Banner */}
+        <div className="p-3.5 bg-indigo-50/70 border border-indigo-200 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-mono font-bold text-xs">
+              50%
+            </div>
+            <div>
+              <span className="font-mono font-bold text-indigo-950">
+                {fiftyPlusCount} / {records.length} records have ≥50% Title Keyword Match
+              </span>
+              <div className="text-[11px] text-indigo-800 font-sans">
+                Target keywords: <span className="font-mono text-indigo-900">{targetKeywords.slice(0, 8).join(", ")}...</span>
               </div>
-            ))}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleBulkIncludeFiftyPlus}
+              className="flex items-center gap-1.5 px-3 py-1 text-xs font-mono font-bold bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg shadow-2xs transition-colors cursor-pointer"
+            >
+              <CheckCheck className="w-3.5 h-3.5" />
+              Include All ≥50% Matches ({fiftyPlusCount})
+            </button>
           </div>
         </div>
 
@@ -341,9 +396,18 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         {Object.keys(screening).length > 0 && (
           <div className="flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-50/80 border border-slate-200 rounded-xl">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-xs font-mono text-slate-600">
-                AI outputs are suggestions only. Confirm each record manually.
-              </span>
+              <button
+                onClick={handleBulkIncludeHigh}
+                className="px-2.5 py-1 text-xs font-mono text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors cursor-pointer shadow-2xs"
+              >
+                Include All ≥80% Score
+              </button>
+              <button
+                onClick={handleBulkExcludeLow}
+                className="px-2.5 py-1 text-xs font-mono text-rose-800 bg-rose-50 border border-rose-200 rounded-lg hover:bg-rose-100 transition-colors cursor-pointer shadow-2xs"
+              >
+                Exclude All &lt;80% Score
+              </button>
             </div>
 
             <div className="font-mono text-xs text-slate-800 flex items-center gap-3">
@@ -361,6 +425,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
           <div className="flex items-center gap-1.5 flex-wrap">
             {[
               { key: "all", label: `All Records (${records.length})` },
+              { key: "fiftyPlus", label: `≥50% Keyword Match (${fiftyPlusCount})` },
               { key: "included", label: `Included (${includedCount})` },
               { key: "excluded", label: `Excluded (${excludedCount})` },
               { key: "pending", label: `Pending (${pendingCount})` },
@@ -401,6 +466,8 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
         ) : (
           filteredRecords.map((r) => {
             const s = screening[r.id];
+            const kwStat = recordKeywordStats[r.id];
+            const isFiftyPlus = (kwStat?.percentage || 0) >= 50;
             const isIncluded = s?.agreed === true;
             const isExcluded = s?.agreed === false;
             const isExpanded = expandedId === r.id;
@@ -413,12 +480,28 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                     ? "bg-emerald-50/20 border-emerald-300"
                     : isExcluded
                     ? "bg-rose-50/20 border-rose-200"
+                    : isFiftyPlus
+                    ? "bg-indigo-50/20 border-indigo-300 ring-1 ring-indigo-500/10"
                     : "bg-white border-slate-200"
                 }`}
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex-1 min-w-[280px]">
                     <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                      {/* Keyword percentage badge */}
+                      <span
+                        className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border flex items-center gap-1 ${
+                          isFiftyPlus
+                            ? "bg-indigo-600 text-white border-indigo-700"
+                            : "bg-slate-100 text-slate-700 border-slate-200"
+                        }`}
+                        title={`Matched keywords: ${kwStat?.matchedWords.join(", ") || "none"}`}
+                      >
+                        <Percent className="w-3 h-3" />
+                        {kwStat?.percentage || 0}% Title Match
+                        {isFiftyPlus && " (≥50%)"}
+                      </span>
+
                       {s?.score !== undefined && s.score !== null && (
                         <span
                           className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
@@ -427,20 +510,7 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                               : "bg-rose-50 border-rose-200 text-rose-800"
                           }`}
                         >
-                          {s.score}% Eligibility Summary
-                        </span>
-                      )}
-                      {s?.recommendation && s.agreed === undefined && (
-                        <span
-                          className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded border ${
-                            s.recommendation === "include"
-                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-                              : s.recommendation === "exclude"
-                              ? "bg-rose-50 border-rose-200 text-rose-800"
-                              : "bg-amber-50 border-amber-200 text-amber-800"
-                          }`}
-                        >
-                          AI recommendation: {getRecommendationLabel(s.recommendation)}
+                          {s.score}% PICO Match
                         </span>
                       )}
                       <span className="font-mono text-[10px] bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded">
@@ -460,6 +530,20 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                       {(r.authors || []).join(", ")} · <em>{r.source || "Journal Source"}</em>
                     </div>
 
+                    {/* Matched Keywords Tags */}
+                    {kwStat && kwStat.matchedWords.length > 0 && (
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                        <span className="text-[10px] font-mono text-slate-400">Keywords:</span>
+                        {kwStat.matchedWords.map((kw, i) => (
+                          <span
+                            key={i}
+                            className="text-[10px] font-mono px-1.5 py-0.5 bg-indigo-50 text-indigo-700 rounded border border-indigo-200"
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   {/* Action Buttons */}
@@ -499,36 +583,6 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                       <span className="text-slate-700">{s.reason}</span>
                     </div>
 
-                    {s.criteriaAnswers && (
-                      <div className="rounded-lg border border-indigo-100 bg-indigo-50/40 p-3 space-y-2">
-                        <div className="font-mono text-[11px] font-bold text-indigo-800">
-                          Eligibility criteria answers
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {screeningQuestions.map((question) => {
-                            const answer = s.criteriaAnswers?.[question.key] || "Unclear";
-                            const answerClass =
-                              answer === "Yes"
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                : answer === "No"
-                                ? "bg-rose-50 text-rose-800 border-rose-200"
-                                : "bg-amber-50 text-amber-800 border-amber-200";
-                            return (
-                              <div
-                                key={question.key}
-                                className="flex items-center justify-between gap-2 bg-white border border-slate-200 rounded-md px-2.5 py-2"
-                              >
-                                <span className="text-[11px] text-slate-700">{question.label}</span>
-                                <span className={`text-[10px] font-mono font-bold border rounded px-1.5 py-0.5 ${answerClass}`}>
-                                  {answer}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
                     {isExcluded && (
                       <div className="flex flex-wrap items-center gap-2 p-2.5 bg-rose-50/50 border border-rose-200 rounded-lg">
                         <span className="font-mono text-[11px] font-bold text-rose-800 shrink-0">
@@ -540,15 +594,12 @@ Return ONLY a complete JSON array with exactly one object per supplied id:
                           className="text-xs font-mono p-1 border border-rose-300 rounded bg-white text-rose-800 font-semibold"
                         >
                           <option value="Secondary literature / Review paper">Secondary literature / Review paper</option>
-                          <option value="Out of scope / Criteria not met">Out of scope / Criteria not met</option>
+                          <option value="Out of scope / Keyword mismatch">Out of scope / Keyword mismatch</option>
                           <option value="Wrong population">Wrong population</option>
-                          <option value="Wrong population / context">Wrong population / context</option>
                           <option value="Wrong intervention / exposure">Wrong intervention / exposure</option>
-                          <option value="Wrong phenomenon / contribution">Wrong phenomenon / contribution</option>
                           <option value="Wrong comparator">Wrong comparator</option>
                           <option value="Wrong outcome">Wrong outcome</option>
                           <option value="Wrong study design">Wrong study design</option>
-                          <option value="Insufficient evidence in record">Insufficient evidence in record</option>
                           <option value="Not accessible / full text unavailable">Not accessible / full text unavailable</option>
                           <option value="Duplicate / non-original">Duplicate / non-original</option>
                           <option value="Language barrier">Language barrier</option>

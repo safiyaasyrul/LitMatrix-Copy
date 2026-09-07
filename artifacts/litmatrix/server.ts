@@ -56,34 +56,22 @@ app.post("/prisma-api/openai/generate", async (req, res) => {
     if (systemInstruction) messages.push({ role: "system", content: systemInstruction });
     messages.push({ role: "user", content: String(prompt || "") });
 
-    const request = () =>
-      fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model,
-          messages,
-          max_completion_tokens: maxOutputTokens,
-        }),
-      });
-    let response = await request();
-    // Managed credentials can briefly reject a request while the integration
-    // proxy refreshes its session. Retry once before surfacing the provider
-    // response, without ever exposing the credential to the browser.
-    if (response.status === 401) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      response = await request();
-    }
+    const response = await fetch(`${baseUrl.replace(/\/+$/, "")}/chat/completions`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model,
+        messages,
+        max_completion_tokens: maxOutputTokens,
+      }),
+    });
     const data: any = await response.json().catch(() => ({}));
     if (!response.ok || data.error) {
-      const providerCode = data.error?.code || data.error?.type;
       return res.status(response.status || 502).json({
-        error:
-          data.error?.message ||
-          `Managed AI request failed (${response.status})${providerCode ? ` [${providerCode}]` : ""}.`,
+        error: data.error?.message || `Managed AI request failed (${response.status}).`,
       });
     }
     return res.json({ text: data.choices?.[0]?.message?.content || "" });
