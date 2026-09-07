@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { AlertCircle, Check, Download, Edit3, FileSpreadsheet, Sparkles, Table } from "lucide-react";
+import { AlertCircle, Check, Copy, FileSpreadsheet, Sparkles, Table } from "lucide-react";
 import { ScreeningDecision, SLRProtocol, SLRRecord, StudyCharacteristic } from "../types/slr";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
@@ -50,6 +50,7 @@ export default function StudyCharacteristicsTable({
   const [extracting, setExtracting] = useState(false);
   const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const characteristicById = new Map(characteristics.map((item) => [item.recordId, item]));
 
@@ -154,6 +155,21 @@ Return ONLY a JSON array with one object per record:
     URL.revokeObjectURL(link.href);
   };
 
+  const copyMarkdown = async () => {
+    const lines = [
+      "| Article Information (Title, Author & Journal) | Acceptance Status | Academic Screening Justification |",
+      "| --- | --- | --- |",
+      ...includedRecords.map((record) => {
+        const justification =
+          characteristicById.get(record.id)?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER;
+        return `| ${articleInformation(record).replace(/\|/g, "/")} | ACCEPTED | ${justification.replace(/\|/g, "/")} |`;
+      }),
+    ];
+    await navigator.clipboard.writeText(lines.join("\n"));
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1800);
+  };
+
   return (
     <div id="study-characteristics-container" className="space-y-6">
       {errorMessage && (
@@ -168,23 +184,34 @@ Return ONLY a JSON array with one object per record:
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-4">
+      <div className="bg-[#050505] border border-slate-500/80 p-5 sm:p-6 rounded-2xl shadow-xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              Study Characteristics · Table 1
+            <div className="font-mono text-[10px] text-amber-300 uppercase tracking-wider font-bold">
+              Table 1 · Study Screening Decisions
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mt-0.5">Characteristics of Included Studies Matrix</h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Article information, acceptance status, and the academic justification recorded for title/abstract screening.
+            <h2 className="text-xl sm:text-2xl font-bold text-amber-300 mt-0.5">
+              Comprehensive Screening Decision Table
+            </h2>
+            <p className="text-xs text-slate-400 mt-1">
+              Grouped by article title, author, journal, and the academic reason for acceptance.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {includedRecords.length > 0 && (
+              <button
+                onClick={copyMarkdown}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-200 bg-transparent hover:bg-white/10 border border-slate-500 rounded-md transition-colors cursor-pointer"
+              >
+                <Copy className="w-3.5 h-3.5 text-amber-300" />
+                {copied ? "Copied Markdown" : "Copy Table (Markdown)"}
+              </button>
+            )}
             <button
               onClick={handleAutoExtract}
               disabled={extracting || includedRecords.length === 0}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-400 rounded-md shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
               {extracting ? "Generating Justifications..." : "AI Generate Justifications"}
@@ -192,7 +219,7 @@ Return ONLY a JSON array with one object per record:
             {includedRecords.length > 0 && (
               <button
                 onClick={exportCSV}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-slate-200 bg-transparent border border-slate-500 hover:bg-white/10 rounded-md cursor-pointer"
               >
                 <FileSpreadsheet className="w-3.5 h-3.5" />
                 Export CSV Table
@@ -203,77 +230,71 @@ Return ONLY a JSON array with one object per record:
       </div>
 
       {includedRecords.length === 0 ? (
-        <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl text-center space-y-3">
-          <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
-          <h3 className="text-sm font-bold text-amber-900">No Studies Currently Marked as Included</h3>
-          <p className="text-xs text-amber-700 max-w-md mx-auto">
+        <div className="bg-[#050505] border border-slate-500/80 p-6 rounded-2xl text-center space-y-3">
+          <AlertCircle className="w-8 h-8 text-amber-300 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-100">No Studies Currently Marked as Included</h3>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">
             This table populates from studies accepted during title/abstract screening.
           </p>
           {onNavigateToScreening && (
             <button
               onClick={onNavigateToScreening}
-              className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
+              className="px-4 py-2 text-xs font-mono font-semibold bg-amber-500 hover:bg-amber-400 text-black rounded-md transition-colors cursor-pointer"
             >
               Go to Screening Stage
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
+        <div className="bg-[#050505] border border-slate-500/80 rounded-2xl overflow-hidden shadow-xl">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-sans">
-              <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-mono text-[11px]">
+              <thead className="bg-[#111111] border-b border-slate-700 text-slate-300 font-mono text-[10px] uppercase tracking-wide">
                 <tr>
                   <th className="py-3 px-3.5 font-bold min-w-[360px]">Article Information (Title, Author &amp; Journal)</th>
-                  <th className="py-3 px-3 font-bold whitespace-nowrap">Acceptance Status</th>
+                  <th className="py-3 px-3 font-bold whitespace-nowrap">Status</th>
                   <th className="py-3 px-3 font-bold min-w-[420px]">Academic Screening Justification</th>
-                  <th className="py-3 px-3 font-bold text-right">Edit</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-700/90">
                 {includedRecords.map((record) => {
                   const item = characteristicById.get(record.id);
                   const justification = item?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER;
                   const editing = editingRecordId === record.id;
                   return (
-                    <tr key={record.id} className="hover:bg-slate-50/60 align-top">
-                      <td className="py-3 px-3.5 text-slate-900">
-                        <div className="font-semibold leading-snug">{record.title}</div>
-                        <div className="mt-1 text-[11px] text-slate-500">
-                          {(record.authors || []).join(", ") || "Author not reported"} · {record.source || "Journal not reported"} ·{" "}
-                          {record.year || "Year not reported"}
+                    <tr key={record.id} className="hover:bg-white/[0.04] align-top">
+                      <td className="py-3.5 px-3.5 text-slate-100">
+                        <div className="font-bold leading-snug">{record.title}</div>
+                        <div className="mt-1 text-[10px] text-slate-400">
+                          Authors: {(record.authors || []).join(", ") || "Not reported"} · {record.year || "Year not reported"}
+                        </div>
+                        <div className="mt-0.5 text-[10px] font-mono font-semibold uppercase text-amber-300">
+                          {record.source || "Journal not reported"}
                         </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 font-mono text-[10px] font-semibold text-emerald-800">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700/70 bg-emerald-950/70 px-2 py-1 font-mono text-[10px] font-semibold uppercase text-emerald-300">
                           <Check className="h-3 w-3" />
                           Accepted
                         </span>
-                        <div className="mt-1 text-[10px] text-slate-500">Title/abstract screening</div>
+                        <div className="mt-1 text-[10px] text-slate-500">Title/abstract</div>
                       </td>
-                      <td className="py-3 px-3 text-slate-700 leading-relaxed">
+                      <td
+                        className="py-3 px-3 text-slate-300 leading-relaxed"
+                        onDoubleClick={() => setEditingRecordId(editing ? null : record.id)}
+                        title="Double-click to edit"
+                      >
                         {editing ? (
                           <textarea
                             value={justification === JUSTIFICATION_PLACEHOLDER ? "" : justification}
                             onChange={(event) => updateJustification(record, event.target.value)}
                             placeholder="Explain the evidence supporting acceptance for this review."
                             rows={5}
-                            className="w-full min-w-[380px] rounded border border-slate-300 p-2 text-xs focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                            className="w-full min-w-[380px] rounded border border-slate-600 bg-[#111111] p-2 text-xs text-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                           />
                         ) : (
                           justification
                         )}
-                      </td>
-                      <td className="py-3 px-3 text-right">
-                        <button
-                          onClick={() => setEditingRecordId(editing ? null : record.id)}
-                          className={`rounded p-1.5 transition-colors cursor-pointer ${
-                            editing ? "bg-emerald-600 text-white" : "text-slate-500 hover:bg-slate-100"
-                          }`}
-                          title={editing ? "Done" : "Edit justification"}
-                        >
-                          {editing ? <Check className="h-3.5 w-3.5" /> : <Edit3 className="h-3.5 w-3.5" />}
-                        </button>
                       </td>
                     </tr>
                   );
@@ -281,9 +302,9 @@ Return ONLY a JSON array with one object per record:
               </tbody>
             </table>
           </div>
-          <div className="flex items-center gap-2 border-t border-slate-100 bg-slate-50 px-4 py-3 text-[11px] text-slate-600">
-            <Table className="h-3.5 w-3.5 text-indigo-600" />
-            The acceptance status reflects recorded title/abstract screening. Full-text eligibility was not verified.
+          <div className="flex items-center gap-2 border-t border-slate-700 bg-[#111111] px-4 py-3 text-[11px] text-slate-400">
+            <Table className="h-3.5 w-3.5 text-amber-300" />
+            Acceptance reflects recorded title/abstract screening. Double-click a justification to edit it. Full-text eligibility was not verified.
           </div>
         </div>
       )}
