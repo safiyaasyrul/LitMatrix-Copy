@@ -198,7 +198,7 @@ export default function ApiKeySection({
               AI Providers & API Keys
             </h1>
             <p className="text-xs sm:text-sm text-slate-300 font-sans leading-relaxed">
-              Optional provider keys can power screening, study-characteristics extraction, methodological appraisal, narrative synthesis, and PRISMA reports.
+              Optional provider keys can power screening, study-characteristics extraction, narrative synthesis, and PRISMA reports.
             </p>
           </div>
 

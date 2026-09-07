@@ -5,7 +5,6 @@ import {
   ScreeningDecision,
   StudyCharacteristic,
   SynthesisResult,
-  GradeCertaintyItem,
   DiscussionSections,
   PrismaChecklistItem,
 } from "../types/slr";
@@ -19,7 +18,6 @@ interface FullReviewReportProps {
   screening: Record<string, ScreeningDecision>;
   characteristics: StudyCharacteristic[];
   synthesis: SynthesisResult;
-  gradeItems: GradeCertaintyItem[];
   discussion: DiscussionSections;
   checklist: PrismaChecklistItem[];
   counts: any;
@@ -91,7 +89,6 @@ export default function FullReviewReport({
   screening,
   characteristics,
   synthesis,
-  gradeItems,
   discussion,
   checklist,
   counts,
@@ -146,7 +143,7 @@ export default function FullReviewReport({
     const c = protocol.objectivesPICO.comparator;
     const o = protocol.objectivesPICO.outcomes;
     const s = protocol.objectivesPICO.studyDesigns;
-    return `The systematic review protocol was formulated around the PICO framework. The target population (P) comprises ${p}. The investigated intervention (I) encompasses ${i}. The comparison benchmark (C) consists of ${c}. The primary outcomes of interest (O) evaluate ${o}, with eligible study designs (S) defined as ${s}.`;
+    return `The systematic review protocol was formulated around the PICO framework. The target population (P) comprises ${p}. The investigated intervention (I) encompasses ${i}. The comparison methods (C) consist of ${c}. The primary outcomes of interest (O) evaluate ${o}, with eligible study designs (S) defined as ${s}.`;
   };
 
   const getArticleRecord = (record: SLRRecord) => {
@@ -266,21 +263,7 @@ export default function FullReviewReport({
     });
 
     if (synthesis.heterogeneityDiscussion) {
-      md += `Regarding between-study variance and heterogeneity exploration, ${synthesis.heterogeneityDiscussion}\n\n`;
-    }
-
-    if (gradeItems.length > 0) {
-       md += `### 3.5 Optional Certainty of Evidence Assessment\n\n`;
-      md += `A certainty assessment was included only because it was explicitly populated by the reviewer. It was not generated automatically.\n\n`;
-      md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
-      md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
-      gradeItems.forEach((g) => {
-        md += `| ${g.outcome} | ${g.numStudies} | ${g.riskOfBias} | ${g.inconsistency} | ${g.indirectness} | ${g.imprecision} | ${g.publicationBias} | ${g.overallCertainty} | ${g.explanation.replace(/\|/g, "/")} |\n`;
-      });
-      md += `\n`;
-    } else {
-       md += `### 3.5 Certainty Assessment\n\n`;
-       md += `The narrative synthesis does not include a certainty rating.\n\n`;
+      md += `Across-record patterns and differences were described as follows: ${synthesis.heterogeneityDiscussion}\n\n`;
     }
 
     md += `## 4. Discussion\n\n`;
@@ -478,7 +461,7 @@ export default function FullReviewReport({
             Full Systematic Review Manuscript & Evidence Report
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Authoritative, publication-grade systematic review manuscript with a structured academic abstract, continuous paragraph statements without bullet points, categorized study characteristics, and cross-author synthesis.
+             Structured systematic review manuscript with an academic abstract, categorized study characteristics, and evidence-based cross-author synthesis.
           </p>
         </div>
 
@@ -722,34 +705,6 @@ export default function FullReviewReport({
             ))}
           </div>
 
-          {/* Optional Table 3: reviewer-populated certainty assessment */}
-          {gradeItems.length > 0 && <div className="space-y-2 pt-4">
-            <div className="text-xs font-mono font-bold text-slate-900">
-              Table 3: Certainty of Evidence and Summary of Findings
-            </div>
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-left text-[11px] font-sans">
-                <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
-                  <tr>
-                    <th className="p-2 font-bold">Outcome</th>
-                    <th className="p-2 font-bold">Studies (N)</th>
-                    <th className="p-2 font-bold">Certainty Rating</th>
-                    <th className="p-2 font-bold">Synthesis Explanation</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {gradeItems.map((g, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="p-2 font-mono font-semibold">{g.outcome}</td>
-                      <td className="p-2 font-mono">{g.numStudies}</td>
-                      <td className="p-2 font-mono font-bold text-emerald-800">{g.overallCertainty}</td>
-                      <td className="p-2 text-slate-600">{g.explanation}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>}
         </section>
 
         {/* Section 4: Discussion (Strictly in Statements / Paragraphs with Author Comparisons) */}

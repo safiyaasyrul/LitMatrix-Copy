@@ -82,39 +82,39 @@ export const BLANK_PROTOCOL: SLRProtocol = {
     missingDataAssumptions: "No values are imputed. Missing information is recorded as not reported.",
   },
   riskOfBiasMethods: {
-    toolName: "Domain-tailored methodological quality appraisal.",
+    toolName: "No formal risk-of-bias framework applied by default.",
     numReviewers: 1,
-    domainsAssessed: "Study design clarity, data provenance and adequacy, measurement validity, validation, reproducibility, and reporting completeness.",
-    automationTools: "AI-assisted appraisal suggestions; judgments require reviewer verification against the full text.",
+    domainsAssessed: "Describe study design, data provenance, measurement, validation, reproducibility, and reporting limitations when they are reported.",
+    automationTools: "No automated quality score is assigned.",
   },
-  effectMeasures: "Not prespecified. Quantitative pooling requires comparable, extractable effect data.",
+  effectMeasures: "Describe the outcomes and measures reported by each included record; no pooled effect is required.",
   synthesisMethods: {
     criteriaForEligibility: "Studies meeting the documented eligibility criteria.",
     dataPreparation: "Narrative coding and grouping using explicitly extracted study characteristics.",
     visualDisplays: "Study-characteristics tables and thematic summary tables.",
     synthesisModel: "Narrative and thematic synthesis by default.",
     heterogeneityExploration: "Describe differences in study design, setting, data sources, methods, and reported outcomes.",
-    sensitivityAnalysis: "Not applicable unless a quantitative analysis is subsequently specified and performed.",
+  sensitivityAnalysis: "Not required for the default narrative and thematic synthesis.",
   },
   reportingBiasMethods: "Describe likely reporting and publication limitations without statistical tests unless suitable data are available.",
-  certaintyMethods: "Use a certainty framework appropriate to the evidence types; do not assign certainty automatically.",
+  certaintyMethods: "No formal certainty framework is required for the default narrative and thematic synthesis.",
 };
 
 export const SAMPLE_PROTOCOL: SLRProtocol = {
-  title: "Machine Learning Approaches for Early Type 2 Diabetes Prediction: A Systematic Review and Meta-Analysis",
-  reviewType: "Systematic Review and Quantitative Meta-Analysis",
-  introductionRationale: "Type 2 Diabetes Mellitus (T2DM) represents a escalating global health crisis affecting over 530 million adults worldwide, associated with substantial macrovascular and microvascular morbidity. Early detection during asymptomatic dysglycemic or prediabetic stages permits timely lifestyle interventions and pharmacotherapy that significantly delay or prevent disease progression. Although conventional risk scores (such as FINDRISC and the ADA Risk Tool) provide accessible baseline screening, their discriminative performance is constrained when processing complex, non-linear interactions across high-dimensional clinical registers, metabolic panels, and longitudinal EHR trajectories. Recent advances in supervised machine learning—including tree-based ensembles (XGBoost, LightGBM, Random Forest) and deep neural architectures—demonstrate superior capacity to capture complex temporal risk profiles. However, published studies vary widely in model architectures, validation protocols, cohort demographics, and risk-of-bias controls. A rigorous, PRISMA 2020-compliant systematic review and quantitative meta-analysis is urgently warranted to consolidate pooled diagnostic discrimination (AUC-ROC), compare model families against conventional risk scores, appraise methodological risk of bias via PROBAST, and evaluate the overall certainty of cumulative evidence using the GRADE framework.",
+  title: "Machine Learning Approaches for Early Type 2 Diabetes Prediction: A PRISMA 2020 Systematic Review",
+  reviewType: "Systematic Literature Review with Narrative and Thematic Synthesis",
+  introductionRationale: "Type 2 Diabetes Mellitus represents an important clinical and public health concern. Published studies describe diverse machine learning methods, populations, validation settings, and reported outcomes. A PRISMA 2020-compliant systematic literature review can organize this evidence, compare reported approaches, and identify recurring findings and evidence gaps without assuming that unlike measures can be pooled.",
   backgroundContext: "T2DM accounts for >90% of global diabetes cases, imposing an estimated $966 billion annual economic burden. Routine clinical risk calculators frequently suffer from moderate discrimination (AUC ~0.70-0.76) and suboptimal calibration when deployed across multi-ethnic cohorts. Machine learning models leveraging multimodal electronic health record features offer a promising paradigm for personalized predictive stratification.",
-  knowledgeGap: "Existing literature is fragmented across disparate algorithm implementations, heterogeneous feature sets, and inconsistent reporting of calibration and external validation. No recent systematic meta-analysis has quantitatively synthesized pooled discrimination across distinct machine learning families while systematically grading certainty under PRISMA 2020 and GRADE standards.",
+  knowledgeGap: "Existing literature is fragmented across algorithm implementations, feature sets, populations, and validation settings, with inconsistent reporting of calibration and external validation.",
   primaryResearchQuestions: [
-    "RQ1 (Discrimination): What is the pooled diagnostic and predictive discrimination (AUC-ROC / C-index) of supervised machine learning algorithms in predicting incident Type 2 Diabetes?",
-    "RQ2 (Comparative Superiority): Do tree-based gradient boosted ensembles (XGBoost/LightGBM) demonstrate statistically superior predictive accuracy compared to traditional multivariable logistic regression and clinical risk scores?",
-    "RQ3 (Methodological Bias & Generalizability): What specific methodological risk of bias domains (selection, predictor definition, outcome determination, overfitting) most critically affect model transportability and external validation?",
+    "RQ1 (Reported Outcomes): What methods, outcomes, and performance measures are reported for supervised machine learning algorithms predicting incident Type 2 Diabetes?",
+    "RQ2 (Comparative Approaches): How do tree-based ensembles, conventional statistical models, and clinical risk scores differ across the reported evidence?",
+    "RQ3 (Context and Generalizability): How do populations, data sources, validation settings, and study designs shape the reported findings?",
   ],
   secondaryObjectives: [
-    "Quantify between-study heterogeneity (I²) across cohort sample sizes and validation methods (cross-validation vs. external cohorts)",
+    "Describe differences across cohort sample sizes and validation methods (cross-validation versus external cohorts)",
     "Identify top consistent predictive feature rankings (e.g., fasting plasma glucose, HbA1c, BMI, lipid ratios) across model architectures",
-    "Formulate evidence-based clinical implementation guidelines based on GRADE certainty ratings",
+    "Identify evidence-based implications and research gaps grounded in the included records",
   ],
   formulationFramework: "PICO",
   objectivesPICO: {
@@ -130,7 +130,7 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     comparison: "Baseline statistical logistic regression models and classical scoring rules (FINDRISC, ADA scoring index).",
     outcomes: "Model discrimination (AUC-ROC, C-statistic), F1-score, Brier calibration score, and inference latency.",
     context: "Primary care clinical decision support systems and ambulatory outpatient triage workflows.",
-    studyDesigns: "Empirical machine learning benchmarks and multi-center retrospective validation studies.",
+    studyDesigns: "Empirical machine learning evaluations and multi-center retrospective validation studies.",
   },
   objectivesPEO: {
     population: "Adult non-diabetic human populations undergoing routine metabolic and laboratory screening.",
@@ -207,22 +207,22 @@ export const SAMPLE_PROTOCOL: SLRProtocol = {
     missingDataAssumptions: "Missing standard errors imputed using reported 95% confidence intervals or p-values according to Cochrane Handbook guidance.",
   },
   riskOfBiasMethods: {
-    toolName: "PROBAST (Prediction model Risk Of Bias ASsessment Tool) and Cochrane RoB 2 / ROBINS-I adaptations across 5 domains (Selection, Performance/Predictors, Attrition/Missing Data, Outcome Detection, and Analysis/Reporting).",
+    toolName: "No formal risk-of-bias framework applied by default.",
     numReviewers: 2,
-    domainsAssessed: "D1: Participant Selection; D2: Predictor Assessment; D3: Attrition & Missing Data; D4: Outcome Determination; D5: Statistical Analysis & Reporting.",
-    automationTools: "Heuristic and LLM bias prompt cross-checked by two independent reviewers.",
+    domainsAssessed: "Describe participant selection, predictor definition, missing data, outcome determination, and reporting limitations when reported.",
+    automationTools: "No automated quality score is assigned.",
   },
-  effectMeasures: "Area Under the Receiver Operating Characteristic Curve (AUC-ROC), pooled Odds Ratio (OR) for high-risk classification, and Sensitivity/Specificity summary pairs.",
+  effectMeasures: "Area Under the Receiver Operating Characteristic Curve (AUC-ROC), sensitivity, specificity, and other measures reported by each study.",
   synthesisMethods: {
     criteriaForEligibility: "Studies providing validated predictive performance metrics in general adult cohorts.",
-    dataPreparation: "Conversion of ROC confidence bounds into standard error using Wilson score / Hanley-McNeil variance formulas.",
-    visualDisplays: "Forest plots of discrimination AUC, traffic-light Risk of Bias charts, and GRADE Summary of Findings tables.",
-    synthesisModel: "DerSimonian-Laird random-effects meta-analysis model with inverse-variance weighting; statistical heterogeneity quantified via I² statistic and Cochran's Q test (p < 0.10).",
-    heterogeneityExploration: "Subgroup analysis comparing algorithm type (Tree ensemble vs Deep Learning vs Logistic regression) and validation type (internal vs external cohort).",
-    sensitivityAnalysis: "Leave-one-out sensitivity analysis and restriction to low Risk of Bias studies.",
+    dataPreparation: "Organize reported outcomes, study characteristics, and validation contexts without imputing unreported values.",
+    visualDisplays: "Study-characteristics tables and thematic summary tables.",
+    synthesisModel: "Narrative and thematic synthesis by study characteristics, methods, contexts, and reported outcomes.",
+    heterogeneityExploration: "Describe differences in algorithm type, validation type, population, and data source.",
+    sensitivityAnalysis: "Not required for the default narrative and thematic synthesis.",
   },
-  reportingBiasMethods: "Visual inspection of funnel plot asymmetry and Egger's linear regression test for funnel asymmetry (significance threshold p < 0.05).",
-  certaintyMethods: "GRADE (Grading of Recommendations Assessment, Development and Evaluation) framework assessing risk of bias, inconsistency, indirectness, imprecision, and publication bias.",
+  reportingBiasMethods: "Describe likely reporting and publication limitations when they are visible in the included records.",
+  certaintyMethods: "No formal certainty framework is required for the default narrative and thematic synthesis.",
 };
 
 export const SAMPLE_RECORDS: SLRRecord[] = [
@@ -779,14 +779,14 @@ export const SAMPLE_SYNTHESIS: SynthesisResult = {
   keyFindingsTable: [
     {
       topic: "Gradient Boosted Tree Ensembles",
-      summary: "Pooled AUC 0.864 (0.850-0.878); superior to FINDRISC & ADA risk calculators across all tested datasets.",
-      consistency: "High (5 studies)",
+      summary: "Reported discrimination was consistently higher for gradient boosted tree models than for the conventional comparators in the contributing records.",
+      consistency: "Recurring pattern across 5 records",
       evidenceBase: "N = 200,000+ EHR & community records",
     },
     {
       topic: "Multimodal Deep Learning (Genomics + EHR)",
-      summary: "Pooled AUC 0.898 (0.886-0.910); captures nonlinear temporal laboratory velocity and genetic risk.",
-      consistency: "High (3 studies)",
+      summary: "The contributing records reported that multimodal deep learning captured nonlinear temporal laboratory and genetic features.",
+      consistency: "Recurring pattern across 3 records",
       evidenceBase: "N = 165,000+ multi-center cohort records",
     },
     {
@@ -796,29 +796,15 @@ export const SAMPLE_SYNTHESIS: SynthesisResult = {
       evidenceBase: "Primary care practice registries",
     },
   ],
-  forestPlotEstimates: [
-    { study: "Chen et al. (2023)", effectMeasure: "AUC", effectSize: 0.892, ciLower: 0.884, ciUpper: 0.900, weight: 18.2 },
-    { study: "Rodriguez et al. (2024)", effectMeasure: "AUC", effectSize: 0.914, ciLower: 0.902, ciUpper: 0.926, weight: 14.5 },
-    { study: "Zhao et al. (2023)", effectMeasure: "AUC", effectSize: 0.905, ciLower: 0.891, ciUpper: 0.919, weight: 13.8 },
-    { study: "Williams et al. (2022)", effectMeasure: "AUC", effectSize: 0.841, ciLower: 0.826, ciUpper: 0.856, weight: 15.4 },
-    { study: "Al-Mansoori et al. (2024)", effectMeasure: "AUC", effectSize: 0.872, ciLower: 0.855, ciUpper: 0.889, weight: 12.6 },
-    { study: "Larsson et al. (2022)", effectMeasure: "AUC", effectSize: 0.838, ciLower: 0.820, ciUpper: 0.856, weight: 13.0 },
-    { study: "Fischer et al. (2021)", effectMeasure: "AUC", effectSize: 0.814, ciLower: 0.793, ciUpper: 0.835, weight: 12.5 },
-  ],
-  pooledEffectEstimate: {
-    effectMeasure: "Pooled Random-Effects AUC",
-    effectSize: 0.876,
-    ciLower: 0.858,
-    ciUpper: 0.894,
-    heterogeneityI2: "62.4%",
-  },
+  forestPlotEstimates: [],
+  pooledEffectEstimate: undefined,
   heterogeneityDiscussion:
-    "Moderate between-study heterogeneity (I² = 62.4%, p = 0.008) was predominantly accounted for by differences in predictor modalities (models fusing multimodal polygenic scores consistently achieved AUC > 0.90, whereas standard EHR-only models clustered around AUC 0.84-0.89) and differences in baseline population diabetes prevalence across geographic healthcare systems.",
+    "Differences across records are described through reported methods, populations, validation settings, and outcomes.",
 };
 
 export const SAMPLE_DISCUSSION_SECTIONS: DiscussionSections = {
   item23aGeneralInterpretation:
-    "This systematic review and meta-analysis synthesizes current evidence on machine learning algorithms for early Type 2 Diabetes prediction across 9 primary studies comprising over 350,000 participants. Our findings demonstrate that modern machine learning models—particularly gradient boosted trees (pooled AUC 0.864) and multimodal deep neural networks (pooled AUC 0.898)—consistently and substantially outperform conventional questionnaire-based clinical risk tools like FINDRISC (AUC ~0.72) and the ADA score (AUC ~0.71). The primary clinical advantage lies in capturing non-linear multi-variable biomarker trajectories and integrating high-dimensional polygenic scores, allowing identification of prediabetic individuals up to 3 to 5 years prior to clinical symptom manifestation.",
+    "This systematic review synthesizes current evidence on machine learning algorithms for early Type 2 Diabetes prediction across the included records. The records describe gradient boosted trees, multimodal deep neural networks, conventional risk tools, and varied validation settings. The evidence is interpreted through reported methods, contexts, outcomes, and recurring patterns rather than a single pooled estimate.",
   item23bLimitationsOfEvidence:
     "Several limitations inherent in the primary evidence base warrant consideration. First, while discrimination (AUC-ROC) is widely reported, calibration metrics (e.g., calibration curves, Brier scores) were omitted in 33% of included studies, raising potential concerns regarding probability overconfidence when applied to different baseline disease prevalences. Second, true external geographic validation was conducted in only 4 out of 9 studies; models trained on integrated health system data in high-income nations may underperform in racially and socioeconomically diverse cohorts. Third, the majority of deep learning architectures lack standardized reporting on computational complexity.",
   item23cLimitationsOfReviewProcess:

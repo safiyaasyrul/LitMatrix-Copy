@@ -1,2 +1,3 @@
 - [Artifact API routing](artifact-api-routing.md) — use a unique app API prefix when shared api-server owns `/api`; otherwise requests can bypass the artifact server.
 - [Evidence-grounded review outputs](evidence-grounded-review-outputs.md) — never infer screening, full-text, reviewer, appraisal, or quantitative results from citation metadata.
+- [Narrative-first review workflow](narrative-first-review-workflow.md) — keep PRISMA, PICO/PICOC, screening, extraction, references, and narrative/thematic synthesis as defaults; optional quantitative or appraisal methods must not be forced.

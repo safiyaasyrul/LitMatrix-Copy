@@ -148,7 +148,7 @@ export default function SearchStringsGenerator({
       return [
         { id: "def-1", term: "systematic review", category: "Concept 1 (Population / Domain)", selected: true },
         { id: "def-2", term: "empirical evaluation", category: "Concept 2 (Intervention / Technology)", selected: true },
-        { id: "def-3", term: "benchmark validation", category: "Concept 3 (Outcome / Comparator)", selected: true },
+        { id: "def-3", term: "reported outcomes", category: "Concept 3 (Outcome / Comparator)", selected: true },
       ];
     }
 

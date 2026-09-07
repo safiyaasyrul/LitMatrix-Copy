@@ -438,7 +438,7 @@ export default function RecordsImport({
                     showToast("Successfully synchronized all PRISMA stages with your uploaded records!");
                   }}
                   className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
-                  title="Generate study characteristics, risk of bias, synthesis, GRADE, and discussion for your uploaded records"
+                  title="Keep screening, extraction, synthesis, and discussion stages aligned with your uploaded records"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
                   Auto-Sync All Stages with Uploaded Records

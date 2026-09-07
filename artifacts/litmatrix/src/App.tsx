@@ -5,7 +5,6 @@ import {
   ScreeningDecision,
   StudyCharacteristic,
   SynthesisResult,
-  GradeCertaintyItem,
   DiscussionSections,
   PrismaChecklistItem,
   PrismaSChecklistItem,
@@ -22,7 +21,6 @@ import {
   sampleScreening,
   sampleCharacteristics,
   sampleSynthesis,
-  sampleGradeItems,
   sampleDiscussion,
   BLANK_PROTOCOL,
 } from "./data/sampleDataset";
@@ -33,7 +31,6 @@ import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import SynthesisSection from "./components/SynthesisSection";
-import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
@@ -80,7 +77,6 @@ import {
   CheckCircle,
   GitBranch,
   BarChart2,
-  Award,
   BookOpen,
   FileText,
   Sparkles,
@@ -156,12 +152,6 @@ export default function App() {
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion: parsed.heterogeneityDiscussion?.replace(/I²|p\s*=|pooled/gi, "") || "",
     };
-  });
-
-  const [gradeItems, setGradeItems] = useState<GradeCertaintyItem[]>(() => {
-    // GRADE is optional and is not appropriate by default for heterogeneous
-    // engineering evidence. Existing auto-generated rows are not trusted.
-    return [];
   });
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
@@ -276,10 +266,6 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("slr_synthesis_v1", JSON.stringify(synthesis));
   }, [synthesis]);
-
-  useEffect(() => {
-    localStorage.setItem("slr_grade_v1", JSON.stringify(gradeItems));
-  }, [gradeItems]);
 
   useEffect(() => {
     localStorage.setItem("slr_discussion_v1", JSON.stringify(discussion));
@@ -401,7 +387,6 @@ export default function App() {
       setScreening(sampleScreening);
       setCharacteristics(sampleCharacteristics);
       setSynthesis(sampleSynthesis);
-      setGradeItems([]);
       setDiscussion(sampleDiscussion);
       setChecklist(initialPrismaChecklist);
       setPrismaSChecklist(initialPrismaSChecklist);
@@ -428,7 +413,6 @@ export default function App() {
         pooledEffectEstimate: undefined,
         heterogeneityDiscussion: "",
       });
-      setGradeItems([]);
       setDiscussion({
         item23aGeneralInterpretation: "",
         item23bLimitationsOfEvidence: "",
@@ -461,14 +445,13 @@ export default function App() {
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion: "",
     });
-    setGradeItems([]);
     setDiscussion({
       item23aGeneralInterpretation: "",
       item23bLimitationsOfEvidence: "",
       item23cLimitationsOfReviewProcess: "",
       item23dImplications: "",
     });
-    alert("Records synchronized. Records without screening decisions were not included; no appraisal or synthesis results were generated.");
+    alert("Records synchronized. Records without screening decisions were not included; no unsupported synthesis results were generated.");
   };
 
   // Navigation stages mapped to the PRISMA 2020 checklist.
@@ -514,12 +497,6 @@ export default function App() {
       label: "Narrative Synthesis",
       badge: "Items 13a–f",
       icon: BarChart2,
-    },
-    {
-      id: "grade",
-      label: "Optional Evidence Certainty",
-      badge: "Items 15 & 22",
-      icon: Award,
     },
     {
       id: "discussion",
@@ -613,7 +590,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-               10 Stages
+               {stages.length} Stages
             </span>
           </div>
 
@@ -752,20 +729,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 8: GRADE Certainty of Evidence */}
+          {/* Stage 8: 4-Part Discussion */}
           {activeStage === 7 && (
-            <CertaintyGradeSection
-              gradeItems={gradeItems}
-              onUpdateGrade={setGradeItems}
-              includedRecords={includedRecords}
-              characteristics={characteristics}
-              aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(4)}
-            />
-          )}
-
-          {/* Stage 9: 4-Part Discussion */}
-          {activeStage === 8 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -777,8 +742,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 10: Consolidated Manuscript */}
-          {activeStage === 9 && (
+          {/* Stage 9: Consolidated Manuscript */}
+          {activeStage === 8 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
@@ -786,7 +751,6 @@ export default function App() {
               screening={screening}
               characteristics={characteristics}
               synthesis={synthesis}
-              gradeItems={gradeItems}
               discussion={discussion}
               checklist={checklist}
               counts={prismaCounts}

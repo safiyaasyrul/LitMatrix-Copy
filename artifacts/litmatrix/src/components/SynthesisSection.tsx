@@ -265,7 +265,7 @@ export default function SynthesisSection({
   onNavigateToScreening,
 }: SynthesisSectionProps) {
   const [generating, setGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState<"prose" | "groups" | "forest" | "table">("prose");
+  const [activeTab, setActiveTab] = useState<"prose" | "groups" | "table">("prose");
   const [groupingMode, setGroupingMode] = useState<"category" | "intervention" | "design" | "outcome">("category");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const normalizationInFlight = useRef<string | null>(null);
@@ -345,7 +345,7 @@ export default function SynthesisSection({
       })),
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
-      heterogeneityDiscussion: "Study differences are described narratively. No pooled effect, confidence interval, heterogeneity statistic, or significance test was calculated.",
+      heterogeneityDiscussion: "Differences across records are described through reported methods, contexts, outcomes, and recurring themes.",
     };
 
     onUpdateSynthesis(generated);
@@ -381,7 +381,7 @@ STRICT WRITING RULES:
 4. CITE EVERY INCLUDED STUDY EXPLICITLY in the narrative text using exactly "Author et al. (Year): finding". Put each study citation on its own paragraph. Never concatenate one citation directly after another, and never use a bare author name without its year.
 5. Return at least ${MIN_SYNTHESIS_CLUSTERS} structured subtopics, matching the supplied cluster assignments. Each subtopic must contain the citations for its assigned records.
 6. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
-7. Do not calculate or report pooled effects, confidence intervals, p-values, I², weights, meta-analysis, or statistical significance.
+7. Do not calculate or report pooled effects, confidence intervals, p-values, weights, or statistical significance.
 8. Do not mention citation metadata, the application, extraction state, or system limitations. If a supplied record itself omits a relevant design, population, sample, comparator, or outcome detail, describe that only as "not reported in the supplied record" for that study. Do not make blanket claims about missing information across the review.
 
 Generate a JSON object conforming strictly to:
@@ -405,7 +405,7 @@ Generate a JSON object conforming strictly to:
     try {
       const text = await callAI(
         prompt,
-        "You are an expert systematic review methodologist and biostatistician.",
+        "You are an expert systematic review methodologist focused on transparent narrative and thematic synthesis.",
         aiConfig
       );
       const parsed = parseJSONLoose(text);
@@ -423,7 +423,7 @@ Generate a JSON object conforming strictly to:
           })),
           forestPlotEstimates: [],
           pooledEffectEstimate: undefined,
-          heterogeneityDiscussion: "Study differences are described narratively; no statistical heterogeneity analysis was performed.",
+          heterogeneityDiscussion: "Differences across records are described through reported methods, contexts, outcomes, and recurring themes.",
         });
       } else {
         throw new Error("Could not parse AI response as valid synthesis object.");
@@ -443,7 +443,6 @@ Generate a JSON object conforming strictly to:
       ? suggestReviewTitle(getSynthesisStudies(includedRecords, characteristics), synthesis.subtopics)
       : "");
   const [titleCopied, setTitleCopied] = useState(false);
-  const scaleX = (value: number) => 240 + ((Math.max(0.65, Math.min(1, value)) - 0.65) / 0.35) * 360;
 
   return (
     <div id="synthesis-section-container" className="space-y-6">
@@ -571,7 +570,7 @@ Generate a JSON object conforming strictly to:
           {synthesis.heterogeneityDiscussion && (
             <div className="bg-indigo-50/50 border border-indigo-200 p-6 rounded-xl space-y-2">
               <h3 className="text-sm font-bold text-indigo-950 font-mono">
-                Exploration of Between-Study Heterogeneity and Methodological Variance
+                Patterns and Differences Across Records
               </h3>
               <p className="text-xs text-indigo-900 font-sans leading-relaxed text-justify">
                 {synthesis.heterogeneityDiscussion}
@@ -691,138 +690,7 @@ Generate a JSON object conforming strictly to:
         </div>
       )}
 
-      {/* Tab 3: Forest Plot */}
-      {false && activeTab === "forest" && (
-        <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h3 className="font-bold text-base text-slate-900">
-                Random-Effects Forest Plot (Pooled Effect Estimates)
-              </h3>
-              <p className="text-xs text-slate-500">
-                Inverse-variance weighted effect sizes with 95% Confidence Intervals.
-              </p>
-            </div>
-            {synthesis.pooledEffectEstimate && (
-              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-mono">
-                <span className="font-bold text-emerald-900">
-                  Pooled Effect: {synthesis.pooledEffectEstimate.effectSize} [95% CI: {synthesis.pooledEffectEstimate.ciLower} to {synthesis.pooledEffectEstimate.ciUpper}]
-                </span>
-                <div className="text-[10px] text-emerald-700">
-                  Heterogeneity: I² = {synthesis.pooledEffectEstimate.heterogeneityI2}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* SVG Forest Plot */}
-          {synthesis.forestPlotEstimates && synthesis.forestPlotEstimates.length > 0 ? (
-            <div className="overflow-x-auto border border-slate-200 rounded-xl p-4 bg-slate-50/50">
-              <svg width="680" height={100 + synthesis.forestPlotEstimates.length * 40 + 70} className="font-sans text-xs">
-                {/* Header Labels */}
-                <text x="10" y="25" className="font-mono font-bold fill-slate-800 text-[11px]">
-                  Study (Author, Year)
-                </text>
-                <text x="240" y="25" className="font-mono font-bold fill-slate-800 text-[11px]">
-                  Effect Size (95% CI)
-                </text>
-                <text x="610" y="25" className="font-mono font-bold fill-slate-800 text-[11px]" textAnchor="end">
-                  Weight (%)
-                </text>
-
-                {/* Vertical Reference Axis Line */}
-                <line x1="240" y1="35" x2="600" y2="35" stroke="#cbd5e1" strokeWidth="1" />
-                <line x1={scaleX(0.7)} y1="35" x2={scaleX(0.7)} y2={80 + synthesis.forestPlotEstimates.length * 40} stroke="#94a3b8" strokeDasharray="3 3" />
-                <line x1={scaleX(0.8)} y1="35" x2={scaleX(0.8)} y2={80 + synthesis.forestPlotEstimates.length * 40} stroke="#94a3b8" strokeDasharray="3 3" />
-                <line x1={scaleX(0.9)} y1="35" x2={scaleX(0.9)} y2={80 + synthesis.forestPlotEstimates.length * 40} stroke="#94a3b8" strokeDasharray="3 3" />
-
-                {/* Scale Ticks at top */}
-                <text x={scaleX(0.7)} y="32" textAnchor="middle" className="font-mono text-[9px] fill-slate-400">0.70</text>
-                <text x={scaleX(0.8)} y="32" textAnchor="middle" className="font-mono text-[9px] fill-slate-400">0.80</text>
-                <text x={scaleX(0.9)} y="32" textAnchor="middle" className="font-mono text-[9px] fill-slate-400">0.90</text>
-                <text x={scaleX(1.0)} y="32" textAnchor="middle" className="font-mono text-[9px] fill-slate-400">1.00</text>
-
-                {/* Individual Study Lines */}
-                {synthesis.forestPlotEstimates.map((item, idx) => {
-                  const y = 65 + idx * 40;
-                  const x1 = scaleX(item.ciLower);
-                  const x2 = scaleX(item.ciUpper);
-                  const xCenter = scaleX(item.effectSize);
-                  const boxSize = Math.max(6, Math.min(14, (item.weight / 100) * 45));
-
-                  return (
-                    <g key={idx} className="hover:opacity-80 transition-opacity">
-                      {/* Study Name */}
-                      <text x="10" y={y + 4} className="font-mono font-semibold fill-slate-900 text-xs">
-                        {item.study}
-                      </text>
-
-                      {/* CI Whiskers */}
-                      <line x1={x1} y1={y} x2={x2} y2={y} stroke="#475569" strokeWidth="2" />
-                      <line x1={x1} y1={y - 4} x2={x1} y2={y + 4} stroke="#475569" strokeWidth="2" />
-                      <line x1={x2} y1={y - 4} x2={x2} y2={y + 4} stroke="#475569" strokeWidth="2" />
-
-                      {/* Center Effect Box (Size proportional to weight) */}
-                      <rect
-                        x={xCenter - boxSize / 2}
-                        y={y - boxSize / 2}
-                        width={boxSize}
-                        height={boxSize}
-                        fill="#4f46e5"
-                        rx="1"
-                      />
-
-                      {/* Numeric Values */}
-                      <text x="610" y={y + 4} textAnchor="end" className="font-mono font-medium fill-slate-700 text-xs">
-                        {item.effectSize.toFixed(3)} [{item.ciLower.toFixed(3)}, {item.ciUpper.toFixed(3)}] · {item.weight}%
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* Pooled Diamond Summary */}
-                {synthesis.pooledEffectEstimate && (
-                  <g>
-                    {(() => {
-                      const yDiamond = 65 + synthesis.forestPlotEstimates.length * 40 + 20;
-                      const xPooled = scaleX(synthesis.pooledEffectEstimate.effectSize);
-                      const xPooledL = scaleX(synthesis.pooledEffectEstimate.ciLower);
-                      const xPooledU = scaleX(synthesis.pooledEffectEstimate.ciUpper);
-
-                      return (
-                        <>
-                          <line x1="10" y1={yDiamond - 15} x2="660" y2={yDiamond - 15} stroke="#cbd5e1" strokeWidth="1" />
-                          <text x="10" y={yDiamond + 4} className="font-mono font-bold fill-indigo-950 text-xs">
-                            Pooled Random Effects
-                          </text>
-
-                          {/* Diamond Polygon */}
-                          <polygon
-                            points={`${xPooledL},${yDiamond} ${xPooled},${yDiamond - 7} ${xPooledU},${yDiamond} ${xPooled},${yDiamond + 7}`}
-                            fill="#059669"
-                            stroke="#047857"
-                            strokeWidth="1.5"
-                          />
-
-                          <text x="610" y={yDiamond + 4} textAnchor="end" className="font-mono font-bold fill-emerald-800 text-xs">
-                            {synthesis.pooledEffectEstimate.effectSize} [{synthesis.pooledEffectEstimate.ciLower}, {synthesis.pooledEffectEstimate.ciUpper}] (100.0%)
-                          </text>
-                        </>
-                      );
-                    })()}
-                  </g>
-                )}
-              </svg>
-            </div>
-          ) : (
-            <div className="p-8 text-center text-xs font-mono text-slate-500 bg-slate-50 rounded-xl">
-              Quantitative pooling is not enabled by default. Add a sufficiently homogeneous, extractable outcome subset before performing a meta-analysis or generating a forest plot.
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Tab 4: Key Findings Matrix */}
+      {/* Tab 3: Key Findings Matrix */}
       {activeTab === "table" && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs font-sans">

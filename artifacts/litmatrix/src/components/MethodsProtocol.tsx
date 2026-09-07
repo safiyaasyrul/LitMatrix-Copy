@@ -163,7 +163,7 @@ Focus on: Target clinical patient population (P), therapeutic/diagnostic interve
   "pico_studyDesigns": "...",`;
       } else if (currentFramework === "PICOC") {
         frameworkSpecificInstructions = `Framework: PICOC (Engineering & Technology Systematic Literature Review - Kitchenham & Charters standard).
-Focus on: Target software systems/codebases/users (P), technology/algorithm/architecture/tool (I), baseline comparison/legacy heuristics/state-of-the-art benchmark (C), technical performance metrics like latency, throughput, accuracy, memory, scalability (O), and operational deployment context/environmental constraints (C).`;
+ Focus on: Target software systems/codebases/users (P), technology/algorithm/architecture/tool (I), relevant comparison methods or standard tools (C), reported outcomes and technical measures (O), and operational deployment context/environmental constraints (C).`;
         expectedJsonStructure = `"picoc_population": "...",
   "picoc_intervention": "...",
   "picoc_comparison": "...",
@@ -194,7 +194,7 @@ Formulation Framework: "${currentFramework}"
 
 ${frameworkSpecificInstructions}
 
-Act as a world-class systematic review methodologist, domain scholar, and journal editor. Generate a comprehensive, publication-grade Introduction, Academic Rationale (PRISMA 2020 Item 3 / ROSES Item 3), Explicit Objectives & Research Questions (PRISMA 2020 Item 4 / ROSES Item 4), and structured framework elements strictly tailored to this topic and framework.
+Act as an experienced systematic review methodologist. Generate a clear, evidence-grounded introduction, rationale, research questions, objectives, and structured framework elements tailored to this topic and framework.
 
 Return ONLY valid JSON matching this exact structure:
 {
@@ -247,7 +247,7 @@ Return ONLY valid JSON matching this exact structure:
           comparison: parsed.picoc_comparison || parsed.comparator || protocol.objectivesPICOC?.comparison || updatedPico.comparator,
           outcomes: parsed.picoc_outcomes || parsed.outcomes || protocol.objectivesPICOC?.outcomes || updatedPico.outcomes,
           context: parsed.picoc_context || protocol.objectivesPICOC?.context || "Deployment environment, computational platform, and runtime operational constraints",
-          studyDesigns: parsed.picoc_studyDesigns || parsed.studyDesigns || protocol.objectivesPICOC?.studyDesigns || "Empirical software benchmarks, controlled experiments, and industrial case studies",
+           studyDesigns: parsed.picoc_studyDesigns || parsed.studyDesigns || protocol.objectivesPICOC?.studyDesigns || "Empirical software evaluations, comparative experiments, and industrial case studies",
         };
 
         const updatedPeo: ObjectivesPEO = {
@@ -308,16 +308,16 @@ Return ONLY valid JSON matching this exact structure:
       // Engineering & Technology Formulation
       onUpdateProtocol({
         ...protocol,
-        introductionRationale: `${t} has emerged as a pivotal domain in contemporary software engineering, computing systems, and applied technology. Rapid technological acceleration has led to diverse architectural paradigms, algorithmic implementations, and tool frameworks. However, published engineering studies frequently present disparate empirical benchmarks, conflicting latency/throughput trade-offs, and heterogeneous deployment constraints without standardized quality assessment. Conducting a PRISMA 2020-compliant systematic literature review using the PICOC framework (Kitchenham & Charters) is essential to consolidate cumulative empirical evidence, quantify comparative performance benchmarks against baseline standards, and establish reproducible guidelines for technological adoption.`,
+        introductionRationale: `${t} has emerged as a significant domain in contemporary software engineering, computing systems, and applied technology. Published studies describe diverse architectures, algorithms, tools, and deployment contexts. A PRISMA 2020-compliant systematic literature review using the PICOC framework (Kitchenham & Charters) can organize this evidence, compare reported approaches, and identify recurring findings and evidence gaps.`,
         backgroundContext: `Engineering foundations and recent technological advances in ${t}, addressing computational scalability, architectural robustness, and implementation trade-offs across modern production environments.`,
-        knowledgeGap: `Lack of consolidated empirical benchmarks, fragmented evaluation metrics (latency vs. throughput vs. resource consumption), and inconsistent reporting of runtime operational constraints across current studies on ${t}.`,
+        knowledgeGap: `Fragmented findings, varied evaluation measures, and inconsistent reporting of runtime operational constraints across current studies on ${t}.`,
         primaryResearchQuestions: [
-          `RQ1 (Performance & Efficiency): What are the empirical performance benchmarks (e.g., latency, throughput, accuracy, memory footprint) of ${t} across target software systems?`,
-          `RQ2 (Comparative Benchmark): How does ${t} perform compared to baseline techniques, legacy heuristics, and alternative technological architectures?`,
+          `RQ1 (Performance & Efficiency): What methods, outcomes, and performance measures are reported for ${t} across target software systems?`,
+          `RQ2 (Comparative Approaches): How does ${t} compare with baseline techniques, alternative architectures, or other reported approaches?`,
           `RQ3 (Contextual & Operational Trade-offs): What runtime deployment constraints, scalability limitations, or environmental factors moderate the efficacy of ${t}?`,
         ],
         secondaryObjectives: [
-          `Quantify trade-offs between computational overhead and output quality across implementation environments`,
+          `Describe trade-offs between computational overhead and reported output quality across implementation environments`,
           `Synthesize key architectural patterns, open-source tooling, and reproducibility characteristics across included literature`,
         ],
         objectivesPICOC: {
@@ -325,21 +325,21 @@ Return ONLY valid JSON matching this exact structure:
           intervention: `${t} algorithms, frameworks, tools, or architectural techniques.`,
           comparison: `Conventional baseline algorithms, legacy rule-based heuristics, or state-of-the-art comparator frameworks.`,
           outcomes: `Computational latency (ms), throughput, execution accuracy (F1/AUC), resource consumption, and scalability metrics.`,
-          context: `Production environments, cloud/edge deployment settings, real-time runtime constraints, and industrial vs academic benchmarks.`,
-          studyDesigns: `Empirical software evaluations, controlled benchmark experiments, and industrial case studies.`,
+          context: `Production environments, cloud/edge deployment settings, real-time runtime constraints, and industrial versus academic settings.`,
+          studyDesigns: `Empirical software evaluations, comparative experiments, and industrial case studies.`,
         },
         eligibilityCriteria: {
           ...protocol.eligibilityCriteria,
           inclusion: [
             "Peer-reviewed original research in computer science, software engineering, or related technological domains",
-            `Empirical validation or benchmark evaluation of ${t}`,
+            `Empirical evaluation or reported application of ${t}`,
             "Clear reporting of quantitative performance metrics or architectural evaluation",
             "English language publication",
           ],
           exclusion: [
             "Abstract-only posters or non-peer-reviewed whitepapers lacking empirical data",
             "Studies without comparative baselines or clear experimental methodology",
-            "Purely conceptual proposals without implementation or benchmark verification",
+            "Purely conceptual proposals without a reported application or evaluation",
           ],
           groupingForSynthesis: "Thematic grouping by algorithm family, architectural design, and target deployment platform.",
         },
@@ -350,15 +350,15 @@ Return ONLY valid JSON matching this exact structure:
         ...protocol,
         introductionRationale: `${t} represents a pressing subject of inquiry across environmental sciences, ecological conservation, and public health epidemiology. Anthropogenic activities and environmental transformations have intensified exposure to environmental stressors, contaminants, and ecosystem perturbations. While an expanding body of observational and field monitoring literature exists, findings exhibit considerable variability attributable to differential exposure gradients, sampling regimes, and geographical heterogeneity. This systematic evidence synthesis adheres to PRISMA 2020 and ROSES reporting standards using the PEO framework to consolidate cumulative findings, assess exposure-response relationships, and provide evidence-based recommendations for policy and management.`,
         backgroundContext: `Ecological baseline and environmental exposure pathways associated with ${t}, highlighting susceptibility of populations/ecosystems and critical regulatory thresholds.`,
-        knowledgeGap: `Conflicting exposure-response evidence, geographic sampling gaps, and lack of standardized methodological risk-of-bias appraisal across observational studies on ${t}.`,
+        knowledgeGap: `Conflicting exposure-response evidence, geographic sampling gaps, and inconsistent reporting of methods across observational studies on ${t}.`,
         primaryResearchQuestions: [
           `RQ1 (Exposure Impact): What is the quantitative relationship between exposure to ${t} and ecological/health outcomes across affected populations or ecosystems?`,
           `RQ2 (Gradient & Sensitivity): How do varying exposure levels, chemical/climatic gradients, or spatial settings modulate adverse outcomes?`,
-          `RQ3 (Methodological Appraisal): What observational bias domains (confounding, exposure measurement error, outcome misclassification) influence cumulative evidence?`,
+          `RQ3 (Study Characteristics): What observational study characteristics and reporting limitations shape the evidence?`,
         ],
         secondaryObjectives: [
           `Evaluate geographic and spatial subgroup variations across biomes, catchment areas, and demographic strata`,
-          `Grade the certainty of evidence for primary environmental/health endpoints using the GRADE/ROSES certainty matrix`,
+          `Describe evidence limitations and contextual variation across environmental and health endpoints`,
         ],
         objectivesPEO: {
           population: `Target ecosystems, biotas, catchments, communities, or observational human cohorts subject to ${t}.`,
@@ -396,8 +396,8 @@ Return ONLY valid JSON matching this exact structure:
           `RQ3 (Contextual Variation): How do organizational, cultural, or demographic contexts shape participants' decision-making and evaluation of ${t}?`,
         ],
         secondaryObjectives: [
-          `Construct a meta-aggregative thematic framework mapping core qualitative dimensions and stakeholder recommendations`,
-          `Appraise methodological rigor of included qualitative studies using the CASP (Critical Appraisal Skills Programme) criteria`,
+          `Construct a thematic framework mapping core qualitative dimensions and stakeholder recommendations`,
+          `Describe the methodological characteristics and reporting limitations of included qualitative studies`,
         ],
         objectivesSPIDER: {
           sample: `Target informants, study participants, clinicians, educators, community members, or end-users engaged with ${t}.`,
@@ -426,17 +426,17 @@ Return ONLY valid JSON matching this exact structure:
       // Clinical / Health PICO Formulation
       onUpdateProtocol({
         ...protocol,
-        introductionRationale: `${t} represents a critical subject of inquiry across contemporary clinical medicine and healthcare. Despite an expanding volume of primary empirical investigations, reported findings exhibit notable variations in methodological rigor, intervention architectures, cohort demographics, and measured outcome metrics. Existing reviews either remain outdated, rely on restricted sample scopes, or fail to systematically evaluate methodological risk of bias under standardized reporting frameworks. Therefore, this systematic literature review is conducted in accordance with PRISMA 2020 to synthesize cumulative evidence, quantify comparative effect sizes, and establish robust evidence-based benchmarks.`,
+        introductionRationale: `${t} represents an important subject of inquiry across contemporary clinical medicine and healthcare. Published findings vary in methods, interventions, populations, settings, and outcomes. This PRISMA 2020-compliant systematic literature review organizes the available evidence, compares reported approaches, and identifies recurring findings and evidence gaps.`,
         backgroundContext: `Clinical importance, epidemiological burden, and therapeutic/diagnostic significance of ${t} across target patient populations.`,
-        knowledgeGap: `Inconsistent findings, fragmented sub-methodologies, and lack of standardized quality appraisal across existing studies on ${t}.`,
+        knowledgeGap: `Inconsistent findings, fragmented sub-methodologies, and incomplete reporting across existing studies on ${t}.`,
         primaryResearchQuestions: [
           `RQ1 (Primary Efficacy/Effect): What is the cumulative effect, diagnostic accuracy, or clinical impact of ${t} across eligible patient cohorts?`,
           `RQ2 (Comparative Performance): How does ${t} perform relative to conventional clinical baselines and standard-of-care comparators?`,
-          `RQ3 (Methodological Bias & Generalizability): What key methodological characteristics and risk-of-bias domains moderate clinical outcomes across settings?`,
+          `RQ3 (Methodological Characteristics & Generalizability): What study characteristics and contextual factors shape reported clinical outcomes across settings?`,
         ],
         secondaryObjectives: [
           `Evaluate subgroup variations across demographic and methodological strata`,
-          `Grade the certainty of evidence for primary outcomes using the GRADE framework`,
+          `Describe differences and limitations in the evidence for primary outcomes`,
         ],
         objectivesPICO: {
           population: `Target patient population, demographic cohort, or clinical condition evaluated in ${t}.`,
@@ -545,14 +545,14 @@ Return ONLY valid JSON matching this exact structure:
   };
 
   const questions = protocol.primaryResearchQuestions || [
-    "RQ1: What is the cumulative effect, accuracy, or performance across included studies?",
-    "RQ2: How do comparative approaches or sub-methodologies perform against baseline benchmarks?",
-    "RQ3: What sources of methodological heterogeneity or bias influence outcomes across study settings?",
+    "RQ1: What methods, outcomes, and findings are reported across included studies?",
+    "RQ2: How do comparative approaches or sub-methodologies differ across the evidence base?",
+    "RQ3: What study characteristics and contextual factors shape reported outcomes?",
   ];
 
   const objectives = protocol.secondaryObjectives || [
     "Evaluate subgroup variations across demographic and methodological strata",
-    "Assess certainty of cumulative evidence using the GRADE framework",
+    "Describe evidence limitations and gaps relevant to the review questions",
   ];
 
   // Active framework configurations
@@ -728,7 +728,7 @@ Return ONLY valid JSON matching this exact structure:
               rows={3}
               value={protocol.knowledgeGap || ""}
               onChange={(e) => onUpdateProtocol({ ...protocol, knowledgeGap: e.target.value })}
-              placeholder="What controversies, fragmented methodologies, or lack of pooled benchmarks justify this review?..."
+              placeholder="What controversies, fragmented methodologies, or evidence gaps justify this review?..."
               className="w-full text-xs font-sans p-2.5 bg-slate-50/70 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-slate-800 leading-relaxed"
             />
           </div>
@@ -878,7 +878,7 @@ Return ONLY valid JSON matching this exact structure:
               value={newObjective}
               onChange={(e) => setNewObjective(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addObjective()}
-              placeholder="Add secondary objective (e.g., meta-regression, sensitivity analysis, thematic modeling)..."
+               placeholder="Add secondary objective (e.g., subgroup description, evidence gap mapping, thematic modeling)..."
               className="flex-1 text-xs font-sans p-2 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 text-slate-800"
             />
             <button
@@ -1013,9 +1013,9 @@ Return ONLY valid JSON matching this exact structure:
               <div className="p-4 bg-sky-50/40 border border-sky-100 rounded-xl space-y-1.5">
                 <div className="font-mono text-xs font-bold text-sky-950 flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-sky-600" />
-                  C · Comparison / Baseline Benchmark / Standard Tool
+                  C · Comparison / Standard Tool
                 </div>
-                <p className="text-[11px] text-slate-500">Baseline algorithms, traditional approaches, or state-of-the-art benchmarks.</p>
+                <p className="text-[11px] text-slate-500">Baseline algorithms, traditional approaches, or relevant comparison methods.</p>
                 <textarea
                   rows={2}
                   value={protocol.objectivesPICOC?.comparison || protocol.objectivesPICO.comparator}
@@ -1060,12 +1060,12 @@ Return ONLY valid JSON matching this exact structure:
                   <Cpu className="w-3.5 h-3.5 text-sky-600" />
                   S · Study Designs / Empirical Methods
                 </div>
-                <p className="text-[11px] text-slate-500">Empirical evaluations, benchmark comparative tests, or software field trials.</p>
+                <p className="text-[11px] text-slate-500">Empirical evaluations, comparative tests, or software field trials.</p>
                 <textarea
                   rows={2}
                   value={protocol.objectivesPICOC?.studyDesigns || protocol.objectivesPICO.studyDesigns}
                   onChange={(e) => handlePicocChange("studyDesigns", e.target.value)}
-                  placeholder="e.g. Empirical software experiments, benchmark simulation studies, case studies..."
+                  placeholder="e.g. Empirical software experiments, comparative studies, case studies..."
                   className="w-full text-xs font-sans p-2 bg-white border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500 text-slate-800"
                 />
               </div>
