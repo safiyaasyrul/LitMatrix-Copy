@@ -94,10 +94,13 @@ export default function FullReviewReport({
     }
     categoriesMap.get(cat)!.push(c);
   });
+  const characteristicByRecordId = new Map(characteristics.map((c) => [c.recordId, c]));
 
-  // Check if any study has country or sample size populated
-  const hasCountryData = characteristics.some((c) => c.country && c.country !== "Not reported" && c.country !== "N/A");
-  const hasSampleData = characteristics.some((c) => c.sampleSize && c.sampleSize !== "N/A" && c.sampleSize !== "Not reported");
+  const getArticleRecord = (record: SLRRecord) => {
+    const authors = record.authors?.join(", ") || "Author not reported";
+    const journal = record.source || "Journal not reported";
+    return `${record.title} — ${authors} — ${journal}`;
+  };
 
   // Structured Abstract generator
   const getAbstractContent = () => {
@@ -184,19 +187,13 @@ export default function FullReviewReport({
     md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
 
     md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
-    if (hasCountryData || hasSampleData) {
-      md += `| Study | Category / Paradigm | ${hasCountryData ? "Country | " : ""}${hasSampleData ? "Sample / Dataset | " : ""}Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding | Acceptance Justification |\n`;
-      md += `| --- | --- | ${hasCountryData ? "--- | " : ""}${hasSampleData ? "--- | " : ""}--- | --- | --- | --- | --- | --- |\n`;
-      characteristics.forEach((c) => {
-        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${hasCountryData ? `${c.country || "Not reported"} | ` : ""}${hasSampleData ? `${c.sampleSize || "N/A"} | ` : ""}${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} | ${(c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.").replace(/\|/g, "/")} |\n`;
-      });
-    } else {
-      md += `| Study | Category / Paradigm | Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding | Acceptance Justification |\n`;
-      md += `| --- | --- | --- | --- | --- | --- | --- | --- |\n`;
-      characteristics.forEach((c) => {
-        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} | ${(c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.").replace(/\|/g, "/")} |\n`;
-      });
-    }
+    md += `| Article Information (Title, Author & Journal) | Acceptance Status | Academic Screening Justification |\n`;
+    md += `| --- | --- | --- |\n`;
+    includedRecords.forEach((record) => {
+      const c = characteristicByRecordId.get(record.id);
+      const justification = c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.";
+      md += `| ${getArticleRecord(record).replace(/\|/g, "/")} | Accepted at title/abstract screening | ${justification.replace(/\|/g, "/")} |\n`;
+    });
     md += `\n`;
 
     md += `### 3.3 Methodological Quality and Rigor Assessment (Table 2)\n\n`;
@@ -348,33 +345,22 @@ export default function FullReviewReport({
   <table>
     <thead>
       <tr>
-        <th>Study</th>
-        <th>Category / Paradigm</th>
-        ${hasCountryData ? "<th>Country</th>" : ""}
-        ${hasSampleData ? "<th>Sample / Dataset</th>" : ""}
-        <th>Proposed Architecture / Technology</th>
-        <th>Baseline / Comparator</th>
-        <th>Primary Outcome Metric</th>
-        <th>Study Design</th>
-        <th>Key Technical Finding</th>
-         <th>Acceptance Justification</th>
+        <th>Article Information (Title, Author &amp; Journal)</th>
+        <th>Acceptance Status</th>
+        <th>Academic Screening Justification</th>
       </tr>
     </thead>
     <tbody>
-      ${characteristics.map((c) => `
+      ${includedRecords.map((record) => {
+        const c = characteristicByRecordId.get(record.id);
+        return `
         <tr>
-          <td><strong>${c.authorYear}</strong></td>
-          <td>${c.category || "Empirical"}</td>
-          ${hasCountryData ? `<td>${c.country || "Not reported"}</td>` : ""}
-          ${hasSampleData ? `<td>${c.sampleSize || "N/A"}</td>` : ""}
-          <td><strong style="color: #4338ca;">${c.interventionOrFocus}</strong></td>
-          <td>${c.comparator || "Standard Baseline"}</td>
-          <td><strong style="color: #065f46;">${c.primaryOutcome}</strong></td>
-          <td>${c.studyDesign || "Empirical Study"}</td>
-          <td>${c.keyFinding}</td>
-           <td>${c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
+          <td><strong>${getArticleRecord(record)}</strong></td>
+          <td>Accepted at title/abstract screening</td>
+          <td>${c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
         </tr>
-      `).join("")}
+      `;
+      }).join("")}
     </tbody>
   </table>
 
@@ -644,33 +630,26 @@ export default function FullReviewReport({
               <table className="w-full text-left text-[11px] font-sans">
                 <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
                   <tr>
-                    <th className="p-2.5 font-bold">Study</th>
-                    <th className="p-2.5 font-bold">Category / Paradigm</th>
-                    {hasCountryData && <th className="p-2.5 font-bold">Country</th>}
-                    {hasSampleData && <th className="p-2.5 font-bold">Sample</th>}
-                    <th className="p-2.5 font-bold">Proposed Architecture / Intervention</th>
-                    <th className="p-2.5 font-bold">Baseline / Comparator</th>
-                    <th className="p-2.5 font-bold">Primary Outcome Metric</th>
-                    <th className="p-2.5 font-bold">Study Design</th>
-                    <th className="p-2.5 font-bold">Key Technical Finding</th>
-                     <th className="p-2.5 font-bold">Acceptance Justification</th>
+                    <th className="p-2.5 font-bold">Article Information (Title, Author &amp; Journal)</th>
+                    <th className="p-2.5 font-bold">Acceptance Status</th>
+                    <th className="p-2.5 font-bold">Academic Screening Justification</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {characteristics.map((c, i) => (
-                    <tr key={i} className="hover:bg-slate-50/50">
-                      <td className="p-2.5 font-mono font-semibold text-slate-900 whitespace-nowrap">{c.authorYear}</td>
-                      <td className="p-2.5 font-mono text-indigo-900">{c.category || "Empirical Architecture"}</td>
-                      {hasCountryData && <td className="p-2.5">{c.country || "Not reported"}</td>}
-                      {hasSampleData && <td className="p-2.5 font-mono">{c.sampleSize || "N/A"}</td>}
-                      <td className="p-2.5 font-mono text-indigo-700 font-medium">{c.interventionOrFocus}</td>
-                      <td className="p-2.5 text-slate-600">{c.comparator || "Standard Baseline"}</td>
-                      <td className="p-2.5 font-mono font-bold text-emerald-800">{c.primaryOutcome}</td>
-                      <td className="p-2.5 text-slate-600">{c.studyDesign || "Empirical Benchmark"}</td>
-                      <td className="p-2.5 text-slate-700 italic">{c.keyFinding}</td>
-                       <td className="p-2.5 text-slate-700">{c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
-                    </tr>
-                  ))}
+                  {includedRecords.map((record) => {
+                    const c = characteristicByRecordId.get(record.id);
+                    return (
+                      <tr key={record.id} className="hover:bg-slate-50/50">
+                        <td className="p-2.5 text-slate-900">
+                          <div className="font-semibold">{getArticleRecord(record)}</div>
+                        </td>
+                        <td className="p-2.5 whitespace-nowrap">Accepted at title/abstract screening</td>
+                        <td className="p-2.5 text-slate-700">
+                          {c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
