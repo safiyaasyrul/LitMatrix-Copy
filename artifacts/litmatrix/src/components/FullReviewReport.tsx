@@ -183,7 +183,7 @@ export default function FullReviewReport({
     md += `Comprehensive systematic search strategies were executed across major academic databases, including ${searchDatabases}. Queries combined Boolean operators, controlled vocabulary terms, and truncation tailored to each database search syntax.\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `The application records screening decisions against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not recorded and are not claimed here.\n\n`;
+    md += `Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not documented in the supplied review records and are not claimed here.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
@@ -324,7 +324,7 @@ export default function FullReviewReport({
   <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
 
   <h3>2.4 Selection Process</h3>
-  <p>The application records screening decisions against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.</p>
+  <p>Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not documented in the supplied review records and are not claimed here.</p>
 
   <h2>3. Results</h2>
 
@@ -546,7 +546,7 @@ export default function FullReviewReport({
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              The application records screening decisions against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not recorded and are not claimed here.
+              Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not documented in the supplied review records and are not claimed here.
             </p>
 
           </div>

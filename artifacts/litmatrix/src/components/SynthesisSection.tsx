@@ -27,18 +27,20 @@ const firstAuthorSurname = (record: SLRRecord) => {
 const authorYearLabel = (record: SLRRecord) =>
   `${firstAuthorSurname(record)} et al. (${record.year || "n.d."})`;
 
+const RECORD_NOT_REPORTED = "Not reported in the supplied record";
+
 const buildStudiesFromRecords = (records: SLRRecord[]): SynthesisStudy[] =>
   records.map((record) => ({
     recordId: record.id,
     authorYear: authorYearLabel(record),
-    country: "Not reported",
-    sampleSize: "Not reported",
-    population: "Not reported",
+    country: RECORD_NOT_REPORTED,
+    sampleSize: RECORD_NOT_REPORTED,
+    population: RECORD_NOT_REPORTED,
     interventionOrFocus: record.title,
-    comparator: "Not reported",
-    primaryOutcome: "Not reported",
-    studyDesign: "Not established from citation metadata",
-    keyFinding: record.abstract?.trim().slice(0, 260) || "No finding was reported in the supplied record.",
+    comparator: RECORD_NOT_REPORTED,
+    primaryOutcome: RECORD_NOT_REPORTED,
+    studyDesign: RECORD_NOT_REPORTED,
+    keyFinding: record.abstract?.trim().slice(0, 260) || RECORD_NOT_REPORTED,
   }));
 
 const getSynthesisStudies = (
@@ -179,11 +181,11 @@ export default function SynthesisSection({
       if (groupingMode === "category") {
         groupKey = c.category || "Uncategorized evidence";
       } else if (groupingMode === "design") {
-        groupKey = c.studyDesign || "Study design not reported";
+        groupKey = c.studyDesign || "Study design details in supplied records";
       } else if (groupingMode === "intervention") {
-        groupKey = c.interventionOrFocus ? c.interventionOrFocus.split(",")[0].trim() : "Focus not reported";
+        groupKey = c.interventionOrFocus ? c.interventionOrFocus.split(",")[0].trim() : "Focus described in supplied records";
       } else if (groupingMode === "outcome") {
-        groupKey = c.primaryOutcome ? c.primaryOutcome.split("(")[0].trim() : "Outcome not reported";
+        groupKey = c.primaryOutcome ? c.primaryOutcome.split("(")[0].trim() : "Outcome details in supplied records";
       }
 
       if (!map.has(groupKey)) {
@@ -252,7 +254,7 @@ STRICT WRITING RULES:
 5. Return at least ${MIN_SYNTHESIS_CLUSTERS} structured subtopics, matching the supplied cluster assignments. Each subtopic must contain the citations for its assigned records.
 6. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
 7. Do not calculate or report pooled effects, confidence intervals, p-values, I², weights, meta-analysis, or statistical significance.
-8. Treat "Not reported" as missing information, not as evidence of absence.
+8. Do not mention citation metadata, the application, extraction state, or system limitations. If a supplied record itself omits a relevant design, population, sample, comparator, or outcome detail, describe that only as "not reported in the supplied record" for that study. Do not make blanket claims about missing information across the review.
 
 Generate a JSON object conforming strictly to:
 {
