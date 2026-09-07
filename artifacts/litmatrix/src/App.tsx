@@ -8,7 +8,6 @@ import {
   DiscussionSections,
 } from "./types/slr";
 
-
 import {
   sampleProtocol,
   sampleRecords,
@@ -31,9 +30,9 @@ import ApiKeySection from "./components/ApiKeySection";
 
 const neutralDiscussionDefaults: Pick<
   DiscussionSections,
-  "item23bLimitationsOfEvidence" |
-  "item23cLimitationsOfReviewProcess" |
-  "item23dImplications"
+  | "item23bLimitationsOfEvidence"
+  | "item23cLimitationsOfReviewProcess"
+  | "item23dImplications"
 > = {
   item23bLimitationsOfEvidence:
     "The included studies address the review topic across the identified thematic domains. Differences in methods, settings, and reported outcomes are considered narratively within each cluster and are interpreted according to the findings reported by each study.",
@@ -74,7 +73,6 @@ import {
 } from "./utils/aiClient";
 
 import {
-  ClipboardCheck,
   FileSpreadsheet,
   Search,
   UploadCloud,
@@ -83,22 +81,26 @@ import {
   BarChart2,
   BookOpen,
   FileText,
-  Sparkles,
   ChevronRight,
   Menu,
   X,
   RotateCcw,
-  Check,
   Key,
   FilePlus,
 } from "lucide-react";
 
 export default function App() {
+  // ============================================================
   // Navigation State
+  // ============================================================
+
   const [activeStage, setActiveStage] = useState<number>(0);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Application data states
+  // ============================================================
+  // Application Data States
+  // ============================================================
+
   const [protocol, setProtocol] = useState<SLRProtocol>(() => {
     const saved = localStorage.getItem("slr_protocol_v1");
     return saved ? JSON.parse(saved) : BLANK_PROTOCOL;
@@ -119,8 +121,7 @@ export default function App() {
    * Load screening decisions exactly as stored.
    *
    * There is NO artificial inclusion limit here.
-   * Previously, boundPersistedScreening() converted
-   * included records beyond the limit into exclusions.
+   * Every record with agreed === true remains included.
    */
   const [screening, setScreening] = useState<
     Record<string, ScreeningDecision>
@@ -145,96 +146,119 @@ export default function App() {
       forestPlotEstimates: [],
       pooledEffectEstimate: undefined,
       heterogeneityDiscussion:
-        parsed.heterogeneityDiscussion?.replace(
-          /I²|p\s*=|pooled/gi,
-          ""
-        ) || "",
+        parsed.heterogeneityDiscussion?.replace(/I²|p\s*=|pooled/gi, "") || "",
     };
   });
 
-    const [discussion, setDiscussion] =
-    useState<DiscussionSections>(() => {
-      const saved = localStorage.getItem(
-        "slr_discussion_v1"
-      );
+  const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
+    const saved = localStorage.getItem("slr_discussion_v1");
 
-      return saved
-        ? normalizePersistedDiscussion(JSON.parse(saved))
-        : sampleDiscussion;
-    });
+    return saved
+      ? normalizePersistedDiscussion(JSON.parse(saved))
+      : sampleDiscussion;
+  });
 
-   
-   const [keysConfig, setKeysConfig] =
-    useState<UserAIKeysConfig>(() => {
-      const saved =
-        localStorage.getItem("slr_ai_keys_v1");
+  // ============================================================
+  // AI Configuration
+  // ============================================================
 
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
+  const [keysConfig, setKeysConfig] = useState<UserAIKeysConfig>(() => {
+    const saved = localStorage.getItem("slr_ai_keys_v1");
 
-          const merged: UserAIKeysConfig = {
-            ...DEFAULT_AI_KEYS_CONFIG,
-            ...parsed,
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
 
-            openai: {
-              ...DEFAULT_AI_KEYS_CONFIG.openai,
-              ...(parsed.openai || {}),
-            },
+        const merged: UserAIKeysConfig = {
+          ...DEFAULT_AI_KEYS_CONFIG,
+          ...parsed,
 
-            claude: {
-              ...DEFAULT_AI_KEYS_CONFIG.claude,
-              ...(parsed.claude || {}),
-            },
+          openai: {
+            ...DEFAULT_AI_KEYS_CONFIG.openai,
+            ...(parsed.openai || {}),
+          },
 
-            gemini: {
-              ...DEFAULT_AI_KEYS_CONFIG.gemini,
-              ...(parsed.gemini || {}),
-            },
+          claude: {
+            ...DEFAULT_AI_KEYS_CONFIG.claude,
+            ...(parsed.claude || {}),
+          },
 
-            emergent: {
-              ...DEFAULT_AI_KEYS_CONFIG.emergent,
-              ...(parsed.emergent || {}),
-            },
+          gemini: {
+            ...DEFAULT_AI_KEYS_CONFIG.gemini,
+            ...(parsed.gemini || {}),
+          },
 
-            replit: {
-              ...DEFAULT_AI_KEYS_CONFIG.replit,
-              ...(parsed.replit || {}),
-            },
+          emergent: {
+            ...DEFAULT_AI_KEYS_CONFIG.emergent,
+            ...(parsed.emergent || {}),
+          },
 
-            other: {
-              ...DEFAULT_AI_KEYS_CONFIG.other,
-              ...(parsed.other || {}),
-            },
+          replit: {
+            ...DEFAULT_AI_KEYS_CONFIG.replit,
+            ...(parsed.replit || {}),
+          },
+
+          other: {
+            ...DEFAULT_AI_KEYS_CONFIG.other,
+            ...(parsed.other || {}),
+          },
+        };
+
+        /*
+         * One-time migration:
+         * restore Replit-managed AI as the default provider.
+         */
+        const managedDefaultMigrationKey =
+          "slr_managed_ai_default_v1";
+
+        if (!localStorage.getItem(managedDefaultMigrationKey)) {
+          merged.activeProvider = "replit-managed";
+
+          localStorage.setItem(
+            managedDefaultMigrationKey,
+            "complete"
+          );
+
+          return merged;
+        }
+
+        /*
+         * Preserve existing OpenRouter migration behavior.
+         */
+        const openRouterSource = (
+          [
+            "other",
+            "openai",
+            "claude",
+            "gemini",
+            "emergent",
+            "replit",
+          ] as const
+        ).find((provider) =>
+          isOpenRouterApiKey(merged[provider].apiKey)
+        );
+
+        if (openRouterSource) {
+          merged.other = {
+            ...merged.other,
+
+            apiKey: merged[openRouterSource].apiKey,
+
+            model: merged.other.model?.includes("/")
+              ? merged.other.model
+              : merged[openRouterSource].model?.includes("/")
+              ? merged[openRouterSource].model
+              : "openai/gpt-4o-mini",
+
+            customBase: OPENROUTER_DEFAULT_BASE,
           };
 
-          /*
-           * One-time migration:
-           * restore Replit-managed AI as the default provider.
-           */
-          const managedDefaultMigrationKey =
-            "slr_managed_ai_default_v1";
-
-          if (
-            !localStorage.getItem(
-              managedDefaultMigrationKey
-            )
-          ) {
-            merged.activeProvider =
-              "replit-managed";
-
-            localStorage.setItem(
-              managedDefaultMigrationKey,
-              "complete"
-            );
-
-            return merged;
-          }
-
-          /*
-           * Preserve existing OpenRouter migration behavior.
-           */
-          const openRouterSource = (
+          merged.activeProvider = "other";
+        } else if (
+          merged.activeProvider === "server-gemini" ||
+          !merged.activeProvider
+        ) {
+          const configuredProvider = (
             [
               "other",
               "openai",
@@ -244,84 +268,34 @@ export default function App() {
               "replit",
             ] as const
           ).find((provider) =>
-            isOpenRouterApiKey(
-              merged[provider].apiKey
-            )
+            Boolean(merged[provider].apiKey?.trim())
           );
 
-          if (openRouterSource) {
-            merged.other = {
-              ...merged.other,
-
-              apiKey:
-                merged[openRouterSource].apiKey,
-
-              model:
-                merged.other.model?.includes("/")
-                  ? merged.other.model
-                  : merged[
-                      openRouterSource
-                    ].model?.includes("/")
-                  ? merged[
-                      openRouterSource
-                    ].model
-                  : "openai/gpt-4o-mini",
-
-              customBase:
-                OPENROUTER_DEFAULT_BASE,
-            };
-
-            merged.activeProvider = "other";
-          } else if (
-            merged.activeProvider ===
-              "server-gemini" ||
-            !merged.activeProvider
-          ) {
-            const configuredProvider = (
-              [
-                "other",
-                "openai",
-                "claude",
-                "gemini",
-                "emergent",
-                "replit",
-              ] as const
-            ).find((provider) =>
-              Boolean(
-                merged[
-                  provider
-                ].apiKey?.trim()
-              )
-            );
-
-            if (configuredProvider) {
-              merged.activeProvider =
-                configuredProvider as SupportedAIProvider;
-            } else {
-              merged.activeProvider =
-                "replit-managed";
-            }
-          } else if (
-            merged.activeProvider !==
-              "replit-managed" &&
-            !merged[
-              merged.activeProvider
-            ]?.apiKey?.trim()
-          ) {
+          if (configuredProvider) {
             merged.activeProvider =
-              "replit-managed";
+              configuredProvider as SupportedAIProvider;
+          } else {
+            merged.activeProvider = "replit-managed";
           }
-
-          return merged;
-        } catch {
-          return DEFAULT_AI_KEYS_CONFIG;
+        } else if (
+          merged.activeProvider !== "replit-managed" &&
+          !merged[merged.activeProvider]?.apiKey?.trim()
+        ) {
+          merged.activeProvider = "replit-managed";
         }
+
+        return merged;
+      } catch {
+        return DEFAULT_AI_KEYS_CONFIG;
       }
+    }
 
-      return DEFAULT_AI_KEYS_CONFIG;
-    });
+    return DEFAULT_AI_KEYS_CONFIG;
+  });
 
-  // Local storage persistence
+  // ============================================================
+  // Local Storage Persistence
+  // ============================================================
 
   useEffect(() => {
     localStorage.setItem(
@@ -365,55 +339,65 @@ export default function App() {
     );
   }, [synthesis]);
 
-    useEffect(() => {
+  useEffect(() => {
     localStorage.setItem(
       "slr_discussion_v1",
       JSON.stringify(discussion)
     );
   }, [discussion]);
 
- 
-     useEffect(() => {
+  useEffect(() => {
     localStorage.setItem(
       "slr_ai_keys_v1",
       JSON.stringify(keysConfig)
     );
   }, [keysConfig]);
 
+  // ============================================================
+  // Active AI Configuration
+  // ============================================================
+
   const activeAIConfig = useMemo(() => {
     return getActiveAIConfig(keysConfig);
   }, [keysConfig]);
 
-  /*
-   * TRUE INCLUDED RECORDS
-   *
-   * No maximum.
-   * No sorting by AI score.
-   * No .slice().
-   *
-   * Every record with agreed === true is included.
-   */
+  // ============================================================
+  // TRUE INCLUDED RECORDS
+  //
+  // IMPORTANT:
+  // There is NO maximum here.
+  // There is NO sorting by AI score.
+  // There is NO .slice().
+  //
+  // Every record with agreed === true is included.
+  // ============================================================
+
   const includedRecords = useMemo(() => {
     return records.filter(
       (r) => screening[r.id]?.agreed === true
     );
   }, [records, screening]);
 
-  // Derived excluded records
+  // ============================================================
+  // Derived Excluded Records
+  // ============================================================
+
   const excludedRecords = useMemo(() => {
     return records.filter(
       (r) => screening[r.id]?.agreed === false
     );
   }, [records, screening]);
 
-  // Exclusion reasons breakdown for PRISMA Item 16b
+  // ============================================================
+  // Exclusion Reasons Breakdown
+  // PRISMA Item 16b
+  // ============================================================
+
   const exclusionReasonsBreakdown = useMemo(() => {
     const acc: Record<string, number> = {};
 
     const includedIds = new Set(
-      includedRecords.map(
-        (record) => record.id
-      )
+      includedRecords.map((record) => record.id)
     );
 
     records.forEach((r) => {
@@ -421,63 +405,49 @@ export default function App() {
 
       const reason =
         screening[r.id]?.agreed === false
-          ? screening[r.id]?.exclusionReason ||
-            "Other"
+          ? screening[r.id]?.exclusionReason || "Other"
           : "Other";
 
-      acc[reason] =
-        (acc[reason] || 0) + 1;
+      acc[reason] = (acc[reason] || 0) + 1;
     });
 
     return acc;
-  }, [
-    records,
-    includedRecords,
-    screening,
-  ]);
+  }, [records, includedRecords, screening]);
 
-  /*
-   * PRISMA flow counts are derived only from
-   * records and recorded screening decisions.
-   *
-   * Full-text retrieval/assessment is not tracked.
-   */
+  // ============================================================
+  // PRISMA Flow Counts
+  //
+  // Derived only from actual records and screening decisions.
+  // Full-text retrieval/assessment is NOT recorded.
+  // ============================================================
+
   const prismaCounts = useMemo(() => {
     const uploadedCount =
-      records.length +
-      (dupesRemoved || 0);
+      records.length + (dupesRemoved || 0);
 
-    const afterDedupCount =
-      records.length;
+    const afterDedupCount = records.length;
 
-    const includedCount =
-      includedRecords.length;
+    const includedCount = includedRecords.length;
 
     const excludedCount = Math.max(
       0,
-      afterDedupCount -
-        includedCount
+      afterDedupCount - includedCount
     );
 
     return {
       uploaded: uploadedCount,
 
-      afterDedup:
-        afterDedupCount,
+      afterDedup: afterDedupCount,
 
-      identifiedDb:
-        uploadedCount,
+      identifiedDb: uploadedCount,
 
       identifiedOther: 0,
 
-      duplicatesRemoved:
-        dupesRemoved || 0,
+      duplicatesRemoved: dupesRemoved || 0,
 
-      screened:
-        afterDedupCount,
+      screened: afterDedupCount,
 
-      screenedExcluded:
-        excludedCount,
+      screenedExcluded: excludedCount,
 
       soughtRetrieval: 0,
 
@@ -489,23 +459,21 @@ export default function App() {
 
       exclusionReasonsBreakdown,
 
-      included:
-        includedCount,
+      included: includedCount,
 
-      fullTextAssessmentRecorded:
-        false,
+      fullTextAssessmentRecorded: false,
     };
   }, [
     records,
-    screening,
     dupesRemoved,
     includedRecords,
-    excludedRecords,
     exclusionReasonsBreakdown,
   ]);
 
-  
-  // Reset to full sample dataset
+  // ============================================================
+  // Reset to Full Sample Dataset
+  // ============================================================
+
   const handleResetSample = () => {
     if (
       window.confirm(
@@ -516,17 +484,16 @@ export default function App() {
       setRecords(sampleRecords);
       setDupesRemoved(284);
       setScreening(sampleScreening);
-      setCharacteristics(
-        sampleCharacteristics
-      );
+      setCharacteristics(sampleCharacteristics);
       setSynthesis(sampleSynthesis);
       setDiscussion(sampleDiscussion);
-      
-      );
     }
   };
 
-  // Reset to clean blank review
+  // ============================================================
+  // Reset to Clean Blank Review
+  // ============================================================
+
   const handleStartBlankReview = () => {
     if (
       window.confirm(
@@ -547,21 +514,25 @@ export default function App() {
         characteristicsTable: [],
         metaAnalysisCategories: [],
         forestPlotEstimates: [],
-        pooledEffectEstimate:
-          undefined,
-        heterogeneityDiscussion:
-          "",
+        pooledEffectEstimate: undefined,
+        heterogeneityDiscussion: "",
       });
 
-     
-      
+      setDiscussion({
+        item23aGeneralInterpretation: "",
+        item23bLimitationsOfEvidence: "",
+        item23cLimitationsOfReviewProcess: "",
+        item23dImplications: "",
+      });
+
+      setActiveStage(1);
     }
   };
 
-  /*
-   * Keep downstream stages aligned without
-   * manufacturing screening or analysis results.
-   */
+  // ============================================================
+  // Synchronize Downstream Stages
+  // ============================================================
+
   const handleAutoSyncAllStagesFromRecords = (
     customRecordsList?: SLRRecord[]
   ) => {
@@ -576,9 +547,7 @@ export default function App() {
     }
 
     const recordIds = new Set(
-      targetRecords.map(
-        (record) => record.id
-      )
+      targetRecords.map((record) => record.id)
     );
 
     setScreening((current) =>
@@ -600,19 +569,14 @@ export default function App() {
       subtopics: [],
       keyFindingsTable: [],
       forestPlotEstimates: [],
-      pooledEffectEstimate:
-        undefined,
-      heterogeneityDiscussion:
-        "",
+      pooledEffectEstimate: undefined,
+      heterogeneityDiscussion: "",
     });
 
-     setDiscussion({
-      item23aGeneralInterpretation:
-        "",
-      item23bLimitationsOfEvidence:
-        "",
-      item23cLimitationsOfReviewProcess:
-        "",
+    setDiscussion({
+      item23aGeneralInterpretation: "",
+      item23bLimitationsOfEvidence: "",
+      item23cLimitationsOfReviewProcess: "",
       item23dImplications: "",
     });
 
@@ -621,107 +585,82 @@ export default function App() {
     );
   };
 
-  // Navigation stages mapped to the PRISMA 2020 checklist.
+  // ============================================================
+  // Navigation Stages
+  // ============================================================
+
   const stages = [
     {
       id: "ai-keys",
-      label:
-        "AI Providers & API Keys",
-      badge:
-        "OpenAI, Claude, Gemini",
+      label: "AI Providers & API Keys",
+      badge: "OpenAI, Claude, Gemini",
       icon: Key,
     },
     {
       id: "protocol",
-      label:
-        "Protocol & PICO Objectives",
-      badge:
-        "Items 4, 5, 8–15",
+      label: "Protocol & PICO Objectives",
+      badge: "Items 4, 5, 8–15",
       icon: FileSpreadsheet,
     },
     {
       id: "search",
-      label:
-        "Search Strings & Sources",
-      badge:
-        "Items 6 & 7",
+      label: "Search Strings & Sources",
+      badge: "Items 6 & 7",
       icon: Search,
     },
     {
       id: "import",
-      label:
-        "Records & Deduplication",
-      badge:
-        "Items 6 & 16a",
+      label: "Records & Deduplication",
+      badge: "Items 6 & 16a",
       icon: UploadCloud,
     },
     {
       id: "screening",
-      label:
-        "AI Selection & Exclusions",
-      badge:
-        "Items 8, 16a, 16b",
+      label: "AI Selection & Exclusions",
+      badge: "Items 8, 16a, 16b",
       icon: CheckCircle,
     },
     {
       id: "diagram",
-      label:
-        "PRISMA Flow Diagram",
-      badge:
-        "Item 16a",
+      label: "PRISMA Flow Diagram",
+      badge: "Item 16a",
       icon: GitBranch,
     },
     {
       id: "synthesis",
-      label:
-        "Narrative Synthesis",
-      badge:
-        "Items 13a–f",
+      label: "Narrative Synthesis",
+      badge: "Items 13a–f",
       icon: BarChart2,
     },
-    
     {
       id: "discussion",
-      label:
-        "4-Part PRISMA Discussion",
-      badge:
-        "Items 23a–23d",
+      label: "4-Part PRISMA Discussion",
+      badge: "Items 23a–23d",
       icon: BookOpen,
     },
     {
       id: "manuscript",
-      label:
-        "Consolidated Manuscript",
-      badge:
-        "Full Report",
+      label: "Consolidated Manuscript",
+      badge: "Full Report",
       icon: FileText,
     },
   ];
-
-  // Overall PRISMA compliance count
-  const reportedCount =
-    checklist.filter(
-      (c) => c.status === "Reported"
-    ).length;
-
-  const compliancePct = Math.round(
-    (reportedCount / 27) * 100
-  );
 
   return (
     <div
       id="prisma-workbench-root"
       className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col font-sans selection:bg-indigo-600 selection:text-white"
     >
-      {/* Top Application Bar */}
+      {/* ======================================================
+          TOP APPLICATION BAR
+          ====================================================== */}
+
       <header className="bg-white text-slate-900 border-b border-slate-200 px-4 py-3 sm:px-6 sticky top-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
               onClick={() =>
-                setMobileNavOpen(
-                  !mobileNavOpen
-                )
+                setMobileNavOpen(!mobileNavOpen)
               }
               className="lg:hidden p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 cursor-pointer"
             >
@@ -740,8 +679,7 @@ export default function App() {
               <div>
                 <div className="flex items-center gap-2">
                   <span className="font-bold text-base tracking-tight text-slate-900">
-                    PRISMA 2020
-                    Workbench
+                    PRISMA 2020 Workbench
                   </span>
                 </div>
 
@@ -755,22 +693,8 @@ export default function App() {
 
           {/* Right Header Status */}
           <div className="flex items-center gap-2 sm:gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
-              <span className="text-xs font-mono text-slate-500">
-                Compliance:
-              </span>
-
-              <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
-                {compliancePct}% (
-                {reportedCount}/27
-                Items)
-              </span>
-            </div>
-
             <button
-              onClick={
-                handleStartBlankReview
-              }
+              onClick={handleStartBlankReview}
               title="Start a fresh blank systematic review"
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 bg-white hover:bg-slate-50 hover:text-slate-900 border border-slate-200 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
@@ -782,9 +706,7 @@ export default function App() {
             </button>
 
             <button
-              onClick={
-                handleResetSample
-              }
+              onClick={handleResetSample}
               title="Reset to PRISMA Diabetes Sample Dataset"
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-indigo-700 bg-indigo-50/80 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
@@ -798,9 +720,13 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Workspace with Sidebar */}
+      {/* ======================================================
+          MAIN WORKSPACE
+          ====================================================== */}
+
       <div className="flex-1 max-w-7xl w-full mx-auto flex">
         {/* Left Navigation Sidebar */}
+
         <aside
           className={`fixed lg:sticky top-[57px] left-0 z-20 h-[calc(100vh-57px)] w-72 bg-white border-r border-slate-200 flex flex-col transition-transform duration-200 ease-in-out lg:translate-x-0 ${
             mobileNavOpen
@@ -809,86 +735,79 @@ export default function App() {
           }`}
         >
           {/* Stages List Header */}
+
           <div className="p-4 border-b border-slate-100 flex items-center justify-between">
             <span className="font-mono text-[10px] uppercase font-bold text-slate-400 tracking-wider">
-              PRISMA 2020
-              Workflow
+              PRISMA 2020 Workflow
             </span>
 
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              10 Stages
+              9 Stages
             </span>
           </div>
 
           <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-            {stages.map(
-              (stage, idx) => {
-                const Icon =
-                  stage.icon;
+            {stages.map((stage, idx) => {
+              const Icon = stage.icon;
 
-                const isActive =
-                  activeStage ===
-                  idx;
+              const isActive =
+                activeStage === idx;
 
-                return (
-                  <button
-                    key={stage.id}
-                    onClick={() => {
-                      setActiveStage(
-                        idx
-                      );
-                      setMobileNavOpen(
-                        false
-                      );
-                    }}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-all cursor-pointer ${
-                      isActive
-                        ? "bg-indigo-50 text-indigo-950 font-semibold border border-indigo-100/80 shadow-2xs"
-                        : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <Icon
-                        className={`w-4 h-4 shrink-0 ${
+              return (
+                <button
+                  key={stage.id}
+                  onClick={() => {
+                    setActiveStage(idx);
+                    setMobileNavOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between p-2.5 rounded-lg text-left transition-all cursor-pointer ${
+                    isActive
+                      ? "bg-indigo-50 text-indigo-950 font-semibold border border-indigo-100/80 shadow-2xs"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 overflow-hidden">
+                    <Icon
+                      className={`w-4 h-4 shrink-0 ${
+                        isActive
+                          ? "text-indigo-600"
+                          : "text-slate-400"
+                      }`}
+                    />
+
+                    <div className="truncate">
+                      <div
+                        className={`text-xs truncate ${
                           isActive
-                            ? "text-indigo-600"
+                            ? "font-semibold text-indigo-950"
+                            : "text-slate-700"
+                        }`}
+                      >
+                        {stage.label}
+                      </div>
+
+                      <div
+                        className={`text-[10px] font-mono ${
+                          isActive
+                            ? "text-indigo-600 font-medium"
                             : "text-slate-400"
                         }`}
-                      />
-
-                      <div className="truncate">
-                        <div
-                          className={`text-xs truncate ${
-                            isActive
-                              ? "font-semibold text-indigo-950"
-                              : "text-slate-700"
-                          }`}
-                        >
-                          {stage.label}
-                        </div>
-
-                        <div
-                          className={`text-[10px] font-mono ${
-                            isActive
-                              ? "text-indigo-600 font-medium"
-                              : "text-slate-400"
-                          }`}
-                        >
-                          {stage.badge}
-                        </div>
+                      >
+                        {stage.badge}
                       </div>
                     </div>
+                  </div>
 
-                    {isActive && (
-                      <ChevronRight className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
-                    )}
-                  </button>
-                );
-              }
-            )}
+                  {isActive && (
+                    <ChevronRight className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                  )}
+                </button>
+              );
+            })}
           </nav>
 
           {/* Sidebar Footer */}
+
           <div className="p-4 border-t border-slate-100 bg-slate-50/70">
             <div className="flex items-center justify-between text-xs">
               <span className="text-slate-500 font-medium">
@@ -896,8 +815,7 @@ export default function App() {
               </span>
 
               <strong className="text-emerald-700 font-mono font-semibold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100">
-                {includedRecords.length}{" "}
-                studies
+                {includedRecords.length} studies
               </strong>
             </div>
 
@@ -907,230 +825,162 @@ export default function App() {
               </span>
 
               <strong className="text-slate-700 font-mono">
-                {records.length}{" "}
-                records
+                {records.length} records
               </strong>
             </div>
           </div>
         </aside>
 
-        {/* Main Content Area */}
+        {/* ====================================================
+            MAIN CONTENT AREA
+            ==================================================== */}
+
         <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
-          {/* Stage 1: AI Providers & API Keys */}
+
+          {/* ==================================================
+              STAGE 1: AI PROVIDERS & API KEYS
+              ================================================== */}
+
           {activeStage === 0 && (
             <ApiKeySection
               keysConfig={keysConfig}
-              onUpdateKeysConfig={
-                setKeysConfig
-              }
+              onUpdateKeysConfig={setKeysConfig}
               onContinueToNext={() =>
                 setActiveStage(1)
               }
             />
           )}
 
-          {/* Stage 2: Protocol & PICO Objectives */}
+          {/* ==================================================
+              STAGE 2: PROTOCOL & PICO
+              ================================================== */}
+
           {activeStage === 1 && (
             <MethodsProtocol
               protocol={protocol}
-              onUpdateProtocol={
-                setProtocol
-              }
-              aiConfig={
-                activeAIConfig
-              }
+              onUpdateProtocol={setProtocol}
+              aiConfig={activeAIConfig}
             />
           )}
 
-          {/* Stage 3: Information Sources & Search Strings */}
+          {/* ==================================================
+              STAGE 3: SEARCH STRINGS & SOURCES
+              ================================================== */}
+
           {activeStage === 2 && (
             <SearchStringsGenerator
               protocol={protocol}
-              onUpdateProtocol={
-                setProtocol
-              }
-              aiConfig={
-                activeAIConfig
-              }
+              onUpdateProtocol={setProtocol}
+              aiConfig={activeAIConfig}
             />
           )}
 
-          {/* Stage 4: Records Import & Deduplication */}
+          {/* ==================================================
+              STAGE 4: RECORDS & DEDUPLICATION
+              ================================================== */}
+
           {activeStage === 3 && (
             <RecordsImport
               records={records}
-              onUpdateRecords={
-                setRecords
-              }
-              dupesRemoved={
-                dupesRemoved
-              }
-              onUpdateDupesRemoved={
-                setDupesRemoved
-              }
+              onUpdateRecords={setRecords}
+              dupesRemoved={dupesRemoved}
+              onUpdateDupesRemoved={setDupesRemoved}
               onAutoSyncAllStagesFromRecords={
                 handleAutoSyncAllStagesFromRecords
               }
             />
           )}
 
-          {/* Stage 5: AI & Screening */}
+          {/* ==================================================
+              STAGE 5: AI SCREENING
+              ================================================== */}
+
           {activeStage === 4 && (
             <ScreeningSection
               records={records}
-              dupesRemoved={
-                dupesRemoved || 0
-              }
-              screening={
-                screening
-              }
-              onUpdateScreening={
-                setScreening
-              }
-              protocol={
-                protocol
-              }
-              aiConfig={
-                activeAIConfig
-              }
+              dupesRemoved={dupesRemoved || 0}
+              screening={screening}
+              onUpdateScreening={setScreening}
+              protocol={protocol}
+              aiConfig={activeAIConfig}
             />
           )}
 
-          {/* Stage 6: PRISMA 2020 Flow Diagram */}
+          {/* ==================================================
+              STAGE 6: PRISMA FLOW DIAGRAM
+              ================================================== */}
+
           {activeStage === 5 && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-                  PRISMA 2020
-                  Item 16a
+                  PRISMA 2020 Item 16a
                 </div>
 
                 <h2 className="text-xl font-bold text-slate-900 mt-1">
-                  PRISMA 2020 Flow
-                  Diagram Generator
+                  PRISMA 2020 Flow Diagram Generator
                 </h2>
 
                 <p className="text-xs text-slate-500 mt-1">
-                  Standardized flow of records through Identification, Screening, Eligibility, and Inclusion phases with SVG & High-Res PNG download.
+                  Standardized flow of records through Identification,
+                  Screening, Eligibility, and Inclusion phases with SVG
+                  & High-Res PNG download.
                 </p>
               </div>
 
               <PrismaDiagram
-                counts={
-                  prismaCounts
-                }
+                counts={prismaCounts}
               />
             </div>
           )}
 
-          {/* Stage 7: Narrative / Thematic Synthesis */}
+          {/* ==================================================
+              STAGE 7: NARRATIVE / THEMATIC SYNTHESIS
+              ================================================== */}
+
           {activeStage === 6 && (
             <SynthesisSection
-              synthesis={
-                synthesis
-              }
-              onUpdateSynthesis={
-                setSynthesis
-              }
-              includedRecords={
-                includedRecords
-              }
-              characteristics={
-                characteristics
-              }
-              aiConfig={
-                activeAIConfig
-              }
+              synthesis={synthesis}
+              onUpdateSynthesis={setSynthesis}
+              includedRecords={includedRecords}
+              characteristics={characteristics}
+              aiConfig={activeAIConfig}
               onNavigateToScreening={() =>
                 setActiveStage(4)
               }
             />
           )}
 
-          {/* Stage 8: GRADE Certainty of Evidence */}
+          {/* ==================================================
+              STAGE 8: DISCUSSION
+              ================================================== */}
+
           {activeStage === 7 && (
-            <CertaintyGradeSection
-              gradeItems={
-                gradeItems
-              }
-              onUpdateGrade={
-                setGradeItems
-              }
-              includedRecords={
-                includedRecords
-              }
-              characteristics={
-                characteristics
-              }
-              aiConfig={
-                activeAIConfig
-              }
-              onNavigateToScreening={() =>
-                setActiveStage(4)
-              }
-            />
-          )}
-
-          {/* Stage 9: 4-Part Discussion */}
-          {activeStage === 8 && (
             <DiscussionSection
-              discussion={
-                discussion
-              }
-              onUpdateDiscussion={
-                setDiscussion
-              }
-              protocol={
-                protocol
-              }
-              synthesis={
-                synthesis
-              }
-              aiConfig={
-                activeAIConfig
-              }
-              includedRecords={
-                includedRecords
-              }
-              characteristics={
-                characteristics
-              }
+              discussion={discussion}
+              onUpdateDiscussion={setDiscussion}
+              protocol={protocol}
+              synthesis={synthesis}
+              aiConfig={activeAIConfig}
+              includedRecords={includedRecords}
+              characteristics={characteristics}
             />
           )}
 
-          {/* Stage 10: Consolidated Manuscript */}
-          {activeStage === 9 && (
+          {/* ==================================================
+              STAGE 9: CONSOLIDATED MANUSCRIPT
+              ================================================== */}
+
+          {activeStage === 8 && (
             <FullReviewReport
-              protocol={
-                protocol
-              }
-              includedRecords={
-                includedRecords
-              }
-              screenedRecords={
-                includedRecords
-              }
-              screening={
-                screening
-              }
-              characteristics={
-                characteristics
-              }
-              synthesis={
-                synthesis
-              }
-              gradeItems={
-                gradeItems
-              }
-              discussion={
-                discussion
-              }
-              checklist={
-                checklist
-              }
-              counts={
-                prismaCounts
-              }
+              protocol={protocol}
+              includedRecords={includedRecords}
+              screenedRecords={includedRecords}
+              screening={screening}
+              characteristics={characteristics}
+              synthesis={synthesis}
+              discussion={discussion}
+              counts={prismaCounts}
             />
           )}
         </main>
