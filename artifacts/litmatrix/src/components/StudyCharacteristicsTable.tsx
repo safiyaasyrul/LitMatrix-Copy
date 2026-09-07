@@ -172,7 +172,9 @@ Return ONLY a JSON array with one object per record:
           : screening[record.id]?.agreed === false
           ? "Excluded"
           : "Pending",
-        characteristicById.get(record.id)?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER,
+        characteristicById.get(record.id)?.acceptanceJustification ||
+          screening[record.id]?.reason ||
+          JUSTIFICATION_PLACEHOLDER,
       ]),
     ];
     const csv = rows.map((row) => row.map(escape).join(",")).join("\n");
@@ -190,7 +192,9 @@ Return ONLY a JSON array with one object per record:
       "| --- | --- | --- |",
       ...screeningRecords.map((record) => {
         const justification =
-          characteristicById.get(record.id)?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER;
+          characteristicById.get(record.id)?.acceptanceJustification ||
+          screening[record.id]?.reason ||
+          JUSTIFICATION_PLACEHOLDER;
         const status = screening[record.id]?.agreed === true
           ? "INCLUDED"
           : screening[record.id]?.agreed === false
@@ -293,8 +297,12 @@ Return ONLY a JSON array with one object per record:
               <tbody className="divide-y divide-slate-700/90">
                 {screeningRecords.map((record) => {
                   const item = characteristicById.get(record.id);
-                  const justification = item?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER;
+                  const justification =
+                    item?.acceptanceJustification ||
+                    screening[record.id]?.reason ||
+                    JUSTIFICATION_PLACEHOLDER;
                   const editing = editingRecordId === record.id;
+                  const decision = screening[record.id];
                   return (
                     <tr key={record.id} className="hover:bg-white/[0.04] align-top">
                       <td className="py-3.5 px-3.5 text-slate-100">
@@ -326,6 +334,55 @@ Return ONLY a JSON array with one object per record:
                             : "Pending"}
                         </span>
                         <div className="mt-1 text-[10px] text-slate-500">Title/abstract</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          <button
+                            onClick={() => handleSetDecision(record.id, true)}
+                            className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] font-semibold ${
+                              decision?.agreed === true
+                                ? "border-emerald-700 bg-emerald-700 text-white"
+                                : "border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                            }`}
+                          >
+                            <Check className="h-3 w-3" />
+                            Include
+                          </button>
+                          <button
+                            onClick={() => handleSetDecision(record.id, false)}
+                            className={`inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] font-semibold ${
+                              decision?.agreed === false
+                                ? "border-rose-700 bg-rose-700 text-white"
+                                : "border-rose-300 text-rose-700 hover:bg-rose-50"
+                            }`}
+                          >
+                            <X className="h-3 w-3" />
+                            Exclude
+                          </button>
+                        </div>
+                        {decision?.agreed === false && (
+                          <select
+                            value={decision.exclusionReason || "Wrong study design"}
+                            onChange={(event) =>
+                              handleSetDecision(
+                                record.id,
+                                false,
+                                event.target.value as ScreeningDecision["exclusionReason"]
+                              )
+                            }
+                            className="mt-2 max-w-[190px] rounded border border-rose-300 bg-white px-1 py-1 text-[10px] text-rose-800"
+                          >
+                            <option value="Secondary literature / Review paper">Secondary literature / Review paper</option>
+                            <option value="Out of scope / Keyword mismatch">Out of scope / Keyword mismatch</option>
+                            <option value="Wrong population">Wrong population</option>
+                            <option value="Wrong intervention / exposure">Wrong intervention / exposure</option>
+                            <option value="Wrong comparator">Wrong comparator</option>
+                            <option value="Wrong outcome">Wrong outcome</option>
+                            <option value="Wrong study design">Wrong study design</option>
+                            <option value="Not accessible / full text unavailable">Not accessible / full text unavailable</option>
+                            <option value="Duplicate / non-original">Duplicate / non-original</option>
+                            <option value="Language barrier">Language barrier</option>
+                            <option value="Other">Other</option>
+                          </select>
+                        )}
                       </td>
                       <td
                         className="py-3 px-3 text-slate-300 leading-relaxed"
