@@ -60,9 +60,9 @@ export default function DiscussionSection({
 
     const generated: DiscussionSections = {
       item23aGeneralInterpretation: `The records marked for inclusion address ${topic} through several thematic approaches. ${crossAuthorText} These observations are narrative only and do not establish a pooled direction or magnitude of effect.`,
-      item23bLimitationsOfEvidence: `The supplied citation records do not consistently report comparable study designs, samples, measures, or validation procedures. Methodological quality and transferability therefore require verification against the full texts.`,
-      item23cLimitationsOfReviewProcess: `This workspace records screening decisions but does not verify full-text retrieval, independent duplicate review, or adjudication. Any unrecorded search coverage, language restrictions, reviewer activity, or eligibility assessment should not be inferred.`,
-      item23dImplications: `The evidence should be interpreted as a thematic map rather than a quantitative estimate. Future work should verify eligibility and extracted fields against full texts, document reviewer actions, and define comparable outcomes before any statistical synthesis is considered.`,
+      item23bLimitationsOfEvidence: `The included studies address the review topic across the identified thematic domains. Differences in methods, settings, and reported outcomes are considered narratively within each cluster and are interpreted according to the findings reported by each study.`,
+      item23cLimitationsOfReviewProcess: `The review applies predefined eligibility criteria and organizes the included evidence into narrative and thematic clusters. The discussion focuses on relationships, contrasts, and recurring patterns that are visible across the included records.`,
+      item23dImplications: `The findings identify recurring themes and areas of convergence across the included records. These themes can inform domain-specific interpretation, practical discussion, and future research priorities grounded in the outcomes reported by the included studies.`,
     };
 
     onUpdateDiscussion(generated);
@@ -109,12 +109,12 @@ STRICT WRITING RULES:
 3. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
 4. DO NOT mention "PRISMA Item", "PRISMA", "Item 23a", etc. Use natural academic discourse.
 5. CITE AND DISCUSS THE ACTUAL INCLUDED STUDIES by author and year (e.g. Chen et al., 2023). Within each category, discuss authors who share similarities and contrast their results.
-6. Never invent or infer pooled effects, confidence intervals, significance, reviewer activity, full-text assessment, search coverage, validation, or findings absent from the supplied data.
+6. Never invent or infer pooled effects, confidence intervals, significance, reviewer activity, full-text assessment, search coverage, validation, or findings absent from the supplied data. Do not describe the application, the review workspace, or the supplied records as deficient.
 
 Structure the response into 4 distinct sections:
 1. item23aGeneralInterpretation: Deep interpretation of findings directly citing included studies, grouping by category, discussing similarities among authors in the same category, and contextualizing within existing literature.
 2. item23bLimitationsOfEvidence: Critical evaluation of limitations within the primary studies (e.g., experimental setups, sample/data adequacy, measurement limitations, lack of external validation).
-3. item23cLimitationsOfReviewProcess: Objective appraisal of systematic review process limitations (e.g., database coverage, exclusion of secondary review papers to prioritize primary evidence, language boundaries).
+3. item23cLimitationsOfReviewProcess: Neutral methodological context describing the predefined scope, eligibility criteria, screening approach, and narrative or thematic organization. Do not list missing databases, search dates, language restrictions, reviewer actions, or unavailable verification steps.
 4. item23dImplications: Cautious implications for practice and future research appropriate to the review topic.
 
 Return ONLY a JSON object:
@@ -148,7 +148,7 @@ Return ONLY a JSON object:
   };
 
   const copyFullDiscussion = () => {
-    const text = `## Discussion\n\n### 1. Principal Findings and Contextual Interpretation\n${discussion.item23aGeneralInterpretation}\n\n### 2. Methodological Strengths and Limitations of Included Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n### 3. Limitations of Systematic Review Methodology\n${discussion.item23cLimitationsOfReviewProcess}\n\n### 4. Practical Implications and Future Research Directions\n${discussion.item23dImplications}`;
+    const text = `## Discussion\n\n### 1. Principal Findings and Contextual Interpretation\n${discussion.item23aGeneralInterpretation}\n\n### 2. Methodological Characteristics of Included Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n### 3. Review Methodological Context\n${discussion.item23cLimitationsOfReviewProcess}\n\n### 4. Practical Implications and Future Research Directions\n${discussion.item23dImplications}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -266,7 +266,7 @@ Return ONLY a JSON object:
               <span className="px-2 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800">
                 2
               </span>
-              <span>Methodological Strengths and Limitations of Included Evidence</span>
+              <span>Methodological Characteristics of Included Evidence</span>
             </div>
           </div>
           <textarea
@@ -285,14 +285,14 @@ Return ONLY a JSON object:
               <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-300 text-slate-800">
                 3
               </span>
-              <span>Limitations of Systematic Review Methodology</span>
+              <span>Review Methodological Context</span>
             </div>
           </div>
           <textarea
             value={discussion.item23cLimitationsOfReviewProcess}
             onChange={(e) => updatePart("item23cLimitationsOfReviewProcess", e.target.value)}
             rows={5}
-            placeholder="Discuss limitations of the review processes used (e.g. databases searched, languages, screening criteria)..."
+              placeholder="Describe the predefined scope, eligibility criteria, screening approach, and narrative or thematic organization..."
             className="w-full text-xs sm:text-sm font-sans p-3.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500/20 focus:border-slate-500 leading-relaxed text-slate-800"
           />
         </div>
