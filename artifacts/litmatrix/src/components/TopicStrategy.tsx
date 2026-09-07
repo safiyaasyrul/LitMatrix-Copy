@@ -52,7 +52,6 @@ export default function TopicStrategy({
     setGenerating(true);
     setError(null);
     try {
-      const isMaritimeShippingTopic = /\b(maritime|shipping|ship|vessel|seaport|port logistics)\b/i.test(draft.topic);
       const prompt = `Decompose this user-supplied systematic-review topic into three concise planning fields.
 
 Topic: "${draft.topic.trim()}"
@@ -68,7 +67,6 @@ Rules:
 - Use only concepts present in the supplied topic.
 - Do not invent statistics, locations, populations, institutions, prior-review findings, or causal claims.
 - Keep each value concise and suitable for editing by the researcher.
-- For a maritime or shipping topic, use this precise Context / Setting wording: "Global commercial shipping and maritime logistics industry".
 - If a detail is not specified, use "Not specified in the topic."`;
       const parsed = parseJSONLoose(
         await callAI(
@@ -82,11 +80,7 @@ Rules:
         fieldOfStudy: typeof parsed?.fieldOfStudy === "string" ? parsed.fieldOfStudy.trim() : draft.fieldOfStudy,
         problemStatement:
           typeof parsed?.problemStatement === "string" ? parsed.problemStatement.trim() : draft.problemStatement,
-        context: isMaritimeShippingTopic
-          ? "Global commercial shipping and maritime logistics industry"
-          : typeof parsed?.context === "string"
-          ? parsed.context.trim()
-          : draft.context,
+        context: typeof parsed?.context === "string" ? parsed.context.trim() : draft.context,
       };
       setDraft(next);
       onUpdateProtocol({ ...protocol, topicDecomposition: next });
