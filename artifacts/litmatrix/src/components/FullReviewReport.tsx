@@ -94,10 +94,15 @@ export default function FullReviewReport({
   counts,
 }: FullReviewReportProps) {
   const [copied, setCopied] = useState(false);
+  const configuredTitle = protocol.title?.trim();
+  const manuscriptTitle = configuredTitle && !/^untitled systematic review$/i.test(configuredTitle)
+    ? configuredTitle
+    : synthesis.suggestedTitle?.trim()
+    || "Systematic Literature Review Manuscript";
   const evidenceLandscape = getEvidenceLandscape(includedRecords);
   const recordGroundedRationale = includedRecords.length > 0
-    ? `This review examines ${protocol.title || "the defined topic"} through ${includedRecords.length} included records. The record-level evidence is concentrated in ${summarizeLandscape(evidenceLandscape.themeCounts) || "the themes reported in the included literature"}, covering the methods, technologies, and outcomes described by those records.`
-    : protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`;
+    ? `This review examines ${manuscriptTitle} through ${includedRecords.length} included records. The record-level evidence is concentrated in ${summarizeLandscape(evidenceLandscape.themeCounts) || "the themes reported in the included literature"}, covering the methods, technologies, and outcomes described by those records.`
+    : protocol.introductionRationale || `This review examines evidence relevant to ${manuscriptTitle}.`;
 
   const questions = protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
@@ -182,7 +187,7 @@ export default function FullReviewReport({
   const abstract = getAbstractContent();
 
   const generateFullMarkdown = () => {
-    let md = `# ${protocol.title || "Systematic Literature Review Manuscript"}\n\n`;
+    let md = `# ${manuscriptTitle}\n\n`;
     md += `**Methodology:** ${protocol.reviewType}\n`;
     md += `\n---\n\n`;
 
@@ -312,7 +317,7 @@ export default function FullReviewReport({
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>${protocol.title || "Systematic Literature Review Manuscript"}</title>
+  <title>${manuscriptTitle}</title>
   <style>
     body { font-family: 'Times New Roman', Times, serif; font-size: 11pt; line-height: 1.6; color: #1e293b; margin: 40px; }
     h1 { font-size: 20pt; font-weight: 800; color: #0f172a; margin-bottom: 8px; line-height: 1.25; }
@@ -331,7 +336,7 @@ export default function FullReviewReport({
 </head>
 <body>
 
-  <h1>${protocol.title || "Systematic Literature Review Manuscript"}</h1>
+  <h1>${manuscriptTitle}</h1>
   <div class="meta-box">
     <strong>Review Methodology:</strong> ${protocol.reviewType}<br>
   </div>
@@ -445,7 +450,7 @@ export default function FullReviewReport({
     const blob = new Blob([docHTML], { type: "application/msword;charset=utf-8" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `${(protocol.title || "Systematic_Literature_Review_Manuscript").replace(/[^a-zA-Z0-9]/g, "_").slice(0, 45)}.doc`;
+    a.download = `${manuscriptTitle.replace(/[^a-zA-Z0-9]/g, "_").slice(0, 45)}.doc`;
     a.click();
   };
 
@@ -505,7 +510,7 @@ export default function FullReviewReport({
             Systematic Literature Review Manuscript
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-            {protocol.title || "Systematic Review Title"}
+            {manuscriptTitle}
           </h1>
           <div className="text-xs font-mono text-slate-500 pt-1 space-y-1">
             <div>Methodology: <span className="font-semibold text-slate-800">{protocol.reviewType}</span></div>
