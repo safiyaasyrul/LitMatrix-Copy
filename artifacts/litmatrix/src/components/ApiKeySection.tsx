@@ -248,16 +248,6 @@ export default function ApiKeySection({
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => handleTestKey(keysConfig.activeProvider)}
-              disabled={testingProvider !== null}
-              className="flex items-center gap-1.5 px-3 py-1.5 font-mono text-xs font-semibold bg-white text-slate-900 hover:bg-slate-100 rounded-lg shadow-2xs transition-colors cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 text-indigo-600" />
-              {testingProvider === keysConfig.activeProvider ? "Testing..." : "Test Active Provider"}
-            </button>
-          </div>
         </div>
       </div>
 
