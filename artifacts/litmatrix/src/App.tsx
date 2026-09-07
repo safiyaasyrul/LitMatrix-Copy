@@ -664,8 +664,6 @@ export default function App() {
               onUpdateRecords={setRecords}
               dupesRemoved={dupesRemoved}
               onUpdateDupesRemoved={setDupesRemoved}
-              onLoadSample={handleResetSample}
-              onStartBlankReview={handleStartBlankReview}
               onAutoSyncAllStagesFromRecords={handleAutoSyncAllStagesFromRecords}
             />
           )}

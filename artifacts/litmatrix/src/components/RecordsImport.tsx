@@ -15,7 +15,6 @@ import {
   Search,
   PlusCircle,
   Check,
-  RotateCcw,
   X,
   BookOpen,
   Filter,
@@ -27,8 +26,6 @@ interface RecordsImportProps {
   onUpdateRecords: (records: SLRRecord[]) => void;
   dupesRemoved: number | null;
   onUpdateDupesRemoved: (count: number) => void;
-  onLoadSample: () => void;
-  onStartBlankReview?: () => void;
   onAutoSyncAllStagesFromRecords?: (customRecordsList?: SLRRecord[]) => void;
 }
 
@@ -37,8 +34,6 @@ export default function RecordsImport({
   onUpdateRecords,
   dupesRemoved,
   onUpdateDupesRemoved,
-  onLoadSample,
-  onStartBlankReview,
   onAutoSyncAllStagesFromRecords,
 }: RecordsImportProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -261,25 +256,6 @@ export default function RecordsImport({
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {onStartBlankReview && (
-              <button
-                onClick={onStartBlankReview}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
-                title="Reset all stages for a completely blank new review"
-              >
-                <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                Start Blank Review
-              </button>
-            )}
-
-            <button
-              onClick={onLoadSample}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-lg shadow-2xs transition-colors cursor-pointer"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-              Load PRISMA Demo Dataset
-            </button>
-
             {records.length > 0 && (
               <button
                 onClick={clearAllRecordsOnly}
