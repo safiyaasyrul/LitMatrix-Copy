@@ -2,6 +2,8 @@ import React, { useRef } from "react";
 import { Download, RefreshCw, Layers } from "lucide-react";
 
 interface PrismaCounts {
+  uploaded?: number;
+  afterDedup?: number;
   identifiedDb?: number;
   identifiedOther?: number;
   duplicatesRemoved?: number;
@@ -25,9 +27,11 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
 
   const {
     identifiedDb = 0,
+    screened = 0,
+    uploaded = identifiedDb,
+    afterDedup = screened,
     identifiedOther = 0,
     duplicatesRemoved = 0,
-    screened = 0,
     screenedExcluded = 0,
     soughtRetrieval = 0,
     notRetrieved = 0,
@@ -151,7 +155,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records identified from databases:
             </text>
             <text x="32" y="134" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              Scopus, WoS, PubMed (n = {identifiedDb})
+              Uploaded records (n = {uploaded})
             </text>
 
             {/* Box 1b: Other sources */}
@@ -181,7 +185,7 @@ export default function PrismaDiagram({ counts }: PrismaDiagramProps) {
               Records after duplicates removed:
             </text>
             <text x="32" y="270" fontFamily="JetBrains Mono" fontSize="11" fill="#475569">
-              (n = {screened}) · Duplicates removed (n = {duplicatesRemoved})
+              (n = {afterDedup}) · Duplicates removed (n = {duplicatesRemoved})
             </text>
 
             {/* Arrow down to record screening */}

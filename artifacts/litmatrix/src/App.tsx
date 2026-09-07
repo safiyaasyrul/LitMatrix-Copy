@@ -37,6 +37,7 @@ import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
+import { MAX_INCLUDED_RECORDS } from "./components/ScreeningSection";
 
 import {
   UserAIKeysConfig,
@@ -68,6 +69,29 @@ import {
   FilePlus,
 } from "lucide-react";
 
+const boundPersistedScreening = (
+  decisions: Record<string, ScreeningDecision>,
+  sourceRecords: SLRRecord[]
+) => {
+  const bounded = { ...decisions };
+  const included = sourceRecords
+    .filter((record) => bounded[record.id]?.agreed === true)
+    .sort((a, b) => (bounded[b.id]?.score || 0) - (bounded[a.id]?.score || 0));
+
+  included.slice(MAX_INCLUDED_RECORDS).forEach((record) => {
+    const previous = bounded[record.id];
+    bounded[record.id] = {
+      ...previous,
+      decision: "exclude",
+      agreed: false,
+      exclusionReason: "Other",
+      reason: `The record was outside the ${MAX_INCLUDED_RECORDS} strongest protocol matches retained for synthesis.`,
+    };
+  });
+
+  return bounded;
+};
+
 export default function App() {
   // Navigation State
   const [activeStage, setActiveStage] = useState<number>(0);
@@ -91,7 +115,7 @@ export default function App() {
 
   const [screening, setScreening] = useState<Record<string, ScreeningDecision>>(() => {
     const saved = localStorage.getItem("slr_screening_v1");
-    return saved ? JSON.parse(saved) : {};
+    return saved ? boundPersistedScreening(JSON.parse(saved), records) : {};
   });
 
   const [characteristics, setCharacteristics] = useState<StudyCharacteristic[]>(() => {
@@ -259,7 +283,10 @@ export default function App() {
 
   // Derived included records
   const includedRecords = useMemo(() => {
-    return records.filter((r) => screening[r.id]?.agreed === true);
+    return records
+      .filter((r) => screening[r.id]?.agreed === true)
+      .sort((a, b) => (screening[b.id]?.score || 0) - (screening[a.id]?.score || 0))
+      .slice(0, MAX_INCLUDED_RECORDS);
   }, [records, screening]);
 
   // Derived excluded records
@@ -270,27 +297,33 @@ export default function App() {
   // Exclusion reasons breakdown for PRISMA Item 16b
   const exclusionReasonsBreakdown = useMemo(() => {
     const acc: Record<string, number> = {};
-    excludedRecords.forEach((r) => {
-      const reason = screening[r.id]?.exclusionReason || "Wrong study design";
+    const includedIds = new Set(includedRecords.map((record) => record.id));
+    records.forEach((r) => {
+      if (includedIds.has(r.id)) return;
+      const reason = screening[r.id]?.agreed === false
+        ? screening[r.id]?.exclusionReason || "Other"
+        : "Not included / pending decision";
       acc[reason] = (acc[reason] || 0) + 1;
     });
     return acc;
-  }, [excludedRecords, screening]);
+  }, [records, includedRecords, screening]);
 
   // PRISMA flow counts are derived only from records and recorded screening decisions.
   // Full-text retrieval/assessment is not tracked by this application.
   const prismaCounts = useMemo(() => {
-    const totalIdentified = records.length + (dupesRemoved || 0);
-      const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
-    const screenedExcludedCount = excludedRecords.length;
+    const uploadedCount = records.length + (dupesRemoved || 0);
+    const afterDedupCount = records.length;
     const includedCount = includedRecords.length;
+    const excludedCount = Math.max(0, afterDedupCount - includedCount);
 
     return {
-      identifiedDb: totalIdentified,
+      uploaded: uploadedCount,
+      afterDedup: afterDedupCount,
+      identifiedDb: uploadedCount,
       identifiedOther: 0,
       duplicatesRemoved: dupesRemoved || 0,
-      screened: screenedCount,
-      screenedExcluded: screenedExcludedCount,
+      screened: afterDedupCount,
+      screenedExcluded: excludedCount,
       soughtRetrieval: 0,
       notRetrieved: 0,
       assessed: 0,
@@ -642,6 +675,7 @@ export default function App() {
           {activeStage === 4 && (
             <ScreeningSection
               records={records}
+              dupesRemoved={dupesRemoved || 0}
               screening={screening}
               onUpdateScreening={setScreening}
               protocol={protocol}

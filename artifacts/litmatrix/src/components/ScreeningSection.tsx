@@ -9,11 +9,12 @@ import {
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 import StudyCharacteristicsTable from "./StudyCharacteristicsTable";
 
-const MAX_INCLUDED_RECORDS = 99;
+export const MAX_INCLUDED_RECORDS = 99;
 const STRICT_SCREENING_THRESHOLD = 85;
 
 interface ScreeningSectionProps {
   records: SLRRecord[];
+  dupesRemoved: number;
   screening: Record<string, ScreeningDecision>;
   onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
   protocol: SLRProtocol;
@@ -22,6 +23,7 @@ interface ScreeningSectionProps {
 
 export default function ScreeningSection({
   records,
+  dupesRemoved,
   screening,
   onUpdateScreening,
   protocol,
@@ -33,13 +35,22 @@ export default function ScreeningSection({
   const screeningRunRef = useRef(false);
   const screeningPool = records;
 
-  const includedCount = screeningPool.filter((r) => screening[r.id]?.agreed === true).length;
-  const excludedCount = screeningPool.filter((r) => screening[r.id]?.agreed === false).length;
-  const pendingCount = screeningPool.filter((r) => screening[r.id]?.agreed === undefined).length;
+  const includedRecords = screeningPool
+    .filter((record) => screening[record.id]?.agreed === true)
+    .sort((a, b) => (screening[b.id]?.score || 0) - (screening[a.id]?.score || 0))
+    .slice(0, MAX_INCLUDED_RECORDS);
+  const includedIds = new Set(includedRecords.map((record) => record.id));
+  const includedCount = includedRecords.length;
+  const afterDedupCount = screeningPool.length;
+  const excludedCount = Math.max(0, afterDedupCount - includedCount);
+  const screenedDecisionCount = screeningPool.filter((r) => screening[r.id]?.agreed !== undefined).length;
+  const pendingCount = afterDedupCount - screenedDecisionCount;
   const exclusionBreakdown = screeningPool.reduce<Record<string, number>>((acc, record) => {
     const decision = screening[record.id];
-    if (decision?.agreed === false) {
-      const reason = decision.exclusionReason || "Other";
+    if (!includedIds.has(record.id)) {
+      const reason = decision?.agreed === false
+        ? decision.exclusionReason || "Other"
+        : "Not included / pending decision";
       acc[reason] = (acc[reason] || 0) + 1;
     }
     return acc;
@@ -67,7 +78,6 @@ export default function ScreeningSection({
   };
 
   const downloadPrismaSynthesisReport = () => {
-    const includedRecords = screeningPool.filter((record) => screening[record.id]?.agreed === true);
     const report = [
       `# PRISMA Synthesis Report`,
       ``,
@@ -75,14 +85,15 @@ export default function ScreeningSection({
       protocol.title || "Untitled systematic review",
       ``,
       `## Study-selection summary`,
-      `- Uploaded records assessed: ${screeningPool.length}`,
-      `- Records with screening decisions: ${includedCount + excludedCount}`,
+      `- Uploaded records: ${screeningPool.length + dupesRemoved}`,
+      `- Records after deduplication: ${afterDedupCount}`,
+      `- Records with screening decisions: ${screenedDecisionCount}`,
       `- Records pending screening: ${pendingCount}`,
       `- Records included in the bounded synthesis set: ${includedCount}`,
       `- Records excluded: ${excludedCount}`,
       `- Maximum synthesis set: ${MAX_INCLUDED_RECORDS} records`,
       ``,
-      `All uploaded records are assessed against the documented protocol. Inclusion requires explicit support in the available record evidence. Missing or ambiguous evidence is not treated as confirmation of eligibility. Full-text eligibility is not claimed.`,
+      `All records after deduplication are assessed against the documented protocol. Inclusion requires explicit support in the available record evidence. Missing or ambiguous evidence is not treated as confirmation of eligibility. Full-text eligibility is not claimed.`,
       ``,
       `## Exclusion reasons`,
       ...(Object.entries(exclusionBreakdown).length > 0
@@ -259,7 +270,7 @@ Return ONLY a JSON array:
       </div>
 
       <StudyCharacteristicsTable
-        screeningRecords={screeningPool.filter((record) => screening[record.id]?.agreed === true)}
+        screeningRecords={includedRecords}
         screening={screening}
       />
 
@@ -289,11 +300,11 @@ Return ONLY a JSON array:
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
-            ["Uploaded", screeningPool.length],
-            ["Screened", includedCount + excludedCount],
+            ["Uploaded", screeningPool.length + dupesRemoved],
+            ["After deduplication", afterDedupCount],
             ["Included", includedCount],
             ["Excluded", excludedCount],
-            ["Pending", pendingCount],
+            ["Pending decisions", pendingCount],
           ].map(([label, value]) => (
             <div key={label} className="bg-slate-900 border border-slate-800 rounded-lg p-3">
               <div className="text-[10px] font-mono uppercase text-slate-500">{label}</div>
@@ -302,26 +313,18 @@ Return ONLY a JSON array:
           ))}
         </div>
 
-        <div className="grid md:grid-cols-2 gap-5 text-xs">
-          <div>
-            <h4 className="font-mono font-bold text-slate-200 mb-2">Selection summary</h4>
-            <p className="text-slate-400 leading-relaxed">
-              All {screeningPool.length} uploaded records form the screening pool. Inclusion requires explicit protocol support in the available record evidence. The final synthesis set is limited to the {MAX_INCLUDED_RECORDS} highest-supported records.
-            </p>
-          </div>
-          <div>
-            <h4 className="font-mono font-bold text-slate-200 mb-2">Recorded exclusion reasons</h4>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(exclusionBreakdown).length > 0 ? (
-                Object.entries(exclusionBreakdown).map(([reason, count]) => (
-                  <span key={reason} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300">
-                    {reason}: {count}
-                  </span>
-                ))
-              ) : (
-                <span className="text-slate-500">No exclusions recorded yet.</span>
-              )}
-            </div>
+        <div className="text-xs">
+          <h4 className="font-mono font-bold text-slate-200 mb-2">Recorded exclusion reasons</h4>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(exclusionBreakdown).length > 0 ? (
+              Object.entries(exclusionBreakdown).map(([reason, count]) => (
+                <span key={reason} className="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-300">
+                  {reason}: {count}
+                </span>
+              ))
+            ) : (
+              <span className="text-slate-500">No exclusions recorded yet.</span>
+            )}
           </div>
         </div>
       </section>

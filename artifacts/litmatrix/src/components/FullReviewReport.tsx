@@ -187,7 +187,7 @@ export default function FullReviewReport({
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have screening decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
+    md += `${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
 
     md += `### 3.2 Comprehensive Screening Decision Table (Table 1)\n\n`;
     md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
@@ -329,7 +329,7 @@ export default function FullReviewReport({
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have screening decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded.</p>
+  <p>${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. Full-text retrieval and eligibility assessment were not recorded.</p>
 
   <h3>3.2 Comprehensive Screening Decision Table (Table 1)</h3>
   <div class="table-caption">Table 1: Article information, screening status, and academic screening justification</div>
@@ -561,7 +561,7 @@ export default function FullReviewReport({
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The evidence database represents {counts.identifiedDb || 0} records, including {counts.duplicatesRemoved || 0} duplicates recorded as removed. {counts.screened || 0} records have screening decisions, {counts.screenedExcluded || 0} are excluded, and {includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
+              Uploaded records: {counts.uploaded || counts.identifiedDb || 0}. After deduplication: {counts.afterDedup || counts.screened || 0}. Included: {includedRecords.length}. Excluded: {(counts.afterDedup || counts.screened || 0) - includedRecords.length}. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
             </p>
 
             {/* Illustrated Flow Diagram */}
