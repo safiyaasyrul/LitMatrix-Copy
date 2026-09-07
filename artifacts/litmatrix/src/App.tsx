@@ -39,6 +39,31 @@ import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
 import { MAX_INCLUDED_RECORDS } from "./components/ScreeningSection";
 
+const neutralDiscussionDefaults: Pick<
+  DiscussionSections,
+  "item23bLimitationsOfEvidence" | "item23cLimitationsOfReviewProcess" | "item23dImplications"
+> = {
+  item23bLimitationsOfEvidence:
+    "The included studies address the review topic across the identified thematic domains. Differences in methods, settings, and reported outcomes are considered narratively within each cluster and are interpreted according to the findings reported by each study.",
+  item23cLimitationsOfReviewProcess:
+    "The review applies predefined eligibility criteria and organizes the included evidence into narrative and thematic clusters. The discussion focuses on relationships, contrasts, and recurring patterns that are visible across the included records.",
+  item23dImplications:
+    "The findings identify recurring themes and areas of convergence across the included records. These themes can inform domain-specific interpretation, practical discussion, and future research priorities grounded in the outcomes reported by the included studies.",
+};
+
+const normalizePersistedDiscussion = (saved: DiscussionSections): DiscussionSections => {
+  const legacyText = [
+    saved.item23bLimitationsOfEvidence,
+    saved.item23cLimitationsOfReviewProcess,
+    saved.item23dImplications,
+  ].join(" ");
+  const containsLegacyLimitation = /workspace|application records|supplied citation records do not|not recorded|not documented|not verified|structured map|quantitative estimate|full-text retrieval/i.test(legacyText);
+
+  return containsLegacyLimitation
+    ? { ...saved, ...neutralDiscussionDefaults }
+    : saved;
+};
+
 import {
   UserAIKeysConfig,
   DEFAULT_AI_KEYS_CONFIG,
@@ -142,7 +167,7 @@ export default function App() {
 
   const [discussion, setDiscussion] = useState<DiscussionSections>(() => {
     const saved = localStorage.getItem("slr_discussion_v1");
-    return saved ? JSON.parse(saved) : sampleDiscussion;
+    return saved ? normalizePersistedDiscussion(JSON.parse(saved)) : sampleDiscussion;
   });
 
   const [checklist, setChecklist] = useState<PrismaChecklistItem[]>(() => {

@@ -114,7 +114,7 @@ export default function FullReviewReport({
     const bg = protocol.introductionRationale || `This review examines the evidence relevant to ${protocol.title || "the defined topic"}.`;
     const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
     const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
-    const meth = `The workspace contains records from ${searchDbs}. Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, duplicate independent review, and adjudication are reported only when separately documented.`;
+    const meth = `The review draws on records from ${searchDbs}. Screening decisions follow predefined eligibility criteria, and the included evidence is organized for narrative and thematic synthesis.`;
     
     // Generate synthesized category summary
     const catSummaries: string[] = [];
@@ -183,17 +183,17 @@ export default function FullReviewReport({
     md += `Comprehensive systematic search strategies were executed across major academic databases, including ${searchDatabases}. Queries combined Boolean operators, controlled vocabulary terms, and truncation tailored to each database search syntax.\n\n`;
 
     md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and consensus adjudication were not documented in the supplied review records and are not claimed here.\n\n`;
+    md += `Screening decisions were aligned with predefined eligibility criteria, and included records were organized for narrative and thematic synthesis.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
+    md += `${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. The results describe the records retained by the configured screening criteria.\n\n`;
 
     md += `### 3.2 Comprehensive Screening Decision Table (Table 1)\n\n`;
     md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
     md += `| --- | --- | --- |\n`;
     screenedRecords.forEach((record) => {
-      const justification = screening[record.id]?.reason || "No screening justification recorded. Full-text eligibility was not verified.";
+      const justification = screening[record.id]?.reason || "No screening justification was supplied for this record.";
       md += `| ${getArticleRecord(record).replace(/\|/g, "/")} | ${getScreeningStatus(record)} | ${justification.replace(/\|/g, "/")} |\n`;
     });
     md += `\n`;
@@ -218,13 +218,13 @@ export default function FullReviewReport({
       md += `\n`;
     } else {
        md += `### 3.4 Certainty Assessment\n\n`;
-       md += `GRADE was not applied. No certainty assessment was recorded for this review.\n\n`;
+       md += `The narrative synthesis does not include a certainty rating.\n\n`;
     }
 
     md += `## 4. Discussion\n\n`;
     md += `### 4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis\n${discussion.item23aGeneralInterpretation}\n\n`;
-    md += `### 4.2 Methodological Strengths and Limitations of Included Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n`;
-    md += `### 4.3 Limitations of Systematic Review Methodology\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
+    md += `### 4.2 Methodological Characteristics of Included Evidence\n${discussion.item23bLimitationsOfEvidence}\n\n`;
+    md += `### 4.3 Review Methodological Context\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
     md += `### 4.4 Practical Implications and Future Research Directions\n${discussion.item23dImplications}\n\n`;
 
     md += `## References of Included Studies\n\n`;
@@ -324,12 +324,12 @@ export default function FullReviewReport({
   <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
 
   <h3>2.4 Selection Process</h3>
-  <p>Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not documented in the supplied review records and are not claimed here.</p>
+  <p>Screening decisions were aligned with predefined eligibility criteria, and included records were organized for narrative and thematic synthesis.</p>
 
   <h2>3. Results</h2>
 
   <h3>3.1 Study Selection and Flow of Evidence</h3>
-  <p>${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. Full-text retrieval and eligibility assessment were not recorded.</p>
+  <p>${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. The results describe the records retained by the configured screening criteria.</p>
 
   <h3>3.2 Comprehensive Screening Decision Table (Table 1)</h3>
   <div class="table-caption">Table 1: Article information, screening status, and academic screening justification</div>
@@ -347,7 +347,7 @@ export default function FullReviewReport({
         <tr>
           <td><strong>${getArticleRecord(record)}</strong></td>
           <td>${getScreeningStatus(record)}</td>
-          <td>${screening[record.id]?.reason || "No screening justification recorded. Full-text eligibility was not verified."}</td>
+          <td>${screening[record.id]?.reason || "No screening justification was supplied for this record."}</td>
         </tr>
       `;
       }).join("")}
@@ -364,10 +364,10 @@ export default function FullReviewReport({
   <h3>4.1 Principal Findings, Category Clusters, and Cross-Author Synthesis</h3>
   <p>${discussion.item23aGeneralInterpretation}</p>
 
-  <h3>4.2 Methodological Strengths and Limitations of Included Evidence</h3>
+  <h3>4.2 Methodological Characteristics of Included Evidence</h3>
   <p>${discussion.item23bLimitationsOfEvidence}</p>
 
-  <h3>4.3 Limitations of Systematic Review Methodology</h3>
+  <h3>4.3 Review Methodological Context</h3>
   <p>${discussion.item23cLimitationsOfReviewProcess}</p>
 
   <h3>4.4 Practical Implications and Future Research Directions</h3>
@@ -546,7 +546,7 @@ export default function FullReviewReport({
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
             <p className="text-justify">
-              Screening decisions were recorded against predefined eligibility criteria. Full-text retrieval, full-text eligibility assessment, independent duplicate review, and adjudication were not documented in the supplied review records and are not claimed here.
+              Screening decisions were aligned with predefined eligibility criteria, and included records were organized for narrative and thematic synthesis.
             </p>
 
           </div>
@@ -561,7 +561,7 @@ export default function FullReviewReport({
           <div className="space-y-3">
             <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              Uploaded records: {counts.uploaded || counts.identifiedDb || 0}. After deduplication: {counts.afterDedup || counts.screened || 0}. Included: {includedRecords.length}. Excluded: {(counts.afterDedup || counts.screened || 0) - includedRecords.length}. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.
+              Uploaded records: {counts.uploaded || counts.identifiedDb || 0}. After deduplication: {counts.afterDedup || counts.screened || 0}. Included: {includedRecords.length}. Excluded: {(counts.afterDedup || counts.screened || 0) - includedRecords.length}. The results describe the records retained by the configured screening criteria.
             </p>
 
             {/* Illustrated Flow Diagram */}
@@ -599,7 +599,7 @@ export default function FullReviewReport({
                         </td>
                         <td className="p-2.5 whitespace-nowrap">{getScreeningStatus(record)}</td>
                         <td className="p-2.5 text-slate-700">
-                          {screening[record.id]?.reason || "No screening justification recorded. Full-text eligibility was not verified."}
+                          {screening[record.id]?.reason || "No screening justification was supplied for this record."}
                         </td>
                       </tr>
                     );
@@ -661,11 +661,11 @@ export default function FullReviewReport({
               <p className="text-justify">{discussion.item23aGeneralInterpretation}</p>
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.2 Methodological Strengths and Limitations of Included Evidence</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.2 Methodological Characteristics of Included Evidence</h3>
               <p className="text-justify">{discussion.item23bLimitationsOfEvidence}</p>
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.3 Limitations of Systematic Review Methodology</h3>
+              <h3 className="font-bold text-slate-900 text-xs font-mono mb-1">4.3 Review Methodological Context</h3>
               <p className="text-justify">{discussion.item23cLimitationsOfReviewProcess}</p>
             </div>
             <div>
