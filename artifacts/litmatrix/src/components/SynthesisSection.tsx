@@ -176,7 +176,7 @@ const buildThematicDiscussion = (
   const supportingNarrative = cluster.key === OUTCOME_CLUSTER
     ? citationEvidence
     : supplied || citationEvidence;
-  if (cluster.key !== OUTCOME_CLUSTER && supplied.startsWith(discussion)) {
+  if (supplied.startsWith(discussion)) {
     return supplied;
   }
   return `${discussion}\n\n${supportingNarrative}`;
