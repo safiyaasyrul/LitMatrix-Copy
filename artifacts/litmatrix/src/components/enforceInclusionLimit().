@@ -9,7 +9,7 @@ import {
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 import StudyCharacteristicsTable from "./StudyCharacteristicsTable";
 
-export const MAX_INCLUDED_RECORDS = 99;
+export const MAX_AI_PROCESSING_RECORDS = 99;
 const STRICT_SCREENING_THRESHOLD = 85;
 
 interface ScreeningSectionProps {
