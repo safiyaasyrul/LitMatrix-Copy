@@ -1,21 +1,15 @@
 import React, { useState } from "react";
-import { AlertCircle, Check, Copy, FileSpreadsheet, Sparkles, Table, X } from "lucide-react";
-import { ScreeningDecision, SLRProtocol, SLRRecord, StudyCharacteristic } from "../types/slr";
-import { callAI, parseJSONLoose } from "../utils/aiClient";
+import { AlertCircle, Check, Copy, FileSpreadsheet, Table, X } from "lucide-react";
+import { ScreeningDecision, SLRRecord } from "../types/slr";
 
 interface StudyCharacteristicsTableProps {
   screeningRecords: SLRRecord[];
-  characteristics: StudyCharacteristic[];
-  onUpdateCharacteristics: (chars: StudyCharacteristic[]) => void;
   onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
   screening: Record<string, ScreeningDecision>;
-  protocol: SLRProtocol;
-  aiConfig: any;
-  onNavigateToScreening?: () => void;
 }
 
 const JUSTIFICATION_PLACEHOLDER =
-  "Acceptance justification not yet generated. Full-text eligibility was not verified.";
+  "No screening justification recorded. Full-text eligibility was not verified.";
 
 const articleInformation = (record: SLRRecord) => {
   const authors = record.authors?.join(", ") || "Author not reported";
@@ -23,38 +17,12 @@ const articleInformation = (record: SLRRecord) => {
   return `${record.title} — ${authors} — ${journal}`;
 };
 
-const baseCharacteristic = (record: SLRRecord, existing?: StudyCharacteristic): StudyCharacteristic => ({
-  ...(existing || {}),
-  recordId: record.id,
-  authorYear: existing?.authorYear || `${record.authors?.[0] || "Author"} (${record.year || "Year not reported"})`,
-  category: existing?.category || "Included study",
-  country: existing?.country || "Not reported",
-  sampleSize: existing?.sampleSize || "Not reported",
-  population: existing?.population || "Not reported",
-  interventionOrFocus: existing?.interventionOrFocus || "Not reported",
-  comparator: existing?.comparator || "Not reported",
-  primaryOutcome: existing?.primaryOutcome || "Not reported",
-  studyDesign: existing?.studyDesign || "Not reported",
-  keyFinding: existing?.keyFinding || "Not reported",
-  acceptanceJustification: existing?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER,
-});
-
 export default function StudyCharacteristicsTable({
   screeningRecords,
-  characteristics,
-  onUpdateCharacteristics,
   onUpdateScreening,
   screening,
-  protocol,
-  aiConfig,
-  onNavigateToScreening,
 }: StudyCharacteristicsTableProps) {
-  const [extracting, setExtracting] = useState(false);
-  const [editingRecordId, setEditingRecordId] = useState<string | null>(null);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-
-  const characteristicById = new Map(characteristics.map((item) => [item.recordId, item]));
 
   const handleSetDecision = (
     recordId: string,
@@ -77,104 +45,6 @@ export default function StudyCharacteristicsTable({
           : exclusionReason || existing.exclusionReason || "Wrong study design",
       },
     });
-  };
-
-  const handleAutoExtract = async () => {
-    if (screeningRecords.length === 0) return;
-    setExtracting(true);
-    setErrorMessage(null);
-
-    const payload = screeningRecords.map((record) => ({
-      recordId: record.id,
-      title: record.title,
-      authors: record.authors,
-      year: record.year,
-      journal: record.source,
-      abstract: (record.abstract || "").slice(0, 1200),
-      recordedScreeningRationale: screening[record.id]?.reason || "Not recorded",
-    }));
-
-    const prompt = `Generate an academic screening justification for every record in this screening pool.
-
-Review title: ${protocol.title}
-Review scope: population/domain = ${protocol.objectivesPICO.population || "Not specified"}; intervention/focus = ${protocol.objectivesPICO.intervention || "Not specified"}; comparator = ${protocol.objectivesPICO.comparator || "Not specified"}; outcomes = ${protocol.objectivesPICO.outcomes || "Not specified"}; study designs = ${protocol.objectivesPICO.studyDesigns || "Not specified"}
-Inclusion criteria: ${(protocol.eligibilityCriteria.inclusion || []).join("; ") || "Not specified"}
-Exclusion criteria: ${(protocol.eligibilityCriteria.exclusion || []).join("; ") || "Not specified"}
-
-Evidence rules:
-- Use only the supplied title, authors, journal, year, abstract, protocol, and recorded screening rationale.
-- Explain the specific evidence that supported inclusion or exclusion at title/abstract screening.
-- Do not invent facts, results, methods, locations, sample sizes, or eligibility details.
-- Do not claim full-text retrieval, full-text verification, independent review, adjudication, or final eligibility.
-- If the abstract does not support a specific criterion, say that the available citation provides only provisional support.
-- End every justification with exactly: "Full-text eligibility was not verified."
-
-Records:
-${JSON.stringify(payload)}
-
-Return ONLY a JSON array with one object per record:
-[
-  {
-    "recordId": "exact supplied recordId",
-    "acceptanceJustification": "One or two manuscript-ready sentences."
-  }
-]`;
-
-    try {
-      const text = await callAI(
-        prompt,
-        "You are a systematic-review methodologist writing conservative, evidence-grounded academic screening justifications.",
-        aiConfig
-      );
-      const parsed = parseJSONLoose(text);
-      const rawItems = Array.isArray(parsed)
-        ? parsed
-        : parsed && typeof parsed === "object"
-        ? [parsed.records, parsed.results, parsed.justifications, parsed.items, parsed.data].find(
-            (value) => Array.isArray(value)
-          ) || (parsed.recordId || parsed.id ? [parsed] : [])
-        : [];
-      const normalizedItems = rawItems.map((item: any) => ({
-        recordId: item?.recordId ?? item?.id ?? item?.studyId,
-        acceptanceJustification:
-          item?.acceptanceJustification ??
-          item?.justification ??
-          item?.rationale ??
-          item?.reason,
-      }));
-
-      if (normalizedItems.length === 0) {
-        throw new Error("Could not parse the AI response.");
-      }
-
-      const parsedById = new Map(normalizedItems.map((item: any) => [item.recordId, item]));
-      const updated = screeningRecords.map((record) => {
-        const existing = characteristicById.get(record.id);
-        const aiItem = parsedById.get(record.id);
-        if (!aiItem?.acceptanceJustification) {
-          throw new Error(`AI response omitted a justification for ${record.id}.`);
-        }
-        return {
-          ...baseCharacteristic(record, existing),
-          acceptanceJustification: String(aiItem.acceptanceJustification),
-        };
-      });
-      onUpdateCharacteristics(updated);
-    } catch (error: any) {
-      setErrorMessage(
-        `AI justification could not be generated: ${error.message || "Request failed"}. Existing records were not overwritten.`
-      );
-    } finally {
-      setExtracting(false);
-    }
-  };
-
-  const updateJustification = (record: SLRRecord, value: string) => {
-    const existing = characteristicById.get(record.id);
-    const next = baseCharacteristic(record, existing);
-    next.acceptanceJustification = value;
-    const remaining = characteristics.filter((item) => item.recordId !== record.id);
-    onUpdateCharacteristics([...remaining, next]);
   };
 
   const exportCSV = () => {
