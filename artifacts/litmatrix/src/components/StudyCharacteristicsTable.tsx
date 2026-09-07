@@ -4,7 +4,7 @@ import { ScreeningDecision, SLRProtocol, SLRRecord, StudyCharacteristic } from "
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
 interface StudyCharacteristicsTableProps {
-  includedRecords: SLRRecord[];
+  screeningRecords: SLRRecord[];
   characteristics: StudyCharacteristic[];
   onUpdateCharacteristics: (chars: StudyCharacteristic[]) => void;
   screening: Record<string, ScreeningDecision>;
@@ -39,7 +39,7 @@ const baseCharacteristic = (record: SLRRecord, existing?: StudyCharacteristic): 
 });
 
 export default function StudyCharacteristicsTable({
-  includedRecords,
+  screeningRecords,
   characteristics,
   onUpdateCharacteristics,
   screening,
@@ -55,11 +55,11 @@ export default function StudyCharacteristicsTable({
   const characteristicById = new Map(characteristics.map((item) => [item.recordId, item]));
 
   const handleAutoExtract = async () => {
-    if (includedRecords.length === 0) return;
+    if (screeningRecords.length === 0) return;
     setExtracting(true);
     setErrorMessage(null);
 
-    const payload = includedRecords.map((record) => ({
+    const payload = screeningRecords.map((record) => ({
       recordId: record.id,
       title: record.title,
       authors: record.authors,
@@ -69,7 +69,7 @@ export default function StudyCharacteristicsTable({
       recordedScreeningRationale: screening[record.id]?.reason || "Not recorded",
     }));
 
-    const prompt = `Generate an academic screening justification for every included record in this systematic review.
+    const prompt = `Generate an academic screening justification for every record in this screening pool.
 
 Review title: ${protocol.title}
 Review scope: population/domain = ${protocol.objectivesPICO.population || "Not specified"}; intervention/focus = ${protocol.objectivesPICO.intervention || "Not specified"}; comparator = ${protocol.objectivesPICO.comparator || "Not specified"}; outcomes = ${protocol.objectivesPICO.outcomes || "Not specified"}; study designs = ${protocol.objectivesPICO.studyDesigns || "Not specified"}
@@ -78,7 +78,7 @@ Exclusion criteria: ${(protocol.eligibilityCriteria.exclusion || []).join("; ") 
 
 Evidence rules:
 - Use only the supplied title, authors, journal, year, abstract, protocol, and recorded screening rationale.
-- Explain the specific evidence that supported acceptance at title/abstract screening.
+- Explain the specific evidence that supported inclusion or exclusion at title/abstract screening.
 - Do not invent facts, results, methods, locations, sample sizes, or eligibility details.
 - Do not claim full-text retrieval, full-text verification, independent review, adjudication, or final eligibility.
 - If the abstract does not support a specific criterion, say that the available citation provides only provisional support.
@@ -107,7 +107,7 @@ Return ONLY a JSON array with one object per record:
       }
 
       const parsedById = new Map(parsed.map((item: any) => [item.recordId, item]));
-      const updated = includedRecords.map((record) => {
+      const updated = screeningRecords.map((record) => {
         const existing = characteristicById.get(record.id);
         const aiItem = parsedById.get(record.id);
         if (!aiItem?.acceptanceJustification) {
@@ -139,10 +139,14 @@ Return ONLY a JSON array with one object per record:
   const exportCSV = () => {
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
     const rows = [
-      ["Article Information (Title, Author & Journal)", "Acceptance Status", "Academic Screening Justification"],
-      ...includedRecords.map((record) => [
+      ["Article Information (Title, Author & Journal)", "Screening Status", "Academic Screening Justification"],
+      ...screeningRecords.map((record) => [
         articleInformation(record),
-        "Accepted at title/abstract screening",
+        screening[record.id]?.agreed === true
+          ? "Included"
+          : screening[record.id]?.agreed === false
+          ? "Excluded"
+          : "Pending",
         characteristicById.get(record.id)?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER,
       ]),
     ];
@@ -157,12 +161,17 @@ Return ONLY a JSON array with one object per record:
 
   const copyMarkdown = async () => {
     const lines = [
-      "| Article Information (Title, Author & Journal) | Acceptance Status | Academic Screening Justification |",
+      "| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |",
       "| --- | --- | --- |",
-      ...includedRecords.map((record) => {
+      ...screeningRecords.map((record) => {
         const justification =
           characteristicById.get(record.id)?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER;
-        return `| ${articleInformation(record).replace(/\|/g, "/")} | ACCEPTED | ${justification.replace(/\|/g, "/")} |`;
+        const status = screening[record.id]?.agreed === true
+          ? "INCLUDED"
+          : screening[record.id]?.agreed === false
+          ? "EXCLUDED"
+          : "PENDING";
+        return `| ${articleInformation(record).replace(/\|/g, "/")} | ${status} | ${justification.replace(/\|/g, "/")} |`;
       }),
     ];
     await navigator.clipboard.writeText(lines.join("\n"));
@@ -194,12 +203,12 @@ Return ONLY a JSON array with one object per record:
               Comprehensive Screening Decision Table
             </h2>
             <p className="text-xs text-slate-400 mt-1">
-              Grouped by article title, author, journal, and the academic reason for acceptance.
+              Grouped by article title, author, journal, and the academic reason for inclusion or exclusion.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {includedRecords.length > 0 && (
+            {screeningRecords.length > 0 && (
               <button
                 onClick={copyMarkdown}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-200 bg-transparent hover:bg-white/10 border border-slate-500 rounded-md transition-colors cursor-pointer"
@@ -210,13 +219,13 @@ Return ONLY a JSON array with one object per record:
             )}
             <button
               onClick={handleAutoExtract}
-              disabled={extracting || includedRecords.length === 0}
+              disabled={extracting || screeningRecords.length === 0}
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-400 rounded-md shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
               {extracting ? "Generating Justifications..." : "AI Generate Justifications"}
             </button>
-            {includedRecords.length > 0 && (
+            {screeningRecords.length > 0 && (
               <button
                 onClick={exportCSV}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-medium text-slate-200 bg-transparent border border-slate-500 hover:bg-white/10 rounded-md cursor-pointer"
@@ -229,12 +238,12 @@ Return ONLY a JSON array with one object per record:
         </div>
       </div>
 
-      {includedRecords.length === 0 ? (
+      {screeningRecords.length === 0 ? (
         <div className="bg-[#050505] border border-slate-500/80 p-6 rounded-2xl text-center space-y-3">
           <AlertCircle className="w-8 h-8 text-amber-300 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-100">No Studies Currently Marked as Included</h3>
+          <h3 className="text-sm font-bold text-slate-100">No Records in the Screening Pool</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
-            This table populates from studies accepted during title/abstract screening.
+            This table populates from the first 100 records selected for further screening.
           </p>
           {onNavigateToScreening && (
             <button
@@ -257,7 +266,7 @@ Return ONLY a JSON array with one object per record:
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/90">
-                {includedRecords.map((record) => {
+                {screeningRecords.map((record) => {
                   const item = characteristicById.get(record.id);
                   const justification = item?.acceptanceJustification || JUSTIFICATION_PLACEHOLDER;
                   const editing = editingRecordId === record.id;
@@ -273,9 +282,23 @@ Return ONLY a JSON array with one object per record:
                         </div>
                       </td>
                       <td className="py-3 px-3 whitespace-nowrap">
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-700/70 bg-emerald-950/70 px-2 py-1 font-mono text-[10px] font-semibold uppercase text-emerald-300">
-                          <Check className="h-3 w-3" />
-                          Accepted
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full border px-2 py-1 font-mono text-[10px] font-semibold uppercase ${
+                            screening[record.id]?.agreed === true
+                              ? "border-emerald-700/70 bg-emerald-950/70 text-emerald-300"
+                              : screening[record.id]?.agreed === false
+                              ? "border-rose-700/70 bg-rose-950/70 text-rose-300"
+                              : "border-slate-600 bg-slate-800 text-slate-300"
+                          }`}
+                        >
+                          {screening[record.id]?.agreed === true ? (
+                            <Check className="h-3 w-3" />
+                          ) : null}
+                          {screening[record.id]?.agreed === true
+                            ? "Included"
+                            : screening[record.id]?.agreed === false
+                            ? "Excluded"
+                            : "Pending"}
                         </span>
                         <div className="mt-1 text-[10px] text-slate-500">Title/abstract</div>
                       </td>
@@ -288,7 +311,7 @@ Return ONLY a JSON array with one object per record:
                           <textarea
                             value={justification === JUSTIFICATION_PLACEHOLDER ? "" : justification}
                             onChange={(event) => updateJustification(record, event.target.value)}
-                            placeholder="Explain the evidence supporting acceptance for this review."
+                            placeholder="Explain the evidence supporting inclusion or exclusion for this review."
                             rows={5}
                             className="w-full min-w-[380px] rounded border border-slate-600 bg-[#111111] p-2 text-xs text-slate-100 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
                           />
@@ -304,7 +327,7 @@ Return ONLY a JSON array with one object per record:
           </div>
           <div className="flex items-center gap-2 border-t border-slate-700 bg-[#111111] px-4 py-3 text-[11px] text-slate-400">
             <Table className="h-3.5 w-3.5 text-amber-300" />
-            Acceptance reflects recorded title/abstract screening. Double-click a justification to edit it. Full-text eligibility was not verified.
+            Status reflects recorded title/abstract screening. Double-click a justification to edit it. Full-text eligibility was not verified.
           </div>
         </div>
       )}

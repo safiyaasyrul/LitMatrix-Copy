@@ -34,7 +34,6 @@ import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
-import StudyCharacteristicsTable from "./components/StudyCharacteristicsTable";
 import RiskOfBiasSection from "./components/RiskOfBiasSection";
 import SynthesisSection from "./components/SynthesisSection";
 import CertaintyGradeSection from "./components/CertaintyGradeSection";
@@ -58,7 +57,6 @@ import {
   UploadCloud,
   CheckCircle,
   GitBranch,
-  Table,
   ShieldCheck,
   BarChart2,
   Award,
@@ -274,12 +272,12 @@ export default function App() {
 
   // Derived included records
   const includedRecords = useMemo(() => {
-    return records.filter((r) => screening[r.id]?.agreed === true);
+    return records.slice(0, 100).filter((r) => screening[r.id]?.agreed === true);
   }, [records, screening]);
 
   // Derived excluded records
   const excludedRecords = useMemo(() => {
-    return records.filter((r) => screening[r.id]?.agreed === false);
+    return records.slice(0, 100).filter((r) => screening[r.id]?.agreed === false);
   }, [records, screening]);
 
   // Exclusion reasons breakdown for PRISMA Item 16b
@@ -296,7 +294,7 @@ export default function App() {
   // Full-text retrieval/assessment is not tracked by this application.
   const prismaCounts = useMemo(() => {
     const totalIdentified = records.length + (dupesRemoved || 0);
-    const screenedCount = records.filter((r) => screening[r.id]?.agreed !== undefined).length;
+      const screenedCount = records.slice(0, 100).filter((r) => screening[r.id]?.agreed !== undefined).length;
     const screenedExcludedCount = excludedRecords.length;
     const includedCount = includedRecords.length;
 
@@ -456,12 +454,6 @@ export default function App() {
       icon: GitBranch,
     },
     {
-      id: "characteristics",
-      label: "Study Characteristics (Table 1)",
-      badge: "Item 17",
-      icon: Table,
-    },
-    {
       id: "rob",
       label: "Risk of Bias & Quality (Table 2)",
       badge: "Items 11 & 18",
@@ -571,7 +563,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-               12 Stages
+               11 Stages
             </span>
           </div>
 
@@ -676,6 +668,8 @@ export default function App() {
               onUpdateScreening={setScreening}
               protocol={protocol}
               aiConfig={activeAIConfig}
+              characteristics={characteristics}
+              onUpdateCharacteristics={setCharacteristics}
             />
           )}
 
@@ -698,21 +692,8 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 7: Study Characteristics (Table 1) */}
+          {/* Stage 7: Risk of Bias (Table 2) */}
           {activeStage === 6 && (
-            <StudyCharacteristicsTable
-              includedRecords={includedRecords}
-              characteristics={characteristics}
-              onUpdateCharacteristics={setCharacteristics}
-              screening={screening}
-              protocol={protocol}
-              aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(4)}
-            />
-          )}
-
-          {/* Stage 8: Risk of Bias (Table 2) */}
-          {activeStage === 7 && (
             <RiskOfBiasSection
               includedRecords={includedRecords}
               riskOfBias={riskOfBias}
@@ -723,8 +704,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 9: Narrative / Thematic Synthesis */}
-          {activeStage === 8 && (
+          {/* Stage 8: Narrative / Thematic Synthesis */}
+          {activeStage === 7 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
@@ -735,8 +716,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 10: GRADE Certainty of Evidence */}
-          {activeStage === 9 && (
+          {/* Stage 9: GRADE Certainty of Evidence */}
+          {activeStage === 8 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
@@ -747,8 +728,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 11: 4-Part Discussion */}
-          {activeStage === 10 && (
+          {/* Stage 10: 4-Part Discussion */}
+          {activeStage === 9 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -760,11 +741,13 @@ export default function App() {
             />
           )}
 
-          {/* Stage 12: Consolidated Manuscript */}
-          {activeStage === 11 && (
+          {/* Stage 11: Consolidated Manuscript */}
+          {activeStage === 10 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
+              screenedRecords={records.slice(0, 100)}
+              screening={screening}
               characteristics={characteristics}
               riskOfBias={riskOfBias}
               synthesis={synthesis}

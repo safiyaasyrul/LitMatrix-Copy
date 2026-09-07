@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import {
   SLRProtocol,
   SLRRecord,
+  ScreeningDecision,
   StudyCharacteristic,
   RiskOfBiasItem,
   SynthesisResult,
@@ -15,6 +16,8 @@ import PrismaDiagram from "./PrismaDiagram";
 interface FullReviewReportProps {
   protocol: SLRProtocol;
   includedRecords: SLRRecord[];
+  screenedRecords: SLRRecord[];
+  screening: Record<string, ScreeningDecision>;
   characteristics: StudyCharacteristic[];
   riskOfBias: RiskOfBiasItem[];
   synthesis: SynthesisResult;
@@ -27,6 +30,8 @@ interface FullReviewReportProps {
 export default function FullReviewReport({
   protocol,
   includedRecords,
+  screenedRecords,
+  screening,
   characteristics,
   riskOfBias,
   synthesis,
@@ -101,6 +106,12 @@ export default function FullReviewReport({
     const journal = record.source || "Journal not reported";
     return `${record.title} — ${authors} — ${journal}`;
   };
+  const getScreeningStatus = (record: SLRRecord) =>
+    screening[record.id]?.agreed === true
+      ? "Included"
+      : screening[record.id]?.agreed === false
+      ? "Excluded"
+      : "Pending";
 
   // Structured Abstract generator
   const getAbstractContent = () => {
@@ -186,13 +197,13 @@ export default function FullReviewReport({
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
     md += `${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded, so no final full-text inclusion claim is made.\n\n`;
 
-    md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
-    md += `| Article Information (Title, Author & Journal) | Acceptance Status | Academic Screening Justification |\n`;
+    md += `### 3.2 Comprehensive Screening Decision Table (Table 1)\n\n`;
+    md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
     md += `| --- | --- | --- |\n`;
-    includedRecords.forEach((record) => {
+    screenedRecords.forEach((record) => {
       const c = characteristicByRecordId.get(record.id);
       const justification = c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.";
-      md += `| ${getArticleRecord(record).replace(/\|/g, "/")} | Accepted at title/abstract screening | ${justification.replace(/\|/g, "/")} |\n`;
+      md += `| ${getArticleRecord(record).replace(/\|/g, "/")} | ${getScreeningStatus(record)} | ${justification.replace(/\|/g, "/")} |\n`;
     });
     md += `\n`;
 
@@ -340,23 +351,23 @@ export default function FullReviewReport({
   <h3>3.1 Study Selection and Flow of Evidence</h3>
   <p>${counts.identifiedDb || 0} records were represented in the evidence database, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. ${counts.screened || 0} records have title and abstract decisions, ${counts.screenedExcluded || 0} are excluded, and ${includedRecords.length} are marked for inclusion at that stage. Full-text retrieval and eligibility assessment were not recorded.</p>
 
-  <h3>3.2 Characteristics of Included Studies (Table 1)</h3>
-  <div class="table-caption">Table 1: Characteristics of Included Studies Grouped by Category</div>
+  <h3>3.2 Comprehensive Screening Decision Table (Table 1)</h3>
+  <div class="table-caption">Table 1: Article information, screening status, and academic screening justification</div>
   <table>
     <thead>
       <tr>
         <th>Article Information (Title, Author &amp; Journal)</th>
-        <th>Acceptance Status</th>
+        <th>Screening Status</th>
         <th>Academic Screening Justification</th>
       </tr>
     </thead>
     <tbody>
-      ${includedRecords.map((record) => {
+      ${screenedRecords.map((record) => {
         const c = characteristicByRecordId.get(record.id);
         return `
         <tr>
           <td><strong>${getArticleRecord(record)}</strong></td>
-          <td>Accepted at title/abstract screening</td>
+          <td>${getScreeningStatus(record)}</td>
           <td>${c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
         </tr>
       `;
@@ -619,7 +630,7 @@ export default function FullReviewReport({
           <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between">
               <div className="text-xs font-mono font-bold text-slate-900">
-                Table 1: Characteristics of Included Studies Grouped by Category
+              Table 1: Comprehensive Screening Decision Table
               </div>
               <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                 {characteristics.length} Primary Studies
@@ -631,19 +642,19 @@ export default function FullReviewReport({
                 <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
                   <tr>
                     <th className="p-2.5 font-bold">Article Information (Title, Author &amp; Journal)</th>
-                    <th className="p-2.5 font-bold">Acceptance Status</th>
+                    <th className="p-2.5 font-bold">Screening Status</th>
                     <th className="p-2.5 font-bold">Academic Screening Justification</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {includedRecords.map((record) => {
+                  {screenedRecords.map((record) => {
                     const c = characteristicByRecordId.get(record.id);
                     return (
                       <tr key={record.id} className="hover:bg-slate-50/50">
                         <td className="p-2.5 text-slate-900">
                           <div className="font-semibold">{getArticleRecord(record)}</div>
                         </td>
-                        <td className="p-2.5 whitespace-nowrap">Accepted at title/abstract screening</td>
+                        <td className="p-2.5 whitespace-nowrap">{getScreeningStatus(record)}</td>
                         <td className="p-2.5 text-slate-700">
                           {c?.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}
                         </td>

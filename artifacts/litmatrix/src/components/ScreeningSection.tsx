@@ -13,6 +13,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
+import StudyCharacteristicsTable from "./StudyCharacteristicsTable";
 
 interface ScreeningSectionProps {
   records: SLRRecord[];
@@ -20,6 +21,8 @@ interface ScreeningSectionProps {
   onUpdateScreening: (screening: Record<string, ScreeningDecision>) => void;
   protocol: SLRProtocol;
   aiConfig: any;
+  characteristics: import("../types/slr").StudyCharacteristic[];
+  onUpdateCharacteristics: (chars: import("../types/slr").StudyCharacteristic[]) => void;
 }
 
 export default function ScreeningSection({
@@ -28,6 +31,8 @@ export default function ScreeningSection({
   onUpdateScreening,
   protocol,
   aiConfig,
+  characteristics,
+  onUpdateCharacteristics,
 }: ScreeningSectionProps) {
   const [runningScreening, setRunningScreening] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -36,28 +41,29 @@ export default function ScreeningSection({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const screeningRunRef = useRef(false);
+  const screeningPool = records.slice(0, 100);
 
-  const includedCount = records.filter((r) => screening[r.id]?.agreed === true).length;
-  const excludedCount = records.filter((r) => screening[r.id]?.agreed === false).length;
-  const pendingCount = records.filter((r) => screening[r.id]?.agreed === undefined).length;
+  const includedCount = screeningPool.filter((r) => screening[r.id]?.agreed === true).length;
+  const excludedCount = screeningPool.filter((r) => screening[r.id]?.agreed === false).length;
+  const pendingCount = screeningPool.filter((r) => screening[r.id]?.agreed === undefined).length;
 
   // AI-assisted screening
   const runAIScreening = async () => {
     // State updates are asynchronous; the ref prevents two rapid clicks from
     // creating overlapping OpenRouter batches before the button disables.
-    if (records.length === 0 || screeningRunRef.current) return;
+    if (screeningPool.length === 0 || screeningRunRef.current) return;
     screeningRunRef.current = true;
     setRunningScreening(true);
     setProgress(0);
     setErrorMessage(null);
 
     const batchSize = 4;
-    const totalBatches = Math.ceil(records.length / batchSize);
+    const totalBatches = Math.ceil(screeningPool.length / batchSize);
     const nextScreening = { ...screening };
 
     try {
       for (let b = 0; b < totalBatches; b++) {
-        const batch = records.slice(b * batchSize, (b + 1) * batchSize);
+        const batch = screeningPool.slice(b * batchSize, (b + 1) * batchSize);
         const payload = batch.map((r) => ({
           id: r.id,
           title: r.title,
@@ -136,7 +142,7 @@ Return ONLY a JSON array:
     });
   };
 
-  const filteredRecords = records.filter((r) => {
+  const filteredRecords = screeningPool.filter((r) => {
     const dec = screening[r.id];
 
     if (activeTab === "included" && dec?.agreed !== true) return false;
@@ -180,14 +186,14 @@ Return ONLY a JSON array:
               Study Selection & Screening Review
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Screen records against the documented protocol criteria. Final inclusion and exclusion decisions require reviewer confirmation.
+              Select up to 100 records for further screening against the documented protocol criteria. Table 1 below records why each selected record was included or excluded.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={runAIScreening}
-              disabled={runningScreening || records.length === 0}
+              disabled={runningScreening || screeningPool.length === 0}
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
@@ -200,6 +206,13 @@ Return ONLY a JSON array:
         {runningScreening && (
           <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden border border-slate-200">
             <div style={{ width: `${progress}%` }} className="bg-indigo-600 h-full transition-all duration-300" />
+          </div>
+        )}
+
+        {records.length > 100 && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900">
+            <strong>Screening pool limited to 100 records.</strong>{" "}
+            {records.length - 100} additional records remain outside further screening until the pool is changed.
           </div>
         )}
 
@@ -219,7 +232,7 @@ Return ONLY a JSON array:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 flex-wrap">
             {[
-              { key: "all", label: `All Records (${records.length})` },
+              { key: "all", label: `Screening Pool (${screeningPool.length}/${records.length})` },
               { key: "included", label: `Included (${includedCount})` },
               { key: "excluded", label: `Excluded (${excludedCount})` },
               { key: "pending", label: `Pending (${pendingCount})` },
@@ -394,6 +407,15 @@ Return ONLY a JSON array:
           })
         )}
       </div>
+
+      <StudyCharacteristicsTable
+        screeningRecords={screeningPool}
+        characteristics={characteristics}
+        onUpdateCharacteristics={onUpdateCharacteristics}
+        screening={screening}
+        protocol={protocol}
+        aiConfig={aiConfig}
+      />
     </div>
   );
 }
