@@ -43,7 +43,7 @@ export default function ScreeningSection({
    *
    * IMPORTANT:
    * There is no artificial maximum number of included studies.
-   * Any downstream AI-processing limit must be handled separately.
+   * Any downstream Processing limit must be handled separately.
    */
   const includedRecords = screeningPool
     .filter(
@@ -149,7 +149,7 @@ export default function ScreeningSection({
     URL.revokeObjectURL(url);
   };
 
-  // AI-assisted screening
+  // Assisted screening
   const runAIScreening = async () => {
     /*
      * Prevent overlapping screening runs.
@@ -256,7 +256,7 @@ Return ONLY a JSON array:
         try {
           const text = await callAI(
             prompt,
-            "You are a medical librarian and PRISMA screening methodologist.",
+            "You are an expert systematic literature review screening methodologist.",
             aiConfig,
             1200
           );
@@ -267,7 +267,7 @@ Return ONLY a JSON array:
           if (Array.isArray(parsed)) {
             parsed.forEach((p: any) => {
               /*
-               * Only accept AI results belonging to
+               * Only accept results belonging to
                * the current batch.
                */
               const recordExists = batch.some(
@@ -327,18 +327,18 @@ Return ONLY a JSON array:
           }
         } catch (err: any) {
           console.warn(
-            "AI screening batch error:",
+            "Screening batch error:",
             err
           );
 
           /*
            * RETAINED AS REQUESTED:
-           * If an AI batch fails, unresolved records
+           * If an batch fails, unresolved records
            * are conservatively excluded.
            */
           if (!errorMessage) {
             setErrorMessage(
-              `AI screening could not complete this batch: ${
+              `Screening could not complete this batch: ${
                 err?.message ||
                 "Request failed"
               }. Unresolved records were conservatively excluded.`
@@ -347,7 +347,7 @@ Return ONLY a JSON array:
         }
 
         /*
-         * If a record did not receive a usable AI
+         * If a record did not receive a usable
          * screening result, retain the existing
          * conservative exclusion behavior.
          */
@@ -441,8 +441,8 @@ Return ONLY a JSON array:
             <p className="text-xs text-slate-500 mt-1">
               Screen every imported record using a strict
               record-evidence gate. All genuine screening
-              decisions are retained. Downstream AI processing
-              may be limited separately to control AI usage.
+              decisions are retained. Downstream processing
+              may be limited separately to control usage.
             </p>
           </div>
 
@@ -459,7 +459,7 @@ Return ONLY a JSON array:
 
               {runningScreening
                 ? `Screening (${progress}%)...`
-                : "AI Screen Records"}
+                : "Screen Records"}
             </button>
           </div>
         </div>
@@ -490,9 +490,9 @@ Return ONLY a JSON array:
 
             {includedCount > 99 && (
               <span className="text-amber-700 font-mono text-xs font-semibold">
-                {includedCount} included. Downstream AI
+                {includedCount} included. Downstream
                 processing should be limited separately
-                to control AI usage.
+                to control usage.
               </span>
             )}
           </div>
