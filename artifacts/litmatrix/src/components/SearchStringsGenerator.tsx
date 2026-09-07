@@ -269,7 +269,7 @@ Return ONLY a JSON array of objects with the exact structure:
 Ensure categories match one of: "Concept 1 (Population / Domain)" | "Concept 2 (Intervention / Technology)" | "Concept 3 (Outcome / Comparator)" | "MeSH & Controlled Vocabulary" | "General / Synonym".
 No preamble or extra commentary.`;
 
-      const text = await callAI(prompt, "You are a senior research librarian and PRISMA-S search string engineer.", aiConfig);
+      const text = await callAI(prompt, "You are a senior research librarian and PRISMA 2020 search string engineer.", aiConfig);
       const parsed = parseJSONLoose(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
         const newItems: KeywordItem[] = parsed.map((item: any, idx: number) => ({
@@ -441,7 +441,7 @@ Return ONLY a JSON array of objects with the exact schema:
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-              PRISMA 2020 Items 6 & 7 · PRISMA-S Item 7
+              PRISMA 2020 Items 6 & 7
             </div>
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5 flex items-center gap-2 flex-wrap">
               <span>Information Sources & Search Query Synthesizer</span>
@@ -704,7 +704,7 @@ Return ONLY a JSON array of objects with the exact schema:
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-indigo-600" />
             <span className="font-mono text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Search Limits & Date Range (PRISMA-S Item 7)
+                  Search Limits & Date Range (PRISMA 2020 Item 7)
             </span>
           </div>
 
