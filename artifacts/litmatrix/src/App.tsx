@@ -37,7 +37,6 @@ import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
-import { MAX_INCLUDED_RECORDS } from "./components/ScreeningSection";
 
 const neutralDiscussionDefaults: Pick<
   DiscussionSections,
@@ -307,12 +306,9 @@ export default function App() {
   }, [keysConfig]);
 
   // Derived included records
-  const includedRecords = useMemo(() => {
-    return records
-      .filter((r) => screening[r.id]?.agreed === true)
-      .sort((a, b) => (screening[b.id]?.score || 0) - (screening[a.id]?.score || 0))
-      .slice(0, MAX_INCLUDED_RECORDS);
-  }, [records, screening]);
+ const includedRecords = useMemo(() => {
+  return records.filter((r) => screening[r.id]?.agreed === true);
+}, [records, screening]);
 
   // Derived excluded records
   const excludedRecords = useMemo(() => {
