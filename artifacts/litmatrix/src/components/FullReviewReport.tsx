@@ -10,7 +10,6 @@ import {
   PrismaChecklistItem,
 } from "../types/slr";
 import { Download, Copy, Printer, Check, BookOpen, FileText, CheckCircle2, ShieldAlert, Sparkles, Layers, SlidersHorizontal, Quote } from "lucide-react";
-import PrismaDiagram from "./PrismaDiagram";
 
 interface FullReviewReportProps {
   protocol: SLRProtocol;
@@ -641,10 +640,6 @@ export default function FullReviewReport({
               Uploaded records: {counts.uploaded || counts.identifiedDb || 0}. After deduplication: {counts.afterDedup || counts.screened || 0}. Included: {includedRecords.length}. Excluded: {(counts.afterDedup || counts.screened || 0) - includedRecords.length}. The results describe the records retained by the configured screening criteria.
             </p>
 
-            {/* Illustrated Flow Diagram */}
-            <div className="pt-2">
-              <PrismaDiagram counts={counts} />
-            </div>
           </div>
 
           <div className="space-y-3 pt-2">

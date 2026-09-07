@@ -31,7 +31,6 @@ import MethodsProtocol from "./components/MethodsProtocol";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
-import PrismaDiagram from "./components/PrismaDiagram";
 import SynthesisSection from "./components/SynthesisSection";
 import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
@@ -79,7 +78,6 @@ import {
   Search,
   UploadCloud,
   CheckCircle,
-  GitBranch,
   BarChart2,
   Award,
   BookOpen,
@@ -490,12 +488,6 @@ export default function App() {
       icon: CheckCircle,
     },
     {
-      id: "diagram",
-      label: "PRISMA Flow Diagram",
-      badge: "Item 16a",
-      icon: GitBranch,
-    },
-    {
       id: "synthesis",
       label: "Narrative Synthesis",
       badge: "Items 13a–f",
@@ -708,27 +700,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 6: PRISMA 2020 Flow Diagram */}
+          {/* Stage 6: Narrative / Thematic Synthesis */}
           {activeStage === 5 && (
-            <div className="space-y-4">
-              <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
-                <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-                  PRISMA 2020 Item 16a
-                </div>
-                <h2 className="text-xl font-bold text-slate-900 mt-1">
-                  PRISMA 2020 Flow Diagram Generator
-                </h2>
-                <p className="text-xs text-slate-500 mt-1">
-                  Standardized flow of records through Identification, Screening, Eligibility, and Inclusion phases with SVG & High-Res PNG download.
-                </p>
-              </div>
-
-              <PrismaDiagram counts={prismaCounts} />
-            </div>
-          )}
-
-          {/* Stage 7: Narrative / Thematic Synthesis */}
-          {activeStage === 6 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
@@ -739,8 +712,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 8: GRADE Certainty of Evidence */}
-          {activeStage === 7 && (
+          {/* Stage 7: GRADE Certainty of Evidence */}
+          {activeStage === 6 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
@@ -751,8 +724,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 9: 4-Part Discussion */}
-          {activeStage === 8 && (
+          {/* Stage 8: 4-Part Discussion */}
+          {activeStage === 7 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -764,8 +737,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 10: Consolidated Manuscript */}
-          {activeStage === 9 && (
+          {/* Stage 9: Consolidated Manuscript */}
+          {activeStage === 8 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
