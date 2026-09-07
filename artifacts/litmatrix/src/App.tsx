@@ -704,6 +704,8 @@ export default function App() {
               includedRecords={includedRecords}
               characteristics={characteristics}
               onUpdateCharacteristics={setCharacteristics}
+              screening={screening}
+              protocol={protocol}
               aiConfig={activeAIConfig}
               onNavigateToScreening={() => setActiveStage(4)}
             />

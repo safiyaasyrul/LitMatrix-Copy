@@ -185,16 +185,16 @@ export default function FullReviewReport({
 
     md += `### 3.2 Characteristics of Included Studies Grouped by Category (Table 1)\n\n`;
     if (hasCountryData || hasSampleData) {
-      md += `| Study | Category / Paradigm | ${hasCountryData ? "Country | " : ""}${hasSampleData ? "Sample / Dataset | " : ""}Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding |\n`;
-      md += `| --- | --- | ${hasCountryData ? "--- | " : ""}${hasSampleData ? "--- | " : ""}--- | --- | --- | --- | --- |\n`;
+      md += `| Study | Category / Paradigm | ${hasCountryData ? "Country | " : ""}${hasSampleData ? "Sample / Dataset | " : ""}Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding | Acceptance Justification |\n`;
+      md += `| --- | --- | ${hasCountryData ? "--- | " : ""}${hasSampleData ? "--- | " : ""}--- | --- | --- | --- | --- | --- |\n`;
       characteristics.forEach((c) => {
-        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${hasCountryData ? `${c.country || "Not reported"} | ` : ""}${hasSampleData ? `${c.sampleSize || "N/A"} | ` : ""}${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
+        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${hasCountryData ? `${c.country || "Not reported"} | ` : ""}${hasSampleData ? `${c.sampleSize || "N/A"} | ` : ""}${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} | ${(c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.").replace(/\|/g, "/")} |\n`;
       });
     } else {
-      md += `| Study | Category / Paradigm | Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding |\n`;
-      md += `| --- | --- | --- | --- | --- | --- | --- |\n`;
+      md += `| Study | Category / Paradigm | Proposed Architecture / Technology | Baseline / Comparator | Outcome Metric | Study Design | Key Technical Finding | Acceptance Justification |\n`;
+      md += `| --- | --- | --- | --- | --- | --- | --- | --- |\n`;
       characteristics.forEach((c) => {
-        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} |\n`;
+        md += `| ${c.authorYear} | ${c.category || "Empirical"} | ${c.interventionOrFocus.replace(/\|/g, "/")} | ${(c.comparator || "Standard Baseline").replace(/\|/g, "/")} | ${c.primaryOutcome.replace(/\|/g, "/")} | ${(c.studyDesign || "Empirical Study").replace(/\|/g, "/")} | ${c.keyFinding.replace(/\|/g, "/")} | ${(c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified.").replace(/\|/g, "/")} |\n`;
       });
     }
     md += `\n`;
@@ -357,6 +357,7 @@ export default function FullReviewReport({
         <th>Primary Outcome Metric</th>
         <th>Study Design</th>
         <th>Key Technical Finding</th>
+         <th>Acceptance Justification</th>
       </tr>
     </thead>
     <tbody>
@@ -371,6 +372,7 @@ export default function FullReviewReport({
           <td><strong style="color: #065f46;">${c.primaryOutcome}</strong></td>
           <td>${c.studyDesign || "Empirical Study"}</td>
           <td>${c.keyFinding}</td>
+           <td>${c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
         </tr>
       `).join("")}
     </tbody>
@@ -651,6 +653,7 @@ export default function FullReviewReport({
                     <th className="p-2.5 font-bold">Primary Outcome Metric</th>
                     <th className="p-2.5 font-bold">Study Design</th>
                     <th className="p-2.5 font-bold">Key Technical Finding</th>
+                     <th className="p-2.5 font-bold">Acceptance Justification</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -665,6 +668,7 @@ export default function FullReviewReport({
                       <td className="p-2.5 font-mono font-bold text-emerald-800">{c.primaryOutcome}</td>
                       <td className="p-2.5 text-slate-600">{c.studyDesign || "Empirical Benchmark"}</td>
                       <td className="p-2.5 text-slate-700 italic">{c.keyFinding}</td>
+                       <td className="p-2.5 text-slate-700">{c.acceptanceJustification || "Acceptance justification not yet generated. Full-text eligibility was not verified."}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -43,6 +43,7 @@ export interface StudyCharacteristic {
   primaryOutcome: string;
   studyDesign?: string;
   keyFinding: string;
+  acceptanceJustification?: string;
 }
 
 export type QualityAssessmentFrameworkType =

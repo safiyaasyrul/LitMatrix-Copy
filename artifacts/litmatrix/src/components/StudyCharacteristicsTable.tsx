@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { SLRRecord, StudyCharacteristic } from "../types/slr";
+import { ScreeningDecision, SLRProtocol, SLRRecord, StudyCharacteristic } from "../types/slr";
 import {
   Sparkles,
   Download,
@@ -23,6 +23,8 @@ interface StudyCharacteristicsTableProps {
   includedRecords: SLRRecord[];
   characteristics: StudyCharacteristic[];
   onUpdateCharacteristics: (chars: StudyCharacteristic[]) => void;
+  screening: Record<string, ScreeningDecision>;
+  protocol: SLRProtocol;
   aiConfig: any;
   onNavigateToScreening?: () => void;
 }
@@ -36,12 +38,15 @@ export type TableColumnKey =
   | "comparator"
   | "primaryOutcome"
   | "studyDesign"
-  | "keyFinding";
+  | "keyFinding"
+  | "acceptanceJustification";
 
 export default function StudyCharacteristicsTable({
   includedRecords,
   characteristics,
   onUpdateCharacteristics,
+  screening,
+  protocol,
   aiConfig,
   onNavigateToScreening,
 }: StudyCharacteristicsTableProps) {
@@ -61,6 +66,7 @@ export default function StudyCharacteristicsTable({
     primaryOutcome: true,
     studyDesign: true,
     keyFinding: true,
+    acceptanceJustification: true,
   });
 
   const [showColumnPicker, setShowColumnPicker] = useState(false);
@@ -78,6 +84,7 @@ export default function StudyCharacteristicsTable({
         primaryOutcome: true,
         studyDesign: true,
         keyFinding: true,
+        acceptanceJustification: true,
       });
       setGroupByCategory(true);
     } else if (preset === "extended") {
@@ -91,6 +98,7 @@ export default function StudyCharacteristicsTable({
         primaryOutcome: true,
         studyDesign: true,
         keyFinding: true,
+        acceptanceJustification: true,
       });
       setGroupByCategory(true);
     } else {
@@ -104,6 +112,7 @@ export default function StudyCharacteristicsTable({
         primaryOutcome: true,
         studyDesign: true,
         keyFinding: true,
+        acceptanceJustification: true,
       });
     }
   };
@@ -152,6 +161,9 @@ export default function StudyCharacteristicsTable({
         primaryOutcome: "Not reported",
         studyDesign: "Not established from citation metadata",
         keyFinding: abstract ? abstract.slice(0, 240) : "No abstract available; full text is required.",
+        acceptanceJustification:
+          screening[r.id]?.reason ||
+          "Marked for inclusion at title/abstract screening because the available citation appeared relevant to the review scope. Full-text eligibility was not verified.",
       };
     });
 
@@ -171,10 +183,16 @@ export default function StudyCharacteristicsTable({
       year: r.year,
       source: r.source,
       abstract: (r.abstract || "").slice(0, 600),
+      recordedScreeningRationale: screening[r.id]?.reason || "Not recorded",
     }));
 
     const prompt = `Extract structured study characteristics from the supplied citation metadata and abstracts.
 Create concise thematic categories that emerge from the actual studies. Do not force clinical, software-architecture, or machine-learning categories unless those concepts are explicitly central to the study.
+
+Review title: ${protocol.title}
+Review scope: Population/domain = ${protocol.objectivesPICO.population || "Not specified"}; intervention/focus = ${protocol.objectivesPICO.intervention || "Not specified"}; comparator = ${protocol.objectivesPICO.comparator || "Not specified"}; outcomes = ${protocol.objectivesPICO.outcomes || "Not specified"}; study designs = ${protocol.objectivesPICO.studyDesigns || "Not specified"}
+Inclusion criteria: ${(protocol.eligibilityCriteria.inclusion || []).join("; ") || "Not specified"}
+Exclusion criteria: ${(protocol.eligibilityCriteria.exclusion || []).join("; ") || "Not specified"}
 
 EVIDENCE RULES:
 - Use only facts stated in the supplied title, abstract, authors, year, and source.
@@ -182,6 +200,9 @@ EVIDENCE RULES:
 - If a field cannot be established, write exactly "Not reported".
 - Do not turn background statements or proposed future work into study findings.
 - Keep each recordId unchanged and return one row per supplied record.
+- For acceptanceJustification, identify the specific available title/abstract evidence that aligns with the review scope or inclusion criteria.
+- Describe acceptance only as a title/abstract-stage decision. Never claim full-text retrieval, independent review, adjudication, or final eligibility verification.
+- End every acceptanceJustification with exactly: "Full-text eligibility was not verified."
 
 Fields to extract:
 1. recordId: exact string from recordId
@@ -195,6 +216,7 @@ Fields to extract:
 9. primaryOutcome: Explicitly reported outcome or evaluated quantity
 10. studyDesign: Explicit study design or method
 11. keyFinding: Concise finding stated by the abstract, without adding interpretation
+12. acceptanceJustification: One or two manuscript-ready sentences explaining why the record was accepted for this review at title/abstract screening
 
 Studies:
 ${JSON.stringify(payload)}
@@ -205,7 +227,21 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
       const text = await callAI(prompt, "You are a senior data extraction specialist for systematic reviews.", aiConfig);
       const parsed = parseJSONLoose(text);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        onUpdateCharacteristics(parsed);
+        const parsedById = new Map(parsed.map((item: StudyCharacteristic) => [item.recordId, item]));
+        const normalized = includedRecords.map((record) => {
+          const item = parsedById.get(record.id);
+          if (!item) {
+            throw new Error(`AI response omitted included record ${record.id}.`);
+          }
+          return {
+            ...item,
+            acceptanceJustification:
+              item.acceptanceJustification ||
+              screening[record.id]?.reason ||
+              "Accepted at title/abstract screening based on apparent alignment with the review scope. Full-text eligibility was not verified.",
+          };
+        });
+        onUpdateCharacteristics(normalized);
       } else {
         throw new Error("Could not parse AI response as JSON array.");
       }
@@ -237,6 +273,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
       primaryOutcome: "Not reported",
       studyDesign: "Not reported",
       keyFinding: "Not reported",
+      acceptanceJustification: "Manually added row; acceptance justification has not been documented.",
     };
     onUpdateCharacteristics([...characteristics, newRow]);
   };
@@ -258,6 +295,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
       if (k === "primaryOutcome") return "Primary Outcome Metric";
       if (k === "studyDesign") return "Study Design / Evaluation Type";
       if (k === "keyFinding") return "Key Finding";
+      if (k === "acceptanceJustification") return "Acceptance Justification";
       return k;
     })];
 
@@ -297,6 +335,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
     primaryOutcome: "Primary Outcome Metric",
     studyDesign: "Study Design",
     keyFinding: "Key Finding",
+    acceptanceJustification: "Acceptance Justification",
   };
 
   return (
@@ -325,7 +364,7 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
               Characteristics of Included Studies Matrix
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Construct Table 1 tailored to your review domain. Group by categories or paradigms, and customize or drop inapplicable columns such as country or sample size.
+              Construct manuscript Table 1 with study characteristics and an evidence-grounded explanation of why each record was accepted at title/abstract screening.
             </p>
           </div>
 
@@ -515,6 +554,9 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
                   {visibleColumns.primaryOutcome && <th className="py-3 px-3 font-bold">Primary Outcome / Metric</th>}
                   {visibleColumns.studyDesign && <th className="py-3 px-3 font-bold">Study Design</th>}
                   {visibleColumns.keyFinding && <th className="py-3 px-3 font-bold">Key Finding</th>}
+                  {visibleColumns.acceptanceJustification && (
+                    <th className="py-3 px-3 font-bold">Acceptance Justification</th>
+                  )}
                   <th className="py-3 px-3 font-bold text-right">Actions</th>
                 </tr>
               </thead>
@@ -680,6 +722,22 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
                                 />
                               ) : (
                                 `"${c.keyFinding}"`
+                              )}
+                            </td>
+                          )}
+
+                          {visibleColumns.acceptanceJustification && (
+                            <td className="py-3 px-3 text-slate-700 align-top min-w-[260px] max-w-[360px]">
+                              {isEditing ? (
+                                <textarea
+                                  value={c.acceptanceJustification || ""}
+                                  onChange={(e) => handleUpdateRow(idx, "acceptanceJustification", e.target.value)}
+                                  className="w-full p-1 border rounded text-xs"
+                                  rows={4}
+                                />
+                              ) : (
+                                c.acceptanceJustification ||
+                                "Acceptance justification not yet generated. Full-text eligibility was not verified."
                               )}
                             </td>
                           )}
@@ -862,6 +920,22 @@ Return ONLY a JSON array of objects conforming to the fields above, matching eac
                               />
                             ) : (
                               `"${c.keyFinding}"`
+                            )}
+                          </td>
+                        )}
+
+                        {visibleColumns.acceptanceJustification && (
+                          <td className="py-3 px-3 text-slate-700 align-top min-w-[260px] max-w-[360px]">
+                            {isEditing ? (
+                              <textarea
+                                value={c.acceptanceJustification || ""}
+                                onChange={(e) => handleUpdateRow(idx, "acceptanceJustification", e.target.value)}
+                                className="w-full p-1 border rounded text-xs"
+                                rows={4}
+                              />
+                            ) : (
+                              c.acceptanceJustification ||
+                              "Acceptance justification not yet generated. Full-text eligibility was not verified."
                             )}
                           </td>
                         )}
