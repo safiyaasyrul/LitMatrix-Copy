@@ -635,7 +635,7 @@ export default function FullReviewReport({
           </h2>
 
           <div className="space-y-3">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow Diagram</h3>
+            <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow of Records</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
               Uploaded records: {counts.uploaded || counts.identifiedDb || 0}. After deduplication: {counts.afterDedup || counts.screened || 0}. Included: {includedRecords.length}. Excluded: {(counts.afterDedup || counts.screened || 0) - includedRecords.length}. The results describe the records retained by the configured screening criteria.
             </p>

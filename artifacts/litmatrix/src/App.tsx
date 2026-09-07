@@ -532,7 +532,7 @@ export default function App() {
 
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white shadow-xs">
-                <GitBranch className="w-4 h-4" />
+                <ClipboardCheck className="w-4 h-4" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
