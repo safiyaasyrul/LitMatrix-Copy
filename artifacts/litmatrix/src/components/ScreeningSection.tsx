@@ -84,17 +84,6 @@ export default function ScreeningSection({
       `## Review`,
       protocol.title || "Untitled systematic review",
       ``,
-      `## Study-selection summary`,
-      `- Uploaded records: ${screeningPool.length + dupesRemoved}`,
-      `- Records after deduplication: ${afterDedupCount}`,
-      `- Records with screening decisions: ${screenedDecisionCount}`,
-      `- Records pending screening: ${pendingCount}`,
-      `- Records included in the bounded synthesis set: ${includedCount}`,
-      `- Records excluded: ${excludedCount}`,
-      `- Maximum synthesis set: ${MAX_INCLUDED_RECORDS} records`,
-      ``,
-      `All records after deduplication are assessed against the documented protocol. Inclusion requires explicit support in the available record evidence. Missing or ambiguous evidence is not treated as confirmation of eligibility. Full-text eligibility is not claimed.`,
-      ``,
       `## Exclusion reasons`,
       ...(Object.entries(exclusionBreakdown).length > 0
         ? Object.entries(exclusionBreakdown).map(([reason, count]) => `- ${reason}: ${count}`)
