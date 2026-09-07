@@ -29,7 +29,6 @@ import {
   BLANK_PROTOCOL,
 } from "./data/sampleDataset";
 
-import PrismaChecklistAudit from "./components/PrismaChecklistAudit";
 import MethodsProtocol from "./components/MethodsProtocol";
 import SearchStringsGenerator from "./components/SearchStringsGenerator";
 import RecordsImport from "./components/RecordsImport";
@@ -427,12 +426,6 @@ export default function App() {
       icon: Key,
     },
     {
-      id: "checklist",
-      label: "PRISMA 2020 Checklist",
-      badge: "27 Items",
-      icon: ClipboardCheck,
-    },
-    {
       id: "protocol",
       label: "Protocol & PICO Objectives",
       badge: "Items 4, 5, 8–15",
@@ -578,7 +571,7 @@ export default function App() {
               PRISMA 2020 Workflow
             </span>
             <span className="text-[10px] font-mono bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded">
-              13 Stages
+               12 Stages
             </span>
           </div>
 
@@ -646,21 +639,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 2: PRISMA 2020 checklist audit */}
+          {/* Stage 2: Protocol & PICO Objectives */}
           {activeStage === 1 && (
-            <PrismaChecklistAudit
-              checklist={checklist}
-              onUpdateItem={handleUpdateChecklistItem}
-              prismaSChecklist={prismaSChecklist}
-              onUpdatePrismaSItem={handleUpdatePrismaSItem}
-              rosesChecklist={rosesChecklist}
-              onUpdateRosesItem={handleUpdateRosesItem}
-              onNavigateStage={(idx) => setActiveStage(idx)}
-            />
-          )}
-
-          {/* Stage 3: Protocol & PICO Objectives */}
-          {activeStage === 2 && (
             <MethodsProtocol
               protocol={protocol}
               onUpdateProtocol={setProtocol}
@@ -668,8 +648,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 4: Information Sources & Search Strings */}
-          {activeStage === 3 && (
+          {/* Stage 3: Information Sources & Search Strings */}
+          {activeStage === 2 && (
             <SearchStringsGenerator
               protocol={protocol}
               onUpdateProtocol={setProtocol}
@@ -677,8 +657,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 5: Records Import & Deduplication */}
-          {activeStage === 4 && (
+          {/* Stage 4: Records Import & Deduplication */}
+          {activeStage === 3 && (
             <RecordsImport
               records={records}
               onUpdateRecords={setRecords}
@@ -690,8 +670,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 6: AI & Dual-Reviewer Screening */}
-          {activeStage === 5 && (
+          {/* Stage 5: AI & Dual-Reviewer Screening */}
+          {activeStage === 4 && (
             <ScreeningSection
               records={records}
               screening={screening}
@@ -701,8 +681,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 7: PRISMA 2020 Flow Diagram */}
-          {activeStage === 6 && (
+          {/* Stage 6: PRISMA 2020 Flow Diagram */}
+          {activeStage === 5 && (
             <div className="space-y-4">
               <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs">
                 <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
@@ -720,55 +700,55 @@ export default function App() {
             </div>
           )}
 
-          {/* Stage 8: Study Characteristics (Table 1) */}
-          {activeStage === 7 && (
+          {/* Stage 7: Study Characteristics (Table 1) */}
+          {activeStage === 6 && (
             <StudyCharacteristicsTable
               includedRecords={includedRecords}
               characteristics={characteristics}
               onUpdateCharacteristics={setCharacteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(4)}
             />
           )}
 
-          {/* Stage 9: Risk of Bias (Table 2) */}
-          {activeStage === 8 && (
+          {/* Stage 8: Risk of Bias (Table 2) */}
+          {activeStage === 7 && (
             <RiskOfBiasSection
               includedRecords={includedRecords}
               riskOfBias={riskOfBias}
               onUpdateRiskOfBias={setRiskOfBias}
               aiConfig={activeAIConfig}
               characteristics={characteristics}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(4)}
             />
           )}
 
-          {/* Stage 10: Narrative / Thematic Synthesis */}
-          {activeStage === 9 && (
+          {/* Stage 9: Narrative / Thematic Synthesis */}
+          {activeStage === 8 && (
             <SynthesisSection
               synthesis={synthesis}
               onUpdateSynthesis={setSynthesis}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(4)}
             />
           )}
 
-          {/* Stage 11: GRADE Certainty of Evidence */}
-          {activeStage === 10 && (
+          {/* Stage 10: GRADE Certainty of Evidence */}
+          {activeStage === 9 && (
             <CertaintyGradeSection
               gradeItems={gradeItems}
               onUpdateGrade={setGradeItems}
               includedRecords={includedRecords}
               characteristics={characteristics}
               aiConfig={activeAIConfig}
-              onNavigateToScreening={() => setActiveStage(5)}
+              onNavigateToScreening={() => setActiveStage(4)}
             />
           )}
 
-          {/* Stage 12: 4-Part Discussion */}
-          {activeStage === 11 && (
+          {/* Stage 11: 4-Part Discussion */}
+          {activeStage === 10 && (
             <DiscussionSection
               discussion={discussion}
               onUpdateDiscussion={setDiscussion}
@@ -780,8 +760,8 @@ export default function App() {
             />
           )}
 
-          {/* Stage 13: Consolidated Manuscript */}
-          {activeStage === 12 && (
+          {/* Stage 12: Consolidated Manuscript */}
+          {activeStage === 11 && (
             <FullReviewReport
               protocol={protocol}
               includedRecords={includedRecords}
