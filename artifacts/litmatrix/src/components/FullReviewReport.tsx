@@ -25,6 +25,65 @@ interface FullReviewReportProps {
   counts: any;
 }
 
+interface LandscapeCount {
+  label: string;
+  count: number;
+}
+
+interface EvidenceLandscape {
+  yearCounts: LandscapeCount[];
+  sourceCounts: LandscapeCount[];
+  themeCounts: LandscapeCount[];
+}
+
+const countLabels = (labels: string[]) =>
+  Array.from(
+    labels.reduce((counts, label) => {
+      counts.set(label, (counts.get(label) || 0) + 1);
+      return counts;
+    }, new Map<string, number>())
+  )
+    .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+const getEvidenceLandscape = (records: SLRRecord[]): EvidenceLandscape => {
+  const themeDefinitions = [
+    {
+      label: "Methods, modelling, and design",
+      terms: ["model", "algorithm", "simulation", "cfd", "neural", "machine learning", "optimization", "framework", "design"],
+    },
+    {
+      label: "Technologies, interventions, and decarbonization",
+      terms: ["fuel", "vessel", "propulsion", "energy", "technology", "retrofit", "renewable", "carbon", "decarbon", "emission"],
+    },
+    {
+      label: "Performance, efficiency, and reported outcomes",
+      terms: ["performance", "efficiency", "reduction", "cost", "accuracy", "outcome", "validation", "result", "impact"],
+    },
+  ];
+
+  const themes = records.map((record) => {
+    const searchableText = `${record.title} ${record.abstract || ""}`.toLowerCase();
+    const scores = themeDefinitions.map((theme) =>
+      theme.terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0)
+    );
+    const highestScore = Math.max(...scores);
+    return highestScore > 0
+      ? themeDefinitions[scores.indexOf(highestScore)].label
+      : "Other reported themes";
+  });
+
+  return {
+    yearCounts: countLabels(records.map((record) => record.year?.trim() || "Undated record"))
+      .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
+    sourceCounts: countLabels(records.map((record) => record.source?.trim() || "Other venues")),
+    themeCounts: countLabels(themes),
+  };
+};
+
+const summarizeLandscape = (counts: LandscapeCount[], limit = 4) =>
+  counts.slice(0, limit).map((item) => `${item.label} (${item.count})`).join(", ");
+
 export default function FullReviewReport({
   protocol,
   includedRecords,
@@ -38,6 +97,10 @@ export default function FullReviewReport({
   counts,
 }: FullReviewReportProps) {
   const [copied, setCopied] = useState(false);
+  const evidenceLandscape = getEvidenceLandscape(includedRecords);
+  const recordGroundedRationale = includedRecords.length > 0
+    ? `This review examines ${protocol.title || "the defined topic"} through ${includedRecords.length} included records. The record-level evidence is concentrated in ${summarizeLandscape(evidenceLandscape.themeCounts) || "the themes reported in the included literature"}, covering the methods, technologies, and outcomes described by those records.`
+    : protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`;
 
   const questions = protocol.primaryResearchQuestions || [
     "RQ1: What evidence directly addresses the review topic?",
@@ -86,17 +149,6 @@ export default function FullReviewReport({
     return `The systematic review protocol was formulated around the PICO framework. The target population (P) comprises ${p}. The investigated intervention (I) encompasses ${i}. The comparison benchmark (C) consists of ${c}. The primary outcomes of interest (O) evaluate ${o}, with eligible study designs (S) defined as ${s}.`;
   };
 
-  // Group characteristics by category
-  const categoriesMap = new Map<string, StudyCharacteristic[]>();
-  characteristics.forEach((c) => {
-    const cat = c.category || "Uncategorized evidence";
-    if (!categoriesMap.has(cat)) {
-      categoriesMap.set(cat, []);
-    }
-    categoriesMap.get(cat)!.push(c);
-  });
-  const characteristicByRecordId = new Map(characteristics.map((c) => [c.recordId, c]));
-
   const getArticleRecord = (record: SLRRecord) => {
     const authors = record.authors?.join(", ") || "Author not reported";
     const journal = record.source || "Journal not reported";
@@ -111,26 +163,20 @@ export default function FullReviewReport({
 
   // Structured Abstract generator
   const getAbstractContent = () => {
-    const bg = protocol.introductionRationale || `This review examines the evidence relevant to ${protocol.title || "the defined topic"}.`;
+    const bg = recordGroundedRationale;
     const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
     const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
     const meth = `The review draws on records from ${searchDbs}. Screening decisions follow predefined eligibility criteria, and the included evidence is organized for narrative and thematic synthesis.`;
     
-    // Generate synthesized category summary
-    const catSummaries: string[] = [];
-    categoriesMap.forEach((studies, cat) => {
-      const authors = studies.map((s) => s.authorYear).join(" and ");
-      catSummaries.push(`The ${cat} theme includes ${authors}`);
-    });
-
-    const res = `${counts.screened || 0} records have recorded screening decisions; ${includedRecords.length} are marked for inclusion at that stage. ${catSummaries.join(". ")}. No pooled quantitative analysis was performed.`;
-    const concl = `The available evidence is summarized narratively. Eligibility, extracted characteristics, and methodological judgments should be verified against full texts before drawing definitive conclusions.`;
+    const res = `${includedRecords.length} records were retained for synthesis from ${counts.afterDedup || counts.screened || includedRecords.length} records after deduplication. Publication years were distributed as follows: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The most represented source venues were ${summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}, and the dominant record-level themes were ${summarizeLandscape(evidenceLandscape.themeCounts) || "not specified"}.`;
+    const concl = `The included literature presents a narrative and thematic evidence base organized around the reported methods, technologies, and outcomes. Interpretation is anchored to the findings and publication characteristics of the included records.`;
     const keywords = [
       protocol.reviewType || "Systematic Literature Review",
       "Evidence Synthesis",
-       "Narrative Synthesis",
-       "Study Characteristics",
-      ...Array.from(categoriesMap.keys()).slice(0, 3),
+      "Narrative Synthesis",
+      "Publication Trends",
+      "Thematic Evidence Landscape",
+      ...evidenceLandscape.themeCounts.slice(0, 2).map((theme) => theme.label),
     ].filter(Boolean);
 
     return { bg, obj, meth, res, concl, keywords };
@@ -154,13 +200,13 @@ export default function FullReviewReport({
 
     md += `## 1. Introduction and Academic Rationale\n\n`;
     md += `### 1.1 Scientific Rationale and Motivation for Conducting the Review\n`;
-    md += `${protocol.introductionRationale || "The necessity of undertaking this systematic literature review arises from the rapid expansion of technological approaches, divergent empirical performance claims in prior studies, and the absence of a consolidated synthesis evaluating comparative efficacy under standardized benchmarks."}\n\n`;
+    md += `${recordGroundedRationale}\n\n`;
 
-    if (protocol.backgroundContext) {
+    if (protocol.backgroundContext && includedRecords.length === 0) {
       md += `In theoretical and domain context, ${protocol.backgroundContext}\n\n`;
     }
 
-    if (protocol.knowledgeGap) {
+    if (protocol.knowledgeGap && includedRecords.length === 0) {
       md += `Regarding the existing literature gap, ${protocol.knowledgeGap}\n\n`;
     }
 
@@ -176,7 +222,7 @@ export default function FullReviewReport({
     md += `### 2.2 Eligibility Criteria\n`;
     const incText = protocol.eligibilityCriteria.inclusion.join(", ");
     const excText = protocol.eligibilityCriteria.exclusion.join(", ");
-    md += `Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Conversely, primary studies were excluded if they exhibited ${excText}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.\n\n`;
+    md += `Records were eligible for inclusion if they satisfied predefined criteria encompassing ${incText}. Records were excluded if they exhibited ${excText}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.\n\n`;
 
     md += `### 2.3 Information Sources and Search Strategy\n`;
     const searchDatabases = protocol.searchStrategies.map((s) => s.database).join(", ");
@@ -198,7 +244,23 @@ export default function FullReviewReport({
     });
     md += `\n`;
 
-    md += `### 3.3 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
+    md += `### 3.3 Evidence Landscape: Publication Trends, Source Venues, and Themes\n\n`;
+    md += `The ${includedRecords.length} included records were distributed across the following publication years: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The represented source venues were ${summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}. Record-level text most frequently addressed ${summarizeLandscape(evidenceLandscape.themeCounts) || "themes not specified"}.\n\n`;
+    md += `| Publication year | Records |\n| --- | ---: |\n`;
+    evidenceLandscape.yearCounts.forEach((item) => {
+      md += `| ${item.label} | ${item.count} |\n`;
+    });
+    md += `\n| Source venue | Records |\n| --- | ---: |\n`;
+    evidenceLandscape.sourceCounts.forEach((item) => {
+      md += `| ${item.label.replace(/\|/g, "/")} | ${item.count} |\n`;
+    });
+    md += `\n| Record-level theme | Records |\n| --- | ---: |\n`;
+    evidenceLandscape.themeCounts.forEach((item) => {
+      md += `| ${item.label.replace(/\|/g, "/")} | ${item.count} |\n`;
+    });
+    md += `\n`;
+
+    md += `### 3.4 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
     synthesis.subtopics.forEach((sub) => {
       md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
@@ -208,7 +270,7 @@ export default function FullReviewReport({
     }
 
     if (gradeItems.length > 0) {
-       md += `### 3.4 Optional Certainty of Evidence Assessment\n\n`;
+       md += `### 3.5 Optional Certainty of Evidence Assessment\n\n`;
       md += `A certainty assessment was included only because it was explicitly populated by the reviewer. It was not generated automatically.\n\n`;
       md += `| Evaluated Outcome | Studies | Risk / Rigor | Inconsistency | Indirectness | Imprecision | Publication Bias | Certainty Rating | Synthesis Summary |\n`;
       md += `| --- | --- | --- | --- | --- | --- | --- | --- | --- |\n`;
@@ -217,7 +279,7 @@ export default function FullReviewReport({
       });
       md += `\n`;
     } else {
-       md += `### 3.4 Certainty Assessment\n\n`;
+       md += `### 3.5 Certainty Assessment\n\n`;
        md += `The narrative synthesis does not include a certainty rating.\n\n`;
     }
 
@@ -304,10 +366,10 @@ export default function FullReviewReport({
   <h2>1. Introduction and Academic Rationale</h2>
   
   <h3>1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
-   <p>${protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}</p>
+   <p>${recordGroundedRationale}</p>
   
-  ${protocol.backgroundContext ? `<p>In theoretical and domain context, ${protocol.backgroundContext}</p>` : ""}
-  ${protocol.knowledgeGap ? `<p>Regarding the existing literature gap, ${protocol.knowledgeGap}</p>` : ""}
+   ${protocol.backgroundContext && includedRecords.length === 0 ? `<p>In theoretical and domain context, ${protocol.backgroundContext}</p>` : ""}
+   ${protocol.knowledgeGap && includedRecords.length === 0 ? `<p>Regarding the existing literature gap, ${protocol.knowledgeGap}</p>` : ""}
 
   <h3>1.2 Review Objectives and Research Questions</h3>
   <p>The overarching objective of this investigation is ${objectives.map((obj) => `to ${obj.toLowerCase().replace(/^to\s+/, "")}`).join(", as well as ")}. In addressing this mandate, the systematic review addresses three core research questions: ${questions.map((q, i) => `Research question ${i + 1} investigates ${q.replace(/^RQ\d+:\s*/, "")}`).join(". Furthermore, ")}.</p>
@@ -318,7 +380,7 @@ export default function FullReviewReport({
   <p>${getFrameworkNarrative()}</p>
 
   <h3>2.2 Eligibility Criteria</h3>
-  <p>Studies were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Conversely, primary studies were excluded if they exhibited ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.</p>
+  <p>Records were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded if they exhibited ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.</p>
 
   <h3>2.3 Information Sources and Search Strategy</h3>
   <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
@@ -331,7 +393,22 @@ export default function FullReviewReport({
   <h3>3.1 Study Selection and Flow of Evidence</h3>
   <p>${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. The results describe the records retained by the configured screening criteria.</p>
 
-  <h3>3.2 Comprehensive Screening Decision Table (Table 1)</h3>
+  <h3>3.2 Evidence Landscape: Publication Trends, Source Venues, and Themes</h3>
+  <p>The ${includedRecords.length} included records were distributed across the following publication years: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The represented source venues were ${summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}. Record-level text most frequently addressed ${summarizeLandscape(evidenceLandscape.themeCounts) || "themes not specified"}.</p>
+  <table>
+    <thead><tr><th>Publication year</th><th>Records</th></tr></thead>
+    <tbody>${evidenceLandscape.yearCounts.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
+  </table>
+  <table>
+    <thead><tr><th>Source venue</th><th>Records</th></tr></thead>
+    <tbody>${evidenceLandscape.sourceCounts.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
+  </table>
+  <table>
+    <thead><tr><th>Record-level theme</th><th>Records</th></tr></thead>
+    <tbody>${evidenceLandscape.themeCounts.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
+  </table>
+
+  <h3>3.3 Comprehensive Screening Decision Table (Table 1)</h3>
   <div class="table-caption">Table 1: Article information, screening status, and academic screening justification</div>
   <table>
     <thead>
@@ -354,7 +431,7 @@ export default function FullReviewReport({
     </tbody>
   </table>
 
-  <h3>3.3 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+  <h3>3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
   ${synthesis.subtopics.map((st) => `
     <h4>${st.title}</h4>
     <p>${st.prose}</p>
@@ -501,14 +578,14 @@ export default function FullReviewReport({
           <div className="space-y-2">
             <h3 className="font-bold text-slate-900 text-sm font-mono">1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-              {protocol.introductionRationale || `This review examines evidence relevant to ${protocol.title || "the defined topic"}.`}
+              {recordGroundedRationale}
             </p>
-            {protocol.backgroundContext && (
+            {protocol.backgroundContext && includedRecords.length === 0 && (
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
                 In theoretical and domain context, {protocol.backgroundContext}
               </p>
             )}
-            {protocol.knowledgeGap && (
+            {protocol.knowledgeGap && includedRecords.length === 0 && (
               <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
                 Regarding the existing literature gap, {protocol.knowledgeGap}
               </p>
@@ -536,7 +613,7 @@ export default function FullReviewReport({
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.2 Eligibility Criteria</h3>
             <p className="text-justify">
-              Studies were eligible for inclusion if they satisfied predefined criteria encompassing {protocol.eligibilityCriteria.inclusion.join(", ")}. Conversely, primary studies were excluded if they exhibited {protocol.eligibilityCriteria.exclusion.join(", ")}. Synthesis grouping was structured around {protocol.eligibilityCriteria.groupingForSynthesis || "thematic technological categories"}.
+              Records were eligible for inclusion if they satisfied predefined criteria encompassing {protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded if they exhibited {protocol.eligibilityCriteria.exclusion.join(", ")}. Synthesis grouping was structured around {protocol.eligibilityCriteria.groupingForSynthesis || "thematic technological categories"}.
             </p>
 
             <h3 className="font-bold text-slate-900 text-sm font-mono">2.3 Information Sources and Search Strategy</h3>
@@ -570,6 +647,32 @@ export default function FullReviewReport({
             </div>
           </div>
 
+          <div className="space-y-3 pt-2">
+            <h3 className="font-bold text-slate-900 text-sm font-mono">3.2 Evidence Landscape: Publication Trends, Source Venues, and Themes</h3>
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
+              The {includedRecords.length} included records were distributed across the following publication years: {summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The represented source venues were {summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}. Record-level text most frequently addressed {summarizeLandscape(evidenceLandscape.themeCounts) || "themes not specified"}.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              {[
+                ["Publication year", evidenceLandscape.yearCounts],
+                ["Source venue", evidenceLandscape.sourceCounts],
+                ["Record-level theme", evidenceLandscape.themeCounts],
+              ].map(([label, values]) => (
+                <div key={label as string} className="border border-slate-200 rounded-lg overflow-hidden">
+                  <div className="bg-slate-50 px-3 py-2 text-[10px] font-mono font-bold text-slate-800">{label as string}</div>
+                  <div className="divide-y divide-slate-100">
+                    {(values as LandscapeCount[]).map((item) => (
+                      <div key={item.label} className="flex items-center justify-between gap-2 px-3 py-2 text-[11px]">
+                        <span className="text-slate-700">{item.label}</span>
+                        <span className="font-mono font-semibold text-slate-900">{item.count}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Table 1: Characteristics Grouped by Category */}
           <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between">
@@ -577,7 +680,7 @@ export default function FullReviewReport({
               Table 1: Comprehensive Screening Decision Table
               </div>
               <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                {characteristics.length} Primary Studies
+                {includedRecords.length} Included Records
               </span>
             </div>
 
@@ -609,9 +712,9 @@ export default function FullReviewReport({
             </div>
           </div>
 
-          {/* Narrative Synthesis with Cross-Author Similarities */}
+           {/* Narrative Synthesis with Cross-Author Similarities */}
           <div className="space-y-3 pt-4">
-             <h3 className="font-bold text-slate-900 text-sm font-mono">3.3 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+              <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
             {synthesis.subtopics.map((st, i) => (
               <div key={i} className="space-y-1">
                 <h4 className="font-bold text-xs text-slate-900 font-mono">{st.title}</h4>

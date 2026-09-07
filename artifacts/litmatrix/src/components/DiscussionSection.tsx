@@ -44,19 +44,19 @@ export default function DiscussionSection({
         const a1 = studies[0];
         const a2 = studies[1];
         categoryDiscussions.push(
-          `Within the ${catName} theme, ${a1.authorYear} reported ${a1.keyFinding} ${a2.authorYear} reported ${a2.keyFinding} Direct comparison is limited to the information available in the extracted fields.`
+          `Within the ${catName} theme, ${a1.authorYear}: ${a1.keyFinding}. ${a2.authorYear}: ${a2.keyFinding}. The comparison considers the findings reported by both records.`
         );
       } else if (studies.length === 1) {
         const s = studies[0];
         categoryDiscussions.push(
-          `Within the ${catName} theme, ${s.authorYear} reported ${s.keyFinding}`
+          `Within the ${catName} theme, ${s.authorYear}: ${s.keyFinding}.`
         );
       }
     });
 
     const crossAuthorText = categoryDiscussions.length > 0
       ? categoryDiscussions.join(" ")
-      : "The available extracted characteristics are insufficient for a reliable cross-study comparison.";
+      : "The included record-level findings provide the basis for a narrative cross-study comparison.";
 
     const generated: DiscussionSections = {
       item23aGeneralInterpretation: `The records marked for inclusion address ${topic} through several thematic approaches. ${crossAuthorText} These observations are narrative only and do not establish a pooled direction or magnitude of effect.`,
@@ -113,7 +113,7 @@ STRICT WRITING RULES:
 
 Structure the response into 4 distinct sections:
 1. item23aGeneralInterpretation: Deep interpretation of findings directly citing included studies, grouping by category, discussing similarities among authors in the same category, and contextualizing within existing literature.
-2. item23bLimitationsOfEvidence: Critical evaluation of limitations within the primary studies (e.g., experimental setups, sample/data adequacy, measurement limitations, lack of external validation).
+2. item23bLimitationsOfEvidence: Critical evaluation of limitations within the included studies (e.g., experimental setups, sample/data adequacy, measurement limitations, lack of external validation).
 3. item23cLimitationsOfReviewProcess: Neutral methodological context describing the predefined scope, eligibility criteria, screening approach, and narrative or thematic organization. Do not list missing databases, search dates, language restrictions, reviewer actions, or unavailable verification steps.
 4. item23dImplications: Cautious implications for practice and future research appropriate to the review topic.
 
@@ -198,7 +198,7 @@ Return ONLY a JSON object:
               className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {generating ? "Drafting Discussion..." : "AI Generate Discussion (from Records)"}
+              {generating ? "Drafting Discussion..." : "Generate Discussion from Records"}
             </button>
             <button
               onClick={runHeuristicDiscussion}
