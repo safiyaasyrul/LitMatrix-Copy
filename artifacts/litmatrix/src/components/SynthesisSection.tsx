@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { SLRRecord, SynthesisResult, StudyCharacteristic } from "../types/slr";
-import { Sparkles, BarChart2, BookOpen, Layers, Download, CheckCircle, RefreshCw, AlertCircle, Zap, Tag, Quote, Filter } from "lucide-react";
+import { Sparkles, BarChart2, BookOpen, Layers, Download, CheckCircle, RefreshCw, AlertCircle, Zap, Tag, Quote, Filter, Copy } from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
 interface SynthesisSectionProps {
@@ -159,6 +159,34 @@ const normalizeSubtopics = (subtopics: any[], studies: SynthesisStudy[]) => {
   });
 };
 
+const suggestReviewTitle = (studies: SynthesisStudy[], subtopics: SynthesisResult["subtopics"]) => {
+  const stopWords = new Set([
+    "about", "across", "after", "among", "based", "between", "from", "into",
+    "methods", "method", "model", "models", "study", "studies", "using",
+    "reported", "evidence", "analysis", "review", "research", "design",
+    "outcomes", "outcome", "results", "record", "records", "not", "reported",
+  ]);
+  const wordCounts = new Map<string, number>();
+  studies.forEach((study) => {
+    const text = `${study.interventionOrFocus} ${study.keyFinding}`.toLowerCase();
+    text.match(/[a-z][a-z0-9]{3,}/g)?.forEach((word) => {
+      if (!stopWords.has(word)) wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+    });
+  });
+  const topicWords = Array.from(wordCounts.entries())
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 3)
+    .map(([word]) => word);
+  const clusterWords = subtopics
+    .map((subtopic) => subtopic.title.replace(/^\d+\.\s*/, "").replace(/\bevidence\b/gi, "").trim())
+    .filter(Boolean)
+    .slice(0, 2);
+  const subject = topicWords.length >= 2
+    ? topicWords.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(", ")
+    : clusterWords.join(" and ") || "The Included Literature";
+  return `${subject}: A Narrative and Thematic Synthesis`;
+};
+
 export default function SynthesisSection({
   synthesis,
   onUpdateSynthesis,
@@ -206,9 +234,11 @@ export default function SynthesisSection({
 
     const studies = getSynthesisStudies(includedRecords, characteristics);
     const clusters = clusterStudies(studies);
+    const fallbackTopics = fallbackSubtopics(studies);
 
     const generated: SynthesisResult = {
-      subtopics: fallbackSubtopics(studies),
+      suggestedTitle: suggestReviewTitle(studies, fallbackTopics),
+      subtopics: fallbackTopics,
       keyFindingsTable: clusters.map((cluster) => ({
         topic: cluster.key,
         summary: formatClusterProse("", cluster.studies),
@@ -285,6 +315,7 @@ Generate a JSON object conforming strictly to:
         const normalizedSubtopics = normalizeSubtopics(parsed.subtopics, studiesData);
         onUpdateSynthesis({
           ...synthesis,
+          suggestedTitle: suggestReviewTitle(studiesData, normalizedSubtopics),
           subtopics: normalizedSubtopics,
           keyFindingsTable: normalizedSubtopics.map((subtopic, index) => ({
             topic: subtopic.title.replace(/^\d+\.\s*/, ""),
@@ -309,6 +340,11 @@ Generate a JSON object conforming strictly to:
   };
 
   const groupedData = getGroupedCharacteristics();
+  const suggestedTitle = synthesis.suggestedTitle
+    || (synthesis.subtopics.length > 0
+      ? suggestReviewTitle(getSynthesisStudies(includedRecords, characteristics), synthesis.subtopics)
+      : "");
+  const [titleCopied, setTitleCopied] = useState(false);
   const scaleX = (value: number) => 240 + ((Math.max(0.65, Math.min(1, value)) - 0.65) / 0.35) * 360;
 
   return (
@@ -441,6 +477,33 @@ Generate a JSON object conforming strictly to:
               </h3>
               <p className="text-xs text-indigo-900 font-sans leading-relaxed text-justify">
                 {synthesis.heterogeneityDiscussion}
+              </p>
+            </div>
+          )}
+
+          {suggestedTitle && (
+            <div className="bg-emerald-50/70 border border-emerald-200 p-5 rounded-xl space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-bold text-emerald-950 font-mono">
+                  Suggested review title
+                </h3>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(suggestedTitle);
+                    setTitleCopied(true);
+                    window.setTimeout(() => setTitleCopied(false), 1800);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-mono font-semibold text-emerald-900 bg-white border border-emerald-300 rounded-md hover:bg-emerald-100 cursor-pointer"
+                >
+                  <Copy className="w-3 h-3" />
+                  {titleCopied ? "Copied" : "Copy title"}
+                </button>
+              </div>
+              <p className="text-sm sm:text-base font-semibold text-emerald-950 leading-relaxed">
+                {suggestedTitle}
+              </p>
+              <p className="text-xs text-emerald-800">
+                Derived from the recurring topics in the screened records and the narrative clusters above.
               </p>
             </div>
           )}
