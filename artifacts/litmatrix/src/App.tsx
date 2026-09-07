@@ -616,7 +616,7 @@ export default function App() {
     },
     {
       id: "screening",
-      label: "AI Selection & Exclusions",
+      label: "Study Selection & Exclusions",
       badge: "Items 8, 16a, 16b",
       icon: CheckCircle,
     },
@@ -892,7 +892,7 @@ export default function App() {
           )}
 
           {/* ==================================================
-              STAGE 5: AI SCREENING
+              STAGE 5: STUDY SCREENING
               ================================================== */}
 
           {activeStage === 4 && (
