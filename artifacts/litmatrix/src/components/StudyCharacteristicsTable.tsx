@@ -127,11 +127,27 @@ Return ONLY a JSON array with one object per record:
         aiConfig
       );
       const parsed = parseJSONLoose(text);
-      if (!Array.isArray(parsed) || parsed.length === 0) {
+      const rawItems = Array.isArray(parsed)
+        ? parsed
+        : parsed && typeof parsed === "object"
+        ? [parsed.records, parsed.results, parsed.justifications, parsed.items, parsed.data].find(
+            (value) => Array.isArray(value)
+          ) || (parsed.recordId || parsed.id ? [parsed] : [])
+        : [];
+      const normalizedItems = rawItems.map((item: any) => ({
+        recordId: item?.recordId ?? item?.id ?? item?.studyId,
+        acceptanceJustification:
+          item?.acceptanceJustification ??
+          item?.justification ??
+          item?.rationale ??
+          item?.reason,
+      }));
+
+      if (normalizedItems.length === 0) {
         throw new Error("Could not parse the AI response.");
       }
 
-      const parsedById = new Map(parsed.map((item: any) => [item.recordId, item]));
+      const parsedById = new Map(normalizedItems.map((item: any) => [item.recordId, item]));
       const updated = screeningRecords.map((record) => {
         const existing = characteristicById.get(record.id);
         const aiItem = parsedById.get(record.id);
