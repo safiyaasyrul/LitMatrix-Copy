@@ -5,18 +5,9 @@ import {
   ScreeningDecision,
   StudyCharacteristic,
   SynthesisResult,
-  GradeCertaintyItem,
   DiscussionSections,
-  PrismaChecklistItem,
-  PrismaSChecklistItem,
-  RosesChecklistItem,
 } from "./types/slr";
 
-import {
-  initialPrismaChecklist,
-  initialPrismaSChecklist,
-  initialRosesChecklist,
-} from "./data/prismaChecklistData";
 
 import {
   sampleProtocol,
@@ -24,7 +15,6 @@ import {
   sampleScreening,
   sampleCharacteristics,
   sampleSynthesis,
-  sampleGradeItems,
   sampleDiscussion,
   BLANK_PROTOCOL,
 } from "./data/sampleDataset";
@@ -35,7 +25,6 @@ import RecordsImport from "./components/RecordsImport";
 import ScreeningSection from "./components/ScreeningSection";
 import PrismaDiagram from "./components/PrismaDiagram";
 import SynthesisSection from "./components/SynthesisSection";
-import CertaintyGradeSection from "./components/CertaintyGradeSection";
 import DiscussionSection from "./components/DiscussionSection";
 import FullReviewReport from "./components/FullReviewReport";
 import ApiKeySection from "./components/ApiKeySection";
@@ -92,7 +81,6 @@ import {
   CheckCircle,
   GitBranch,
   BarChart2,
-  Award,
   BookOpen,
   FileText,
   Sparkles,
@@ -164,16 +152,7 @@ export default function App() {
     };
   });
 
-  const [gradeItems, setGradeItems] = useState<
-    GradeCertaintyItem[]
-  >(() => {
-    // GRADE is optional and is not appropriate by default
-    // for heterogeneous engineering evidence.
-    // Existing auto-generated rows are not trusted.
-    return [];
-  });
-
-  const [discussion, setDiscussion] =
+    const [discussion, setDiscussion] =
     useState<DiscussionSections>(() => {
       const saved = localStorage.getItem(
         "slr_discussion_v1"
@@ -184,40 +163,8 @@ export default function App() {
         : sampleDiscussion;
     });
 
-  const [checklist, setChecklist] =
-    useState<PrismaChecklistItem[]>(() => {
-      const saved = localStorage.getItem(
-        "slr_checklist_v1"
-      );
-
-      return saved
-        ? JSON.parse(saved)
-        : initialPrismaChecklist;
-    });
-
-  const [prismaSChecklist, setPrismaSChecklist] =
-    useState<PrismaSChecklistItem[]>(() => {
-      const saved = localStorage.getItem(
-        "slr_prisma_s_checklist_v1"
-      );
-
-      return saved
-        ? JSON.parse(saved)
-        : initialPrismaSChecklist;
-    });
-
-  const [rosesChecklist, setRosesChecklist] =
-    useState<RosesChecklistItem[]>(() => {
-      const saved = localStorage.getItem(
-        "slr_roses_checklist_v1"
-      );
-
-      return saved
-        ? JSON.parse(saved)
-        : initialRosesChecklist;
-    });
-
-  const [keysConfig, setKeysConfig] =
+   
+   const [keysConfig, setKeysConfig] =
     useState<UserAIKeysConfig>(() => {
       const saved =
         localStorage.getItem("slr_ai_keys_v1");
@@ -418,42 +365,15 @@ export default function App() {
     );
   }, [synthesis]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "slr_grade_v1",
-      JSON.stringify(gradeItems)
-    );
-  }, [gradeItems]);
-
-  useEffect(() => {
+    useEffect(() => {
     localStorage.setItem(
       "slr_discussion_v1",
       JSON.stringify(discussion)
     );
   }, [discussion]);
 
-  useEffect(() => {
-    localStorage.setItem(
-      "slr_checklist_v1",
-      JSON.stringify(checklist)
-    );
-  }, [checklist]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "slr_prisma_s_checklist_v1",
-      JSON.stringify(prismaSChecklist)
-    );
-  }, [prismaSChecklist]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "slr_roses_checklist_v1",
-      JSON.stringify(rosesChecklist)
-    );
-  }, [rosesChecklist]);
-
-  useEffect(() => {
+ 
+     useEffect(() => {
     localStorage.setItem(
       "slr_ai_keys_v1",
       JSON.stringify(keysConfig)
@@ -584,46 +504,7 @@ export default function App() {
     exclusionReasonsBreakdown,
   ]);
 
-  // Checklist item update helpers
-  const handleUpdateChecklistItem = (
-    itemNumber: string,
-    updates: Partial<PrismaChecklistItem>
-  ) => {
-    setChecklist((prev) =>
-      prev.map((c) =>
-        c.itemNumber === itemNumber
-          ? { ...c, ...updates }
-          : c
-      )
-    );
-  };
-
-  const handleUpdatePrismaSItem = (
-    itemNumber: string,
-    updates: Partial<PrismaSChecklistItem>
-  ) => {
-    setPrismaSChecklist((prev) =>
-      prev.map((c) =>
-        c.itemNumber === itemNumber
-          ? { ...c, ...updates }
-          : c
-      )
-    );
-  };
-
-  const handleUpdateRosesItem = (
-    itemNumber: string,
-    updates: Partial<RosesChecklistItem>
-  ) => {
-    setRosesChecklist((prev) =>
-      prev.map((c) =>
-        c.itemNumber === itemNumber
-          ? { ...c, ...updates }
-          : c
-      )
-    );
-  };
-
+  
   // Reset to full sample dataset
   const handleResetSample = () => {
     if (
@@ -639,16 +520,8 @@ export default function App() {
         sampleCharacteristics
       );
       setSynthesis(sampleSynthesis);
-      setGradeItems([]);
       setDiscussion(sampleDiscussion);
-      setChecklist(
-        initialPrismaChecklist
-      );
-      setPrismaSChecklist(
-        initialPrismaSChecklist
-      );
-      setRosesChecklist(
-        initialRosesChecklist
+      
       );
     }
   };
@@ -680,30 +553,8 @@ export default function App() {
           "",
       });
 
-      setGradeItems([]);
-
-      setDiscussion({
-        item23aGeneralInterpretation:
-          "",
-        item23bLimitationsOfEvidence:
-          "",
-        item23cLimitationsOfReviewProcess:
-          "",
-        item23dImplications:
-          "",
-      });
-
-      setChecklist(
-        initialPrismaChecklist
-      );
-
-      setPrismaSChecklist(
-        initialPrismaSChecklist
-      );
-
-      setRosesChecklist(
-        initialRosesChecklist
-      );
+     
+      
     }
   };
 
@@ -755,9 +606,7 @@ export default function App() {
         "",
     });
 
-    setGradeItems([]);
-
-    setDiscussion({
+     setDiscussion({
       item23aGeneralInterpretation:
         "",
       item23bLimitationsOfEvidence:
@@ -830,14 +679,7 @@ export default function App() {
         "Items 13a–f",
       icon: BarChart2,
     },
-    {
-      id: "grade",
-      label:
-        "Optional Evidence Certainty",
-      badge:
-        "Items 15 & 22",
-      icon: Award,
-    },
+    
     {
       id: "discussion",
       label:
