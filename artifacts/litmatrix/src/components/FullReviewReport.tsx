@@ -30,9 +30,34 @@ interface LandscapeCount {
 
 interface EvidenceLandscape {
   yearCounts: LandscapeCount[];
-  sourceCounts: LandscapeCount[];
   themeCounts: LandscapeCount[];
 }
+
+const themeDefinitions = [
+  {
+    label: "Methods, modelling, and design",
+    terms: ["model", "algorithm", "simulation", "cfd", "neural", "machine learning", "optimization", "framework", "design"],
+  },
+  {
+    label: "Technologies, interventions, and decarbonization",
+    terms: ["fuel", "vessel", "propulsion", "energy", "technology", "retrofit", "renewable", "carbon", "decarbon", "emission"],
+  },
+  {
+    label: "Performance, efficiency, and reported outcomes",
+    terms: ["performance", "efficiency", "reduction", "cost", "accuracy", "outcome", "validation", "result", "impact"],
+  },
+];
+
+const classifyRecordTheme = (record: SLRRecord) => {
+  const searchableText = `${record.title} ${record.abstract || ""}`.toLowerCase();
+  const scores = themeDefinitions.map((theme) =>
+    theme.terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0)
+  );
+  const highestScore = Math.max(...scores);
+  return highestScore > 0
+    ? themeDefinitions[scores.indexOf(highestScore)].label
+    : "Other reported themes";
+};
 
 const countLabels = (labels: string[]) =>
   Array.from(
@@ -45,42 +70,38 @@ const countLabels = (labels: string[]) =>
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
 const getEvidenceLandscape = (records: SLRRecord[]): EvidenceLandscape => {
-  const themeDefinitions = [
-    {
-      label: "Methods, modelling, and design",
-      terms: ["model", "algorithm", "simulation", "cfd", "neural", "machine learning", "optimization", "framework", "design"],
-    },
-    {
-      label: "Technologies, interventions, and decarbonization",
-      terms: ["fuel", "vessel", "propulsion", "energy", "technology", "retrofit", "renewable", "carbon", "decarbon", "emission"],
-    },
-    {
-      label: "Performance, efficiency, and reported outcomes",
-      terms: ["performance", "efficiency", "reduction", "cost", "accuracy", "outcome", "validation", "result", "impact"],
-    },
-  ];
-
-  const themes = records.map((record) => {
-    const searchableText = `${record.title} ${record.abstract || ""}`.toLowerCase();
-    const scores = themeDefinitions.map((theme) =>
-      theme.terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0)
-    );
-    const highestScore = Math.max(...scores);
-    return highestScore > 0
-      ? themeDefinitions[scores.indexOf(highestScore)].label
-      : "Other reported themes";
-  });
-
   return {
     yearCounts: countLabels(records.map((record) => record.year?.trim() || "Undated record"))
       .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
-    sourceCounts: countLabels(records.map((record) => record.source?.trim() || "Other venues")),
-    themeCounts: countLabels(themes),
+    themeCounts: countLabels(records.map(classifyRecordTheme)),
   };
 };
 
 const summarizeLandscape = (counts: LandscapeCount[], limit = 4) =>
   counts.slice(0, limit).map((item) => `${item.label} (${item.count})`).join(", ");
+
+const getCharacteristicsLandscape = (records: SLRRecord[], characteristics: StudyCharacteristic[]) => {
+  const hasExtractedCharacteristics = characteristics.length > 0;
+  const unavailable = "Not reported in supplied records";
+  return {
+    yearCounts: getEvidenceLandscape(records).yearCounts,
+    categoryCounts: hasExtractedCharacteristics
+      ? countLabels(characteristics.map((item) => item.category?.trim() || item.interventionOrFocus?.trim() || unavailable))
+      : countLabels(records.map(classifyRecordTheme)),
+    contextCounts: hasExtractedCharacteristics
+      ? countLabels(characteristics.map((item) => item.population?.trim() || unavailable))
+      : countLabels(records.map(() => unavailable)),
+    methodologyCounts: hasExtractedCharacteristics
+      ? countLabels(characteristics.map((item) => item.studyDesign?.trim() || unavailable))
+      : countLabels(records.map(() => unavailable)),
+    outcomeCounts: hasExtractedCharacteristics
+      ? countLabels(characteristics.map((item) => item.primaryOutcome?.trim() || unavailable))
+      : countLabels(records.map(() => unavailable)),
+    geographyCounts: hasExtractedCharacteristics
+      ? countLabels(characteristics.map((item) => item.country?.trim() || unavailable))
+      : countLabels(records.map(() => unavailable)),
+  };
+};
 
 export default function FullReviewReport({
   protocol,
@@ -100,6 +121,7 @@ export default function FullReviewReport({
     : synthesis.suggestedTitle?.trim()
     || "Systematic Literature Review Manuscript";
   const evidenceLandscape = getEvidenceLandscape(includedRecords);
+  const characteristicsLandscape = getCharacteristicsLandscape(includedRecords, characteristics);
   const recordGroundedRationale = includedRecords.length > 0
     ? `This review examines ${manuscriptTitle} through ${includedRecords.length} included records. The record-level evidence is concentrated in ${summarizeLandscape(evidenceLandscape.themeCounts) || "the themes reported in the included literature"}, covering the methods, technologies, and outcomes described by those records.`
     : protocol.introductionRationale || `This review examines evidence relevant to ${manuscriptTitle}.`;
@@ -170,7 +192,7 @@ export default function FullReviewReport({
     const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
     const meth = `The review draws on records from ${searchDbs}. Screening decisions follow predefined eligibility criteria, and the included evidence is organized for narrative and thematic synthesis.`;
     
-    const res = `${includedRecords.length} records were retained for synthesis from ${counts.afterDedup || counts.screened || includedRecords.length} records after deduplication. Publication years were distributed as follows: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The most represented source venues were ${summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}, and the dominant record-level themes were ${summarizeLandscape(evidenceLandscape.themeCounts) || "not specified"}.`;
+    const res = `${includedRecords.length} records were retained for synthesis from ${counts.afterDedup || counts.screened || includedRecords.length} records after deduplication. Publication years were distributed as follows: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The descriptive evidence landscape was organized by study categories, contexts, methodological approaches, and reported outcome types.`;
     const concl = `The included literature presents a narrative and thematic evidence base organized around the reported methods, technologies, and outcomes. Interpretation is anchored to the findings and publication characteristics of the included records.`;
     const keywords = [
       protocol.reviewType || "Systematic Literature Review",
@@ -185,6 +207,14 @@ export default function FullReviewReport({
   };
 
   const abstract = getAbstractContent();
+
+  const markdownCountTable = (heading: string, values: LandscapeCount[]) => {
+    let table = `#### ${heading}\n\n| Description | Records |\n| --- | ---: |\n`;
+    values.forEach((item) => {
+      table += `| ${item.label.replace(/\|/g, "/")} | ${item.count} |\n`;
+    });
+    return `${table}\n`;
+  };
 
   const generateFullMarkdown = () => {
     let md = `# ${manuscriptTitle}\n\n`;
@@ -237,7 +267,7 @@ export default function FullReviewReport({
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
     md += `${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. The results describe the records retained by the configured screening criteria.\n\n`;
 
-    md += `### 3.2 Comprehensive Screening Decision Table (Table 1)\n\n`;
+    md += `### 3.1 Screening Decision Audit Table (Table 1)\n\n`;
     md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
     md += `| --- | --- | --- |\n`;
     screenedRecords.forEach((record) => {
@@ -246,23 +276,20 @@ export default function FullReviewReport({
     });
     md += `\n`;
 
-    md += `### 3.3 Evidence Landscape: Publication Trends, Source Venues, and Themes\n\n`;
-    md += `The ${includedRecords.length} included records were distributed across the following publication years: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The represented source venues were ${summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}. Record-level text most frequently addressed ${summarizeLandscape(evidenceLandscape.themeCounts) || "themes not specified"}.\n\n`;
-    md += `| Publication year | Records |\n| --- | ---: |\n`;
-    evidenceLandscape.yearCounts.forEach((item) => {
-      md += `| ${item.label} | ${item.count} |\n`;
-    });
-    md += `\n| Source venue | Records |\n| --- | ---: |\n`;
-    evidenceLandscape.sourceCounts.forEach((item) => {
-      md += `| ${item.label.replace(/\|/g, "/")} | ${item.count} |\n`;
-    });
-    md += `\n| Record-level theme | Records |\n| --- | ---: |\n`;
-    evidenceLandscape.themeCounts.forEach((item) => {
-      md += `| ${item.label.replace(/\|/g, "/")} | ${item.count} |\n`;
-    });
-    md += `\n`;
+    md += `### 3.2 Characteristics of Included Studies\n\n`;
+    md += `${includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across publication year, study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.\n\n`;
+    md += markdownCountTable("Publication year distribution", characteristicsLandscape.yearCounts);
+    md += markdownCountTable("Study and intervention categories", characteristicsLandscape.categoryCounts);
+    md += markdownCountTable("Contexts", characteristicsLandscape.contextCounts);
+    md += markdownCountTable("Methodological approaches", characteristicsLandscape.methodologyCounts);
+    md += markdownCountTable("Reported outcome types", characteristicsLandscape.outcomeCounts);
+    md += markdownCountTable("Geographical context", characteristicsLandscape.geographyCounts);
 
-    md += `### 3.4 Evidence Synthesis Grouped by Study Characteristics and Shared Author Similarities\n\n`;
+    md += `### 3.3 Evidence Landscape\n\n`;
+    md += `The main record-derived thematic categories were ${summarizeLandscape(evidenceLandscape.themeCounts) || "not specified in the supplied records"}.\n\n`;
+    md += markdownCountTable("Main thematic and intervention categories", evidenceLandscape.themeCounts);
+
+    md += `### 3.4 Narrative and Thematic Synthesis\n\n`;
     synthesis.subtopics.forEach((sub) => {
       md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
@@ -292,6 +319,14 @@ export default function FullReviewReport({
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const htmlCountTable = (heading: string, values: LandscapeCount[]) => `
+    <div class="table-caption">${heading}</div>
+    <table>
+      <thead><tr><th>Description</th><th>Records</th></tr></thead>
+      <tbody>${values.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
+    </table>
+  `;
 
   const handleDownload = () => {
     const md = generateFullMarkdown();
@@ -381,22 +416,7 @@ export default function FullReviewReport({
   <h3>3.1 Study Selection and Flow of Evidence</h3>
   <p>${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. The results describe the records retained by the configured screening criteria.</p>
 
-  <h3>3.2 Evidence Landscape: Publication Trends, Source Venues, and Themes</h3>
-  <p>The ${includedRecords.length} included records were distributed across the following publication years: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The represented source venues were ${summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}. Record-level text most frequently addressed ${summarizeLandscape(evidenceLandscape.themeCounts) || "themes not specified"}.</p>
-  <table>
-    <thead><tr><th>Publication year</th><th>Records</th></tr></thead>
-    <tbody>${evidenceLandscape.yearCounts.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
-  </table>
-  <table>
-    <thead><tr><th>Source venue</th><th>Records</th></tr></thead>
-    <tbody>${evidenceLandscape.sourceCounts.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
-  </table>
-  <table>
-    <thead><tr><th>Record-level theme</th><th>Records</th></tr></thead>
-    <tbody>${evidenceLandscape.themeCounts.map((item) => `<tr><td>${item.label}</td><td>${item.count}</td></tr>`).join("")}</tbody>
-  </table>
-
-  <h3>3.3 Comprehensive Screening Decision Table (Table 1)</h3>
+  <h3>3.1 Screening Decision Audit Table (Table 1)</h3>
   <div class="table-caption">Table 1: Article information, screening status, and academic screening justification</div>
   <table>
     <thead>
@@ -419,7 +439,20 @@ export default function FullReviewReport({
     </tbody>
   </table>
 
-  <h3>3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+  <h3>3.2 Characteristics of Included Studies</h3>
+  <p>${includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across publication year, study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.</p>
+  ${htmlCountTable("Publication year distribution", characteristicsLandscape.yearCounts)}
+  ${htmlCountTable("Study and intervention categories", characteristicsLandscape.categoryCounts)}
+  ${htmlCountTable("Contexts", characteristicsLandscape.contextCounts)}
+  ${htmlCountTable("Methodological approaches", characteristicsLandscape.methodologyCounts)}
+  ${htmlCountTable("Reported outcome types", characteristicsLandscape.outcomeCounts)}
+  ${htmlCountTable("Geographical context", characteristicsLandscape.geographyCounts)}
+
+  <h3>3.3 Evidence Landscape</h3>
+  <p>The main record-derived thematic categories were ${summarizeLandscape(evidenceLandscape.themeCounts) || "not specified in the supplied records"}.</p>
+  ${htmlCountTable("Main thematic and intervention categories", evidenceLandscape.themeCounts)}
+
+  <h3>3.4 Narrative and Thematic Synthesis</h3>
   ${synthesis.subtopics.map((st) => `
     <h4>${st.title}</h4>
     <p>${st.prose}</p>
@@ -635,15 +668,18 @@ export default function FullReviewReport({
           </div>
 
           <div className="space-y-3 pt-2">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.2 Evidence Landscape: Publication Trends, Source Venues, and Themes</h3>
+            <h3 className="font-bold text-slate-900 text-sm font-mono">3.2 Characteristics of Included Studies</h3>
             <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The {includedRecords.length} included records were distributed across the following publication years: {summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The represented source venues were {summarizeLandscape(evidenceLandscape.sourceCounts) || "not specified"}. Record-level text most frequently addressed {summarizeLandscape(evidenceLandscape.themeCounts) || "themes not specified"}.
+              {includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across publication year, study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {[
-                ["Publication year", evidenceLandscape.yearCounts],
-                ["Source venue", evidenceLandscape.sourceCounts],
-                ["Record-level theme", evidenceLandscape.themeCounts],
+                ["Publication year distribution", characteristicsLandscape.yearCounts],
+                ["Study and intervention categories", characteristicsLandscape.categoryCounts],
+                ["Contexts", characteristicsLandscape.contextCounts],
+                ["Methodological approaches", characteristicsLandscape.methodologyCounts],
+                ["Reported outcome types", characteristicsLandscape.outcomeCounts],
+                ["Geographical context", characteristicsLandscape.geographyCounts],
               ].map(([label, values]) => (
                 <div key={label as string} className="border border-slate-200 rounded-lg overflow-hidden">
                   <div className="bg-slate-50 px-3 py-2 text-[10px] font-mono font-bold text-slate-800">{label as string}</div>
@@ -664,7 +700,7 @@ export default function FullReviewReport({
           <div className="space-y-2 pt-2">
             <div className="flex items-center justify-between">
               <div className="text-xs font-mono font-bold text-slate-900">
-              Table 1: Comprehensive Screening Decision Table
+              Screening Decision Audit Table
               </div>
               <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
                 {includedRecords.length} Included Records
@@ -699,9 +735,27 @@ export default function FullReviewReport({
             </div>
           </div>
 
+          <div className="space-y-3 pt-2">
+            <h3 className="font-bold text-slate-900 text-sm font-mono">3.3 Evidence Landscape</h3>
+            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
+              The main record-derived thematic categories were {summarizeLandscape(evidenceLandscape.themeCounts) || "not specified in the supplied records"}.
+            </p>
+            <div className="border border-slate-200 rounded-lg overflow-hidden max-w-xl">
+              <div className="bg-slate-50 px-3 py-2 text-[10px] font-mono font-bold text-slate-800">Main thematic and intervention categories</div>
+              <div className="divide-y divide-slate-100">
+                {evidenceLandscape.themeCounts.map((item) => (
+                  <div key={item.label} className="flex items-center justify-between gap-2 px-3 py-2 text-[11px]">
+                    <span className="text-slate-700">{item.label}</span>
+                    <span className="font-mono font-semibold text-slate-900">{item.count}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
            {/* Narrative Synthesis with Cross-Author Similarities */}
           <div className="space-y-3 pt-4">
-              <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Evidence Synthesis Grouped by Study Characteristics and Author Similarities</h3>
+              <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Narrative and Thematic Synthesis</h3>
             {synthesis.subtopics.map((st, i) => (
               <div key={i} className="space-y-1">
                 <h4 className="font-bold text-xs text-slate-900 font-mono">{st.title}</h4>
