@@ -112,163 +112,20 @@ const buildStudiesFromRecords = (
 };
 
 /*
- * IMPORTANT:
- * This function creates mutually exclusive descriptive domains.
- * Every included record belongs to exactly one domain.
- *
- * It does not claim that these are formal evidence categories.
- * They are only an organizational device for narrative synthesis.
+ * Generic term extraction is used only for conservative title suggestions.
+ * It does not classify records and does not create predefined themes.
  */
-const classifyTheme = (study: SynthesisStudy): string => {
-  const text = [
-    study.category,
-    study.interventionOrFocus,
-    study.studyDesign,
-    study.primaryOutcome,
-    study.keyFinding,
-  ]
-    .join(" ")
-    .toLowerCase();
-
-  const outcomeTerms = [
-    "emission",
-    "co2",
-    "carbon",
-    "decarbon",
-    "fuel consumption",
-    "energy consumption",
-    "efficiency",
-    "performance",
-    "accuracy",
-    "reduction",
-    "impact",
-    "result",
-    "outcome",
-  ];
-
-  const technologyTerms = [
-    "technology",
-    "optimization",
-    "optimisation",
-    "algorithm",
-    "machine learning",
-    "deep learning",
-    "artificial intelligence",
-    "digital",
-    "system",
-    "propulsion",
-    "fuel",
-    "engine",
-    "energy",
-    "renewable",
-    "alternative fuel",
-    "electr",
-    "hybrid",
-    "battery",
-  ];
-
-  const methodsTerms = [
-    "method",
-    "framework",
-    "model",
-    "simulation",
-    "assessment",
-    "methodology",
-    "life cycle",
-    "lca",
-    "scenario",
-    "forecast",
-    "prediction",
-    "optimization model",
-    "decision",
-    "evaluation",
-  ];
-
-  const score = (terms: string[]) =>
-    terms.reduce(
-      (total, term) => total + (text.includes(term) ? 1 : 0),
-      0
-    );
-
-  const technologyScore = score(technologyTerms);
-  const methodsScore = score(methodsTerms);
-  const outcomesScore = score(outcomeTerms);
-
-  if (technologyScore >= methodsScore && technologyScore >= outcomesScore) {
-    return "Technologies, interventions, and operational strategies";
-  }
-
-  if (methodsScore >= outcomesScore) {
-    return "Methods, models, and assessment approaches";
-  }
-
-  return "Emissions, performance, and reported outcomes";
-};
-
-const buildClusters = (studies: SynthesisStudy[]) => {
-  const orderedThemes = [
-    "Technologies, interventions, and operational strategies",
-    "Methods, models, and assessment approaches",
-    "Emissions, performance, and reported outcomes",
-  ];
-
-  const buckets = orderedThemes.map((key) => ({
-    key,
-    studies: [] as SynthesisStudy[],
-  }));
-
-  studies.forEach((study) => {
-    const theme = classifyTheme(study);
-    const bucket = buckets.find((item) => item.key === theme);
-
-    if (bucket) {
-      bucket.studies.push(study);
-    }
-  });
-
-  /*
-   * If a theme is empty, do not artificially move records just to
-   * manufacture a count. Empty domains are legitimate.
-   */
-  return buckets;
-};
-
 const getThemeTerms = (studies: SynthesisStudy[]) => {
   const stopWords = new Set([
-    "about",
-    "across",
-    "after",
-    "among",
-    "based",
-    "between",
-    "could",
-    "from",
-    "into",
-    "more",
-    "other",
-    "reported",
-    "record",
-    "records",
-    "study",
-    "studies",
-    "their",
-    "these",
-    "those",
-    "using",
-    "with",
-    "within",
-    "not",
-    "supplied",
-    "information",
-    "described",
-    "details",
-    "available",
-    "included",
-    "analysis",
-    "method",
-    "methods",
-    "model",
-    "models",
+    "about", "across", "after", "among", "also", "based", "been",
+    "being", "between", "both", "could", "does", "each", "from",
+    "have", "into", "more", "other", "reported", "record", "records",
+    "study", "studies", "their", "these", "those", "through", "using",
+    "were", "which", "with", "within", "without", "not", "supplied",
+    "information", "described", "details", "available", "included",
+    "include", "analysis", "method", "methods", "model", "models",
+    "result", "results", "finding", "findings", "research", "approach",
+    "approaches", "reported",
   ]);
 
   const counts = new Map<string, number>();
@@ -278,127 +135,24 @@ const getThemeTerms = (studies: SynthesisStudy[]) => {
       study.interventionOrFocus,
       study.primaryOutcome,
       study.keyFinding,
-    ]
-      .join(" ")
-      .toLowerCase();
+      study.category,
+    ].join(" ").toLowerCase();
 
-    text.match(/[a-z][a-z0-9]{3,}/g)?.forEach((word) => {
-      if (!stopWords.has(word)) {
-        counts.set(word, (counts.get(word) || 0) + 1);
-      }
+    text.match(/[a-z][a-z0-9-]{3,}/g)?.forEach((word) => {
+      const normalized = word.replace(/^-+|-+$/g, "");
+      if (!normalized || stopWords.has(normalized)) return;
+      counts.set(normalized, (counts.get(normalized) || 0) + 1);
     });
   });
 
   return Array.from(counts.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 5)
+    .slice(0, 8)
     .map(([word]) => word);
 };
 
-const studyCitationLine = (study: SynthesisStudy) => {
-  const finding =
-    cleanText(study.keyFinding) ||
-    "No specific finding is reported in the supplied record.";
-
-  const sentence =
-    finding.split(/(?<=[.!?])\s+/)[0].slice(0, 260).trim();
-
-  return `${study.authorYear}: ${sentence}${
-    finding.length > 260 ? "…" : ""
-  }`;
-};
-
-const buildClusterNarrative = (
-  cluster: { key: string; studies: SynthesisStudy[] },
-  suppliedProse = ""
-) => {
-  if (cluster.studies.length === 0) {
-    return `No included records were assigned to the ${cluster.key.toLowerCase()} domain.`;
-  }
-
-  const terms = getThemeTerms(cluster.studies);
-  const topicPhrase =
-    terms.length > 0
-      ? terms.join(", ")
-      : "the reported characteristics and findings";
-
-  const opening = `The ${cluster.key.toLowerCase()} domain contains ${
-    cluster.studies.length
-  } included record${
-    cluster.studies.length === 1 ? "" : "s"
-  }. Recurring features include ${topicPhrase}.`;
-
-  const supplied = cleanText(suppliedProse);
-
-  const evidence = cluster.studies
-    .map(studyCitationLine)
-    .join("\n\n");
-
-  if (supplied) {
-    return `${opening}\n\n${supplied}\n\n${evidence}`;
-  }
-
-  return `${opening}\n\n${evidence}`;
-};
-
-const fallbackSubtopics = (studies: SynthesisStudy[]) =>
-  buildClusters(studies)
-    .filter((cluster) => cluster.studies.length > 0)
-    .map((cluster, index) => ({
-      title: `${index + 1}. ${cluster.key}`,
-      prose: buildClusterNarrative(cluster),
-    }));
-
-/*
- * Keep at least three possible synthesis domains in the UI when
- * enough evidence exists, but never fabricate records.
- */
-const normalizeSubtopics = (
-  suppliedSubtopics: any[],
-  studies: SynthesisStudy[]
-) => {
-  const clusters = buildClusters(studies);
-
-  const populatedClusters = clusters.filter(
-    (cluster) => cluster.studies.length > 0
-  );
-
-  const baseClusters =
-    populatedClusters.length >= MIN_SYNTHESIS_CLUSTERS
-      ? populatedClusters
-      : clusters;
-
-  return baseClusters.map((cluster, index) => {
-    const supplied =
-      suppliedSubtopics?.[index];
-
-    const title =
-      typeof supplied?.title === "string" &&
-      supplied.title.trim()
-        ? supplied.title.trim()
-        : `${index + 1}. ${cluster.key}`;
-
-    return {
-      title: title.replace(/^\d+\.\s*/, `${index + 1}. `),
-      prose: buildClusterNarrative(
-        cluster,
-        typeof supplied?.prose === "string"
-          ? supplied.prose
-          : ""
-      ),
-    };
-  });
-};
-
-/*
- * Extract a concise subject from the protocol title.
- *
- * The protocol title is preferable to arbitrary word frequency
- * because it reflects the user's defined review question/topic.
- */
 const getProtocolSubject = (protocol: SLRProtocol) => {
   const raw = cleanText(protocol?.title);
-
   if (!raw) return "";
 
   return raw
@@ -414,65 +168,204 @@ const suggestReviewTitles = (
   subtopics: SynthesisResult["subtopics"]
 ) => {
   const protocolSubject = getProtocolSubject(protocol);
-
   const themeTerms = Array.from(
     new Set(
-      subtopics
-        .map((topic) =>
-          topic.title
-            .replace(/^\d+\.\s*/, "")
-            .trim()
-        )
+      (subtopics || [])
+        .map((topic) => cleanText(topic?.title).replace(/^\d+\.\s*/, "").trim())
         .filter(Boolean)
     )
   );
 
   const evidenceTerms = getThemeTerms(studies)
     .slice(0, 3)
-    .map(
-      (word) =>
-        word.charAt(0).toUpperCase() + word.slice(1)
-    );
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
 
-  const subject =
-    protocolSubject ||
-    (evidenceTerms.length
-      ? evidenceTerms.join(", ")
-      : "The Included Literature");
+  const subject = protocolSubject ||
+    (evidenceTerms.length ? evidenceTerms.join(", ") : "The Included Literature");
 
   const titles = [
     `${subject}: A Narrative and Thematic Synthesis`,
-
     `A Systematic Review of ${subject}`,
-
-    `${subject}: Evidence, Methods, and Reported Outcomes`,
-
+    `${subject}: Evidence and Emerging Themes`,
     themeTerms.length > 0
-      ? `${subject}: A Thematic Synthesis of ${themeTerms
-          .slice(0, 2)
-          .join(" and ")}`
-      : `${subject}: A Structured Review of the Evidence`,
+      ? `${subject}: A Thematic Synthesis of ${themeTerms.slice(0, 2).join(" and ")}`
+      : `${subject}: A Structured Synthesis of the Evidence`,
   ];
 
-  return Array.from(
-    new Set(titles.map((title) => title.trim()))
+  return Array.from(new Set(titles.map((title) => title.trim())));
+};
+
+/*
+ * Conservative fallback only. It does not invent themes or force studies
+ * into application-defined domains. The AI path remains the primary route
+ * for integrated thematic synthesis.
+ */
+const buildFallbackNarrative = (studies: SynthesisStudy[]) => {
+  if (studies.length === 0) return "";
+
+  const terms = getThemeTerms(studies).slice(0, 5);
+  const opening = terms.length > 0
+    ? `Across the included literature, recurring areas of investigation include ${terms.join(", ")}.`
+    : "Across the included literature, the supplied records describe a range of research approaches, contexts, and reported findings.";
+
+  const usable = studies.filter(
+    (study) => cleanText(study.keyFinding) && cleanText(study.keyFinding) !== RECORD_NOT_REPORTED
   );
+
+  if (usable.length === 0) {
+    return `${opening} Specific findings and relationships between studies are not reported in sufficient detail in the supplied records to support a more developed thematic synthesis.`;
+  }
+
+  const excerpts = usable.slice(0, 12).map((study) => {
+    const finding = cleanText(study.keyFinding);
+    const sentence = finding.split(/(?<=[.!?])\s+/)[0].slice(0, 280).trim();
+    return `${sentence} (${study.authorYear})`;
+  });
+
+  return `${opening} The available evidence spans related but not necessarily equivalent contexts, approaches, and outcomes. ${excerpts.join(" ")} Taken together, these records indicate multiple dimensions of the review topic, while the supplied record-level information does not support stronger claims about comparative effectiveness, causal relationships, or quantitative consistency.`;
+};
+
+const buildFallbackSubtopics = (studies: SynthesisStudy[]) => {
+  if (studies.length === 0) return [];
+
+  const terms = getThemeTerms(studies).slice(0, 3);
+  const title = terms.length >= 2
+    ? `Emerging evidence around ${terms.map((term) => term.charAt(0).toUpperCase() + term.slice(1)).join(", ")}`
+    : "Emerging Patterns in the Included Evidence";
+
+  return [{ title, prose: buildFallbackNarrative(studies) }];
+};
+
+/*
+ * Validate AI output without replacing model-discovered themes with
+ * hard-coded application categories.
+ */
+const sanitizeSubtopics = (value: any): SynthesisResult["subtopics"] => {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => ({
+      title: cleanText(item?.title),
+      prose: cleanText(item?.prose),
+    }))
+    .filter((item) => item.title.length > 0 && item.prose.length > 0)
+    .slice(0, 8)
+    .map((item, index) => ({
+      title: item.title.replace(/^\d+\.\s*/, `${index + 1}. `),
+      prose: item.prose,
+    }));
 };
 
 const buildEvidenceTable = (
-  studies: SynthesisStudy[]
+  studies: SynthesisStudy[],
+  subtopics: SynthesisResult["subtopics"]
 ) => {
-  return buildClusters(studies)
-    .filter((cluster) => cluster.studies.length > 0)
-    .map((cluster) => ({
-      topic: cluster.key,
-      summary: buildClusterNarrative(cluster),
-      consistency: "Not assessed quantitatively",
-      evidenceBase: `${cluster.studies.length} included record${
-        cluster.studies.length === 1 ? "" : "s"
-      }`,
-    }));
+  if (!subtopics || subtopics.length === 0) return [];
+
+  return subtopics.map((subtopic) => ({
+    topic: cleanText(subtopic.title).replace(/^\d+\.\s*/, ""),
+    summary: cleanText(subtopic.prose),
+    consistency: "Described narratively; not assessed quantitatively",
+    evidenceBase: `Drawn from the final included evidence set (${studies.length} included ${studies.length === 1 ? "record" : "records"})`,
+  }));
 };
+
+const INTEGRATED_SYNTHESIS_PROMPT = `
+Using only the supplied final included study records, identify the major thematic patterns, evidence domains, approaches, interventions, contexts, populations, outcomes, or other meaningful dimensions that emerge from the literature.
+
+The thematic structure must be discovered from the supplied evidence. Do not use predefined thematic categories.
+
+The objective is not to summarize every study individually. The objective is to explain what the body of included evidence collectively shows, how studies relate to one another, where they converge or diverge, and what meaningful patterns can be identified from the supplied evidence.
+
+Create approximately 3–8 distinct themes when the evidence supports this. Do not force the literature into a fixed number of themes if fewer or more meaningful themes are clearly supported.
+
+A study may contribute to more than one theme when its supplied information supports that interpretation.
+
+WRITING RULES:
+
+1. Use objective third-person academic writing.
+
+2. Do not mention artificial intelligence, language models, software, automation, screening technology, or this application.
+
+3. Do not mention PRISMA items.
+
+4. Do not invent sample sizes, populations, methods, datasets, comparisons, outcomes, effect sizes, confidence intervals, p-values, statistical significance, heterogeneity statistics, risk of bias, GRADE ratings, reviewer activity, or any other information not explicitly supplied.
+
+5. Use only information explicitly supplied in the records.
+
+6. If a characteristic is absent, use: "not reported in the supplied record."
+
+7. Distinguish carefully between measured outcomes, calculated or estimated outcomes, proxy indicators, model-predicted outcomes, simulation results, intended or proposed effects, and demonstrated real-world outcomes.
+
+8. Do not treat model accuracy as evidence of real-world effectiveness unless the supplied record explicitly demonstrates such effectiveness.
+
+9. Do not treat simulation results as demonstrated real-world outcomes.
+
+10. Do not perform quantitative pooling or meta-analysis.
+
+11. Identify similarities and differences between studies only where the supplied information supports the comparison.
+
+12. Do not infer causality unless it is explicitly supported by the supplied record.
+
+13. Do not assume that studies use the same definitions, populations, interventions, contexts, outcome measures, or methodological approaches.
+
+14. Preserve important differences between studies rather than collapsing them into a single generalized conclusion.
+
+15. Cite studies using: Author et al. (Year)
+
+16. Do not fabricate citations. Every cited study must correspond to a study in the supplied records.
+
+17. Do not create numerical evidence counts in the narrative. Evidence counts are calculated separately by the application.
+
+18. Do not assign a study to a theme solely because of a keyword match. Themes must reflect the substantive meaning of the supplied evidence.
+
+19. Do not create themes such as "Technologies", "Methods", "Outcomes", "Applications", or other generic categories unless the supplied literature itself clearly supports them as meaningful thematic domains.
+
+20. Each thematic narrative should synthesize multiple relevant studies where possible. Avoid creating a separate theme for an individual study unless that study represents a genuinely distinct evidence domain.
+
+21. Explain how studies relate to one another rather than merely listing what each study did.
+
+22. When several studies address a similar issue, synthesize them in the same discussion and identify the common pattern before referring to individual studies as supporting evidence.
+
+23. When studies differ in their conclusions, contexts, approaches, or reported outcomes, explain the distinction rather than presenting them as if they were consistent.
+
+24. Use citations naturally within sentences and paragraphs. Citations should support claims made in the synthesis rather than function as headings or labels for individual studies.
+
+25. Do not structure the prose as: "Author et al. (Year): ..." followed by another study summary.
+
+26. Do not begin successive sentences or paragraphs with different author names merely to summarize one study at a time.
+
+27. Avoid repetitive citation patterns such as "X et al. (Year) found...", "Y et al. (Year) found...", "Z et al. (Year) found...".
+
+28. Prefer integrated structures in which several studies support a broader proposition, followed by comparison, contrast, or interpretation where supported.
+
+29. Use transitions such as "Similarly", "In contrast", "Complementing this approach", "Extending this line of research", "Taken together", "Collectively", and "However" only when the relationship is actually supported by the supplied records.
+
+30. Do not force relationships between studies merely to make the writing appear connected.
+
+31. Each thematic narrative should progress logically: broad pattern → supporting evidence → comparison or contrast → interpretation of the evidence → remaining limitation or gap, where supported.
+
+32. Avoid repeating the same study's information unnecessarily across multiple themes. If a study contributes to more than one theme, use only the aspect relevant to that theme.
+
+33. The final paragraph of each thematic section should synthesize the evidence discussed rather than introduce another isolated study summary.
+
+34. Each prose field must read as a continuous academic discussion. It must not read as an annotated bibliography or a list of study summaries.
+
+35. Do not create a separate sentence for every supplied study. Select and connect the studies that are relevant to the thematic argument.
+
+36. If the supplied evidence is insufficient to establish a meaningful thematic pattern, state this explicitly rather than inferring one.
+
+RETURN VALID JSON ONLY:
+
+{
+  "subtopics": [
+    {
+      "title": "Evidence-grounded thematic domain",
+      "prose": "Integrated narrative synthesis in which studies are interrelated through patterns, similarities, differences, and supported interpretations."
+    }
+  ]
+}
+`;
 
 export default function SynthesisSection({
   protocol,
@@ -507,11 +400,6 @@ export default function SynthesisSection({
         characteristics
       ),
     [includedRecords, characteristics]
-  );
-
-  const clusters = useMemo(
-    () => buildClusters(synthesisStudies),
-    [synthesisStudies]
   );
 
   const titleOptions = useMemo(
@@ -580,29 +468,23 @@ export default function SynthesisSection({
   const runHeuristicSynthesis = () => {
     if (synthesisStudies.length === 0) return;
 
-    const fallbackTopics =
-      fallbackSubtopics(synthesisStudies);
+    const fallbackTopics = buildFallbackSubtopics(synthesisStudies);
 
     const generated: SynthesisResult = {
-      suggestedTitle:
-        suggestReviewTitles(
-          protocol,
-          synthesisStudies,
-          fallbackTopics
-        )[0],
-
+      suggestedTitle: suggestReviewTitles(
+        protocol,
+        synthesisStudies,
+        fallbackTopics
+      )[0],
       subtopics: fallbackTopics,
-
-      keyFindingsTable:
-        buildEvidenceTable(synthesisStudies),
-
+      keyFindingsTable: buildEvidenceTable(
+        synthesisStudies,
+        fallbackTopics
+      ),
       forestPlotEstimates: [],
-
       pooledEffectEstimate: undefined,
-
       heterogeneityDiscussion:
-        "Differences across records are described narratively according to their reported approaches, contexts, outcomes, and findings. Quantitative pooling is not performed.",
-
+        "The included evidence is synthesized narratively because the supplied records differ in their reported contexts, approaches, outcomes, and findings. Quantitative pooling is not performed.",
     };
 
     onUpdateSynthesis(generated);
@@ -616,160 +498,69 @@ export default function SynthesisSection({
     setErrorMessage(null);
 
     /*
-     * AI writing pass is intentionally capped.
-     * The evidence lock remains the complete includedRecords set.
+     * The evidence lock remains the complete included set. The AI writing
+     * pass is capped only to control downstream API usage. For reviews with
+     * <= 90 records, every included record is supplied to the writing pass.
      */
-    const studiesForAI =
-      synthesisStudies.slice(0, AI_SYNTHESIS_LIMIT);
-
-    const aiClusters =
-      buildClusters(studiesForAI);
+    const studiesForAI = synthesisStudies.slice(0, AI_SYNTHESIS_LIMIT);
 
     const prompt = `
-Act as an expert systematic review synthesis methodologist.
+${INTEGRATED_SYNTHESIS_PROMPT}
 
-Prepare a conservative narrative and thematic synthesis based ONLY
-on the supplied included study records.
+EVIDENCE-BASE NOTE:
 
-The complete evidence lock contains ${
-      synthesisStudies.length
-    } included records.
+The final evidence lock contains ${synthesisStudies.length} included records.
+The current writing pass contains ${studiesForAI.length} supplied records.
 
-The current writing pass contains ${
-      studiesForAI.length
-    } records.
-
-Do not invent information for records that are not supplied below.
-
-THEMATIC DOMAINS:
-${JSON.stringify(
-  aiClusters.map((cluster) => ({
-    domain: cluster.key,
-    recordIds: cluster.studies.map(
-      (study) => study.recordId
-    ),
-  })),
-  null,
-  2
-)}
+Do not infer information about records outside the supplied writing-pass
+records. The application retains the complete final evidence lock for
+downstream evidence accounting.
 
 SUPPLIED RECORDS:
 ${JSON.stringify(studiesForAI, null, 2)}
-
-WRITING RULES:
-
-1. Use objective third-person academic writing.
-
-2. Do not mention artificial intelligence, language models,
-   software, automation, screening technology, or this application.
-
-3. Do not mention PRISMA items.
-
-4. Do not invent sample sizes, populations, methods, datasets,
-   comparisons, outcomes, effect sizes, confidence intervals,
-   p-values, statistical significance, heterogeneity statistics,
-   risk of bias, GRADE ratings, or reviewer activity.
-
-5. Use only information explicitly supplied in the records.
-
-6. If a characteristic is absent, use:
-   "not reported in the supplied record."
-
-7. Distinguish between:
-   measured emissions,
-   calculated or estimated emissions,
-   proxy indicators,
-   model predictions,
-   simulations,
-   intended reductions,
-   and demonstrated outcomes.
-
-8. Do not treat model accuracy as evidence of real-world
-   decarbonization.
-
-9. Do not treat simulation results as real-world reductions.
-
-10. Do not perform quantitative pooling.
-
-11. Identify similarities and differences between studies only
-    where the supplied information supports that comparison.
-
-12. Cite studies using:
-    Author et al. (Year)
-
-13. Do not fabricate citations.
-
-14. Do not create numerical evidence counts.
-    Evidence counts will be calculated separately by the application.
-
-Return valid JSON only:
-
-{
-  "subtopics": [
-    {
-      "title": "Meaningful thematic domain",
-      "prose": "Evidence-grounded narrative"
-    }
-  ]
-}
 `;
 
     try {
       const text = await callAI(
         prompt,
-        "You are an expert systematic review methodologist focused on transparent narrative and thematic synthesis.",
+        "You are an expert systematic review methodologist focused on transparent, evidence-grounded narrative and thematic synthesis.",
         aiConfig
       );
 
       const parsed = parseJSONLoose(text);
 
       if (!parsed || !Array.isArray(parsed.subtopics)) {
-        throw new Error(
-          "The synthesis response could not be parsed."
-        );
+        throw new Error("The synthesis response could not be parsed.");
       }
 
-      const normalizedSubtopics =
-        normalizeSubtopics(
-          parsed.subtopics,
-          synthesisStudies
-        );
+      const subtopics = sanitizeSubtopics(parsed.subtopics);
+
+      if (subtopics.length === 0) {
+        throw new Error("No valid thematic synthesis was returned.");
+      }
 
       onUpdateSynthesis({
         ...synthesis,
-
-        suggestedTitle:
-          suggestReviewTitles(
-            protocol,
-            synthesisStudies,
-            normalizedSubtopics
-          )[0],
-
-        subtopics: normalizedSubtopics,
-
-        /*
-         * IMPORTANT:
-         * Counts come from the complete evidence lock,
-         * never from AI-generated text.
-         */
-        keyFindingsTable:
-          buildEvidenceTable(synthesisStudies),
-
+        suggestedTitle: suggestReviewTitles(
+          protocol,
+          synthesisStudies,
+          subtopics
+        )[0],
+        subtopics,
+        keyFindingsTable: buildEvidenceTable(
+          synthesisStudies,
+          subtopics
+        ),
         forestPlotEstimates: [],
-
         pooledEffectEstimate: undefined,
-
         heterogeneityDiscussion:
-          "Differences across records are described narratively according to their reported approaches, contexts, outcomes, and findings. Quantitative pooling is not performed.",
+          "The included evidence is synthesized narratively. Similarities and differences are described according to the information reported in the supplied records, and quantitative pooling is not performed.",
       });
     } catch (error: any) {
-      console.warn(
-        "Narrative synthesis generation error:",
-        error
-      );
+      console.warn("Narrative synthesis generation error:", error);
 
       setErrorMessage(
-        `Automatic synthesis could not be completed. A conservative structured synthesis has been generated instead.`
+        "Automatic synthesis could not be completed. A conservative evidence-grounded structured synthesis has been generated instead."
       );
 
       runHeuristicSynthesis();
@@ -1183,7 +974,7 @@ Return valid JSON only:
                 {
                   id: "intervention",
                   label:
-                    "Intervention / Technology",
+                    "Intervention / Focus",
                 },
                 {
                   id: "design",
@@ -1270,8 +1061,7 @@ Return valid JSON only:
 
                                 <p>
                                   <strong>
-                                    Intervention /
-                                    Model:
+                                    Intervention / Focus:
                                   </strong>{" "}
                                   {
                                     study.interventionOrFocus
@@ -1302,7 +1092,7 @@ Return valid JSON only:
             </div>
           ) : (
             <div className="p-10 text-center bg-white border border-slate-200 rounded-xl text-slate-500 text-xs font-mono">
-              No study characteristics are available.
+              No grouped evidence is available.
             </div>
           )}
         </div>
