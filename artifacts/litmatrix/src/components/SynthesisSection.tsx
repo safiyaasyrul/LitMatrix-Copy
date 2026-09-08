@@ -258,6 +258,25 @@ const suggestReviewTitle = (studies: SynthesisStudy[], subtopics: SynthesisResul
   return `${subject}: A Narrative and Thematic Synthesis`;
 };
 
+const suggestReviewTitles = (studies: SynthesisStudy[], subtopics: SynthesisResult["subtopics"]) => {
+  const primary = suggestReviewTitle(studies, subtopics);
+  const subject = primary.replace(/:\s*A Narrative and Thematic Synthesis$/, "");
+  const clusterPhrase = subtopics
+    .slice(0, 2)
+    .map((subtopic) => subtopic.title.replace(/^\d+\.\s*/, "").replace(/\bevidence\b/gi, "").trim())
+    .filter(Boolean)
+    .join(" and ");
+
+  return Array.from(new Set([
+    primary,
+    `A PRISMA 2020 Review of ${subject}`,
+    `${subject}: Evidence Landscape, Methods, and Reported Outcomes`,
+    clusterPhrase
+      ? `${subject}: A Thematic Review of ${clusterPhrase}`
+      : `${subject}: A Review of the Included Literature`,
+  ]));
+};
+
 export default function SynthesisSection({
   protocol,
   onUpdateProtocol,
@@ -412,10 +431,10 @@ Generate a JSON object conforming strictly to:
   };
 
   const groupedData = getGroupedCharacteristics();
-  const suggestedTitle = synthesis.suggestedTitle
-    || (synthesis.subtopics.length > 0
-      ? suggestReviewTitle(getSynthesisStudies(includedRecords, characteristics), synthesis.subtopics)
-      : "");
+  const titleOptions = synthesis.subtopics.length > 0
+    ? suggestReviewTitles(getSynthesisStudies(includedRecords, characteristics), synthesis.subtopics)
+    : [];
+  const suggestedTitle = synthesis.suggestedTitle || titleOptions[0] || "";
   const [titleCopied, setTitleCopied] = useState(false);
 
   return (
@@ -561,6 +580,38 @@ Generate a JSON object conforming strictly to:
                   Editable
                 </span>
               </div>
+
+              {titleOptions.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs text-emerald-800">
+                    Choose a starting point, then edit it below if needed.
+                  </p>
+                  <div className="grid gap-2">
+                    {titleOptions.map((title) => {
+                      const selected = (synthesis.suggestedTitle ?? suggestedTitle) === title;
+                      return (
+                        <button
+                          key={title}
+                          type="button"
+                          onClick={() =>
+                            onUpdateSynthesis({
+                              ...synthesis,
+                              suggestedTitle: title,
+                            })
+                          }
+                          className={`w-full text-left px-3 py-2 text-xs rounded-lg border transition-colors cursor-pointer ${
+                            selected
+                              ? "border-emerald-500 bg-emerald-100 text-emerald-950 font-semibold"
+                              : "border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50"
+                          }`}
+                        >
+                          {title}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <input
                 type="text"
