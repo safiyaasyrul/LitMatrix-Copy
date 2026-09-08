@@ -1,6 +1,19 @@
-import React, { useState } from "react";
-import { SLRProtocol, SLRRecord, SynthesisResult, StudyCharacteristic } from "../types/slr";
-import { Sparkles, BarChart2, BookOpen, Layers, Download, CheckCircle, RefreshCw, AlertCircle, Zap, Tag, Quote, Filter, Copy } from "lucide-react";
+import React, { useMemo, useState } from "react";
+import {
+  SLRProtocol,
+  SLRRecord,
+  SynthesisResult,
+  StudyCharacteristic,
+} from "../types/slr";
+import {
+  Sparkles,
+  BookOpen,
+  Filter,
+  Copy,
+  Zap,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
 import { callAI, parseJSONLoose } from "../utils/aiClient";
 
 interface SynthesisSectionProps {
@@ -14,13 +27,26 @@ interface SynthesisSectionProps {
   onNavigateToScreening?: () => void;
 }
 
+/*
+ * The evidence lock is unrestricted.
+ * The AI writing pass is capped separately to keep downstream
+ * API usage predictable without changing PRISMA/evidence counts.
+ */
+const AI_SYNTHESIS_LIMIT = 90;
 const MIN_SYNTHESIS_CLUSTERS = 3;
 
-type SynthesisStudy = StudyCharacteristic;
+type SynthesisStudy = StudyCharacteristic & {
+  recordId: string;
+  authorYear: string;
+};
+
+const RECORD_NOT_REPORTED = "Not reported in the supplied record";
 
 const firstAuthorSurname = (record: SLRRecord) => {
   const firstAuthor = record.authors?.[0]?.trim();
+
   if (!firstAuthor) return "Author";
+
   return firstAuthor.includes(",")
     ? firstAuthor.split(",")[0].trim()
     : firstAuthor.split(/\s+/).slice(-1)[0] || "Author";
@@ -29,252 +55,423 @@ const firstAuthorSurname = (record: SLRRecord) => {
 const authorYearLabel = (record: SLRRecord) =>
   `${firstAuthorSurname(record)} et al. (${record.year || "n.d."})`;
 
-const RECORD_NOT_REPORTED = "Not reported in the supplied record";
-const OUTCOME_CLUSTER = "Outcomes, performance, and reported effects";
+const cleanText = (value: any) =>
+  typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
 
-const buildStudiesFromRecords = (records: SLRRecord[]): SynthesisStudy[] =>
-  records.map((record) => ({
-    recordId: record.id,
-    authorYear: authorYearLabel(record),
-    country: RECORD_NOT_REPORTED,
-    sampleSize: RECORD_NOT_REPORTED,
-    population: RECORD_NOT_REPORTED,
-    interventionOrFocus: record.title,
-    comparator: RECORD_NOT_REPORTED,
-    primaryOutcome: RECORD_NOT_REPORTED,
-    studyDesign: RECORD_NOT_REPORTED,
-    keyFinding: record.abstract?.trim().slice(0, 260) || RECORD_NOT_REPORTED,
-  }));
-
-const getSynthesisStudies = (
-  includedRecords: SLRRecord[],
+const buildStudiesFromRecords = (
+  records: SLRRecord[],
   characteristics: StudyCharacteristic[]
-) => characteristics.length > 0 ? characteristics : buildStudiesFromRecords(includedRecords);
+): SynthesisStudy[] => {
+  const characteristicMap = new Map<string, StudyCharacteristic>();
 
-const clusterStudies = (studies: SynthesisStudy[]) => {
-  const themes = [
-    {
-      key: "Methods, models, and study designs",
-      terms: ["method", "model", "algorithm", "framework", "simulation", "design", "validation", "experiment"],
-    },
-    {
-      key: "Applications, interventions, and contexts",
-      terms: ["intervention", "exposure", "population", "context", "application", "technology", "system", "setting"],
-    },
-    {
-      key: "Outcomes, performance, and reported effects",
-      terms: ["outcome", "performance", "efficiency", "accuracy", "impact", "emission", "effect", "result", "evaluation"],
-    },
-  ];
-  const buckets = themes.map((theme) => ({ key: theme.key, studies: [] as SynthesisStudy[] }));
-
-  studies.forEach((study, studyIndex) => {
-    const searchableText = [
-      study.category,
-      study.interventionOrFocus,
-      study.studyDesign,
-      study.primaryOutcome,
-      study.keyFinding,
-    ].join(" ").toLowerCase();
-    const scores = themes.map((theme) =>
-      theme.terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0)
-    );
-    const highestScore = Math.max(...scores);
-    const matchingIndexes = scores
-      .map((score, index) => score === highestScore ? index : -1)
-      .filter((index) => index >= 0);
-    const selectedIndex = matchingIndexes.length > 1
-      ? studyIndex % themes.length
-      : matchingIndexes[0];
-    buckets[selectedIndex].studies.push(study);
+  characteristics.forEach((characteristic) => {
+    if (characteristic.recordId) {
+      characteristicMap.set(characteristic.recordId, characteristic);
+    }
   });
 
-  // Keep all three clusters populated whenever at least three records exist.
-  for (let index = 0; index < buckets.length; index++) {
-    if (buckets[index].studies.length === 0 && studies.length >= MIN_SYNTHESIS_CLUSTERS) {
-      const donor = buckets
-        .map((bucket, donorIndex) => ({ donorIndex, size: bucket.studies.length }))
-        .filter((bucket) => bucket.size > 1)
-        .sort((a, b) => b.size - a.size)[0];
-      if (donor) {
-        buckets[index].studies.push(buckets[donor.donorIndex].studies.pop()!);
-      }
-    }
+  return records.map((record) => {
+    const characteristic = characteristicMap.get(record.id);
+
+    return {
+      recordId: record.id,
+      authorYear: authorYearLabel(record),
+
+      country:
+        cleanText(characteristic?.country) || RECORD_NOT_REPORTED,
+
+      sampleSize:
+        cleanText(characteristic?.sampleSize) || RECORD_NOT_REPORTED,
+
+      population:
+        cleanText(characteristic?.population) || RECORD_NOT_REPORTED,
+
+      interventionOrFocus:
+        cleanText(characteristic?.interventionOrFocus) ||
+        cleanText(record.title) ||
+        RECORD_NOT_REPORTED,
+
+      comparator:
+        cleanText(characteristic?.comparator) || RECORD_NOT_REPORTED,
+
+      primaryOutcome:
+        cleanText(characteristic?.primaryOutcome) || RECORD_NOT_REPORTED,
+
+      studyDesign:
+        cleanText(characteristic?.studyDesign) || RECORD_NOT_REPORTED,
+
+      keyFinding:
+        cleanText(characteristic?.keyFinding) ||
+        cleanText(record.abstract)?.slice(0, 500) ||
+        RECORD_NOT_REPORTED,
+
+      category:
+        cleanText(characteristic?.category) || "Uncategorized evidence",
+    };
+  });
+};
+
+/*
+ * IMPORTANT:
+ * This function creates mutually exclusive descriptive domains.
+ * Every included record belongs to exactly one domain.
+ *
+ * It does not claim that these are formal evidence categories.
+ * They are only an organizational device for narrative synthesis.
+ */
+const classifyTheme = (study: SynthesisStudy): string => {
+  const text = [
+    study.category,
+    study.interventionOrFocus,
+    study.studyDesign,
+    study.primaryOutcome,
+    study.keyFinding,
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  const outcomeTerms = [
+    "emission",
+    "co2",
+    "carbon",
+    "decarbon",
+    "fuel consumption",
+    "energy consumption",
+    "efficiency",
+    "performance",
+    "accuracy",
+    "reduction",
+    "impact",
+    "result",
+    "outcome",
+  ];
+
+  const technologyTerms = [
+    "technology",
+    "optimization",
+    "optimisation",
+    "algorithm",
+    "machine learning",
+    "deep learning",
+    "artificial intelligence",
+    "digital",
+    "system",
+    "propulsion",
+    "fuel",
+    "engine",
+    "energy",
+    "renewable",
+    "alternative fuel",
+    "electr",
+    "hybrid",
+    "battery",
+  ];
+
+  const methodsTerms = [
+    "method",
+    "framework",
+    "model",
+    "simulation",
+    "assessment",
+    "methodology",
+    "life cycle",
+    "lca",
+    "scenario",
+    "forecast",
+    "prediction",
+    "optimization model",
+    "decision",
+    "evaluation",
+  ];
+
+  const score = (terms: string[]) =>
+    terms.reduce(
+      (total, term) => total + (text.includes(term) ? 1 : 0),
+      0
+    );
+
+  const technologyScore = score(technologyTerms);
+  const methodsScore = score(methodsTerms);
+  const outcomesScore = score(outcomeTerms);
+
+  if (technologyScore >= methodsScore && technologyScore >= outcomesScore) {
+    return "Technologies, interventions, and operational strategies";
   }
 
+  if (methodsScore >= outcomesScore) {
+    return "Methods, models, and assessment approaches";
+  }
+
+  return "Emissions, performance, and reported outcomes";
+};
+
+const buildClusters = (studies: SynthesisStudy[]) => {
+  const orderedThemes = [
+    "Technologies, interventions, and operational strategies",
+    "Methods, models, and assessment approaches",
+    "Emissions, performance, and reported outcomes",
+  ];
+
+  const buckets = orderedThemes.map((key) => ({
+    key,
+    studies: [] as SynthesisStudy[],
+  }));
+
+  studies.forEach((study) => {
+    const theme = classifyTheme(study);
+    const bucket = buckets.find((item) => item.key === theme);
+
+    if (bucket) {
+      bucket.studies.push(study);
+    }
+  });
+
+  /*
+   * If a theme is empty, do not artificially move records just to
+   * manufacture a count. Empty domains are legitimate.
+   */
   return buckets;
 };
 
-const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const studyCitationLine = (study: SynthesisStudy) => {
-  const rawFinding = (study.keyFinding || "No finding was reported in the supplied record.")
-    .replace(/\s+/g, " ")
-    .trim();
-  const finding = rawFinding.split(/(?<=[.!?])\s+/)[0].slice(0, 220).trim();
-  return `${study.authorYear}: ${finding}${rawFinding.length > 220 ? "…" : ""}`;
-};
-
-const themeTerms = (studies: SynthesisStudy[]) => {
+const getThemeTerms = (studies: SynthesisStudy[]) => {
   const stopWords = new Set([
-    "about", "across", "after", "among", "based", "between", "could", "from",
-    "into", "more", "other", "reported", "record", "records", "study", "studies",
-    "their", "these", "those", "using", "with", "within", "not", "supplied",
-    "information", "described", "details", "available", "included",
+    "about",
+    "across",
+    "after",
+    "among",
+    "based",
+    "between",
+    "could",
+    "from",
+    "into",
+    "more",
+    "other",
+    "reported",
+    "record",
+    "records",
+    "study",
+    "studies",
+    "their",
+    "these",
+    "those",
+    "using",
+    "with",
+    "within",
+    "not",
+    "supplied",
+    "information",
+    "described",
+    "details",
+    "available",
+    "included",
+    "analysis",
+    "method",
+    "methods",
+    "model",
+    "models",
   ]);
+
   const counts = new Map<string, number>();
+
   studies.forEach((study) => {
     const text = [
       study.interventionOrFocus,
       study.primaryOutcome,
       study.keyFinding,
-    ].join(" ").toLowerCase();
+    ]
+      .join(" ")
+      .toLowerCase();
+
     text.match(/[a-z][a-z0-9]{3,}/g)?.forEach((word) => {
-      if (!stopWords.has(word) && !word.includes("reported")) {
+      if (!stopWords.has(word)) {
         counts.set(word, (counts.get(word) || 0) + 1);
       }
     });
   });
+
   return Array.from(counts.entries())
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 4)
+    .slice(0, 5)
     .map(([word]) => word);
 };
 
-const outcomeFocuses = (studies: SynthesisStudy[]) => {
-  const focuses = studies.map((study) => {
-    const suppliedOutcome = study.primaryOutcome?.trim();
-    if (suppliedOutcome && suppliedOutcome !== RECORD_NOT_REPORTED) {
-      return suppliedOutcome.split(/[.;]/)[0].slice(0, 80).trim();
-    }
-    const keywords = themeTerms([study]).slice(0, 2);
-    return keywords.join(" and ") || "reported findings";
-  });
-  return Array.from(new Set(focuses)).slice(0, 4);
+const studyCitationLine = (study: SynthesisStudy) => {
+  const finding =
+    cleanText(study.keyFinding) ||
+    "No specific finding is reported in the supplied record.";
+
+  const sentence =
+    finding.split(/(?<=[.!?])\s+/)[0].slice(0, 260).trim();
+
+  return `${study.authorYear}: ${sentence}${
+    finding.length > 260 ? "…" : ""
+  }`;
 };
 
-const buildThematicDiscussion = (
+const buildClusterNarrative = (
   cluster: { key: string; studies: SynthesisStudy[] },
-  suppliedProse = "",
+  suppliedProse = ""
 ) => {
   if (cluster.studies.length === 0) {
-    return `No included records were assigned to the ${cluster.key.toLowerCase()} cluster.`;
+    return `No included records were assigned to the ${cluster.key.toLowerCase()} domain.`;
   }
 
-  const terms = themeTerms(cluster.studies);
-  const topicPhrase = terms.length > 0 ? terms.join(", ") : "the reported study findings";
-  const discussion = cluster.key === OUTCOME_CLUSTER
-    ? (() => {
-        const focuses = outcomeFocuses(cluster.studies);
-        const focusPhrase = focuses.join("; ");
-        return `The ${cluster.key.toLowerCase()} cluster comprises ${cluster.studies.length} included record${cluster.studies.length === 1 ? "" : "s"} organized around ${topicPhrase}. The reported outcome focuses include ${focusPhrase}. These records are therefore compared by outcome family, considering how each study evaluates performance or reported effects, rather than treating unlike measures as a single pooled result.`;
-      })()
-    : `The ${cluster.key.toLowerCase()} cluster comprises ${cluster.studies.length} included record${cluster.studies.length === 1 ? "" : "s"} with recurring emphasis on ${topicPhrase}. The records are discussed together because these shared features provide a thematic basis for comparing the reported approaches and findings.`;
+  const terms = getThemeTerms(cluster.studies);
+  const topicPhrase =
+    terms.length > 0
+      ? terms.join(", ")
+      : "the reported characteristics and findings";
 
-  const supplied = formatClusterProse(suppliedProse, cluster.studies);
-  const citationEvidence = cluster.studies.map(studyCitationLine).join("\n\n");
-  const supportingNarrative = cluster.key === OUTCOME_CLUSTER
-    ? citationEvidence
-    : supplied || citationEvidence;
-  if (supplied.startsWith(discussion)) {
-    return supplied;
+  const opening = `The ${cluster.key.toLowerCase()} domain contains ${
+    cluster.studies.length
+  } included record${
+    cluster.studies.length === 1 ? "" : "s"
+  }. Recurring features include ${topicPhrase}.`;
+
+  const supplied = cleanText(suppliedProse);
+
+  const evidence = cluster.studies
+    .map(studyCitationLine)
+    .join("\n\n");
+
+  if (supplied) {
+    return `${opening}\n\n${supplied}\n\n${evidence}`;
   }
-  return `${discussion}\n\n${supportingNarrative}`;
-};
 
-const formatClusterProse = (prose: string, studies: SynthesisStudy[]) => {
-  let formatted = (prose || "").replace(/\r\n/g, "\n").trim();
-  studies.forEach((study) => {
-    const label = study.authorYear;
-    const labelMatch = label.match(/^(.*?)(?:\s+et al\.)?\s*\(([^)]+)\)$/);
-    const surname = labelMatch?.[1] || label.split(" et al.")[0];
-    const year = labelMatch?.[2];
-    if (year) {
-      const variantPattern = new RegExp(
-        `${escapeRegExp(surname)}\\s+et\\s+al\\.?\\s*(?:,|\\()\\s*${escapeRegExp(year)}\\)?`,
-        "gi"
-      );
-      formatted = formatted.replace(variantPattern, label);
-    }
-    const canonicalPattern = new RegExp(`${escapeRegExp(label)}\\s*:??\\s*`, "g");
-    formatted = formatted.replace(canonicalPattern, `${label}: `);
-    const labelPattern = new RegExp(`\\s+(?=${escapeRegExp(label)}\\s*:?)`, "g");
-    formatted = formatted.replace(labelPattern, "\n\n");
-    if (!formatted.includes(label)) {
-      formatted = `${formatted}${formatted ? "\n\n" : ""}${studyCitationLine(study)}`;
-    }
-  });
-  return formatted || studies.map(studyCitationLine).join("\n\n");
+  return `${opening}\n\n${evidence}`;
 };
 
 const fallbackSubtopics = (studies: SynthesisStudy[]) =>
-  clusterStudies(studies).map((cluster, index) => ({
-    title: `${index + 1}. ${cluster.key} evidence`,
-    prose: buildThematicDiscussion(cluster),
-  }));
+  buildClusters(studies)
+    .filter((cluster) => cluster.studies.length > 0)
+    .map((cluster, index) => ({
+      title: `${index + 1}. ${cluster.key}`,
+      prose: buildClusterNarrative(cluster),
+    }));
 
-const normalizeSubtopics = (subtopics: any[], studies: SynthesisStudy[]) => {
-  const clusters = clusterStudies(studies);
-  return clusters.map((cluster, index) => {
-    const supplied = subtopics[index];
-    const title = typeof supplied?.title === "string" && supplied.title.trim()
-      ? supplied.title.trim()
-      : `${index + 1}. ${cluster.key} evidence`;
+/*
+ * Keep at least three possible synthesis domains in the UI when
+ * enough evidence exists, but never fabricate records.
+ */
+const normalizeSubtopics = (
+  suppliedSubtopics: any[],
+  studies: SynthesisStudy[]
+) => {
+  const clusters = buildClusters(studies);
+
+  const populatedClusters = clusters.filter(
+    (cluster) => cluster.studies.length > 0
+  );
+
+  const baseClusters =
+    populatedClusters.length >= MIN_SYNTHESIS_CLUSTERS
+      ? populatedClusters
+      : clusters;
+
+  return baseClusters.map((cluster, index) => {
+    const supplied =
+      suppliedSubtopics?.[index];
+
+    const title =
+      typeof supplied?.title === "string" &&
+      supplied.title.trim()
+        ? supplied.title.trim()
+        : `${index + 1}. ${cluster.key}`;
+
     return {
       title: title.replace(/^\d+\.\s*/, `${index + 1}. `),
-      prose: buildThematicDiscussion(
+      prose: buildClusterNarrative(
         cluster,
-        typeof supplied?.prose === "string" ? supplied.prose : "",
+        typeof supplied?.prose === "string"
+          ? supplied.prose
+          : ""
       ),
     };
   });
 };
 
-const suggestReviewTitle = (studies: SynthesisStudy[], subtopics: SynthesisResult["subtopics"]) => {
-  const stopWords = new Set([
-    "about", "across", "after", "among", "based", "between", "from", "into",
-    "methods", "method", "model", "models", "study", "studies", "using",
-    "reported", "evidence", "analysis", "review", "research", "design",
-    "outcomes", "outcome", "results", "record", "records", "not", "reported",
-  ]);
-  const wordCounts = new Map<string, number>();
-  studies.forEach((study) => {
-    const text = `${study.interventionOrFocus} ${study.keyFinding}`.toLowerCase();
-    text.match(/[a-z][a-z0-9]{3,}/g)?.forEach((word) => {
-      if (!stopWords.has(word)) wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
-    });
-  });
-  const topicWords = Array.from(wordCounts.entries())
-    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .slice(0, 3)
-    .map(([word]) => word);
-  const clusterWords = subtopics
-    .map((subtopic) => subtopic.title.replace(/^\d+\.\s*/, "").replace(/\bevidence\b/gi, "").trim())
-    .filter(Boolean)
-    .slice(0, 2);
-  const subject = topicWords.length >= 2
-    ? topicWords.map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(", ")
-    : clusterWords.join(" and ") || "The Included Literature";
-  return `${subject}: A Narrative and Thematic Synthesis`;
+/*
+ * Extract a concise subject from the protocol title.
+ *
+ * The protocol title is preferable to arbitrary word frequency
+ * because it reflects the user's defined review question/topic.
+ */
+const getProtocolSubject = (protocol: SLRProtocol) => {
+  const raw = cleanText(protocol?.title);
+
+  if (!raw) return "";
+
+  return raw
+    .replace(/^systematic\s+literature\s+review\s*[:\-]?\s*/i, "")
+    .replace(/^a\s+systematic\s+review\s+of\s+/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
 };
 
-const suggestReviewTitles = (studies: SynthesisStudy[], subtopics: SynthesisResult["subtopics"]) => {
-  const primary = suggestReviewTitle(studies, subtopics);
-  const subject = primary.replace(/:\s*A Narrative and Thematic Synthesis$/, "");
-  const clusterPhrase = subtopics
-    .slice(0, 2)
-    .map((subtopic) => subtopic.title.replace(/^\d+\.\s*/, "").replace(/\bevidence\b/gi, "").trim())
-    .filter(Boolean)
-    .join(" and ");
+const suggestReviewTitles = (
+  protocol: SLRProtocol,
+  studies: SynthesisStudy[],
+  subtopics: SynthesisResult["subtopics"]
+) => {
+  const protocolSubject = getProtocolSubject(protocol);
 
-  return Array.from(new Set([
-    primary,
-    `A PRISMA 2020 Review of ${subject}`,
-    `${subject}: Evidence Landscape, Methods, and Reported Outcomes`,
-    clusterPhrase
-      ? `${subject}: A Thematic Review of ${clusterPhrase}`
-      : `${subject}: A Review of the Included Literature`,
-  ]));
+  const themeTerms = Array.from(
+    new Set(
+      subtopics
+        .map((topic) =>
+          topic.title
+            .replace(/^\d+\.\s*/, "")
+            .trim()
+        )
+        .filter(Boolean)
+    )
+  );
+
+  const evidenceTerms = getThemeTerms(studies)
+    .slice(0, 3)
+    .map(
+      (word) =>
+        word.charAt(0).toUpperCase() + word.slice(1)
+    );
+
+  const subject =
+    protocolSubject ||
+    (evidenceTerms.length
+      ? evidenceTerms.join(", ")
+      : "The Included Literature");
+
+  const titles = [
+    `${subject}: A Narrative and Thematic Synthesis`,
+
+    `A Systematic Review of ${subject}`,
+
+    `${subject}: Evidence, Methods, and Reported Outcomes`,
+
+    themeTerms.length > 0
+      ? `${subject}: A Thematic Synthesis of ${themeTerms
+          .slice(0, 2)
+          .join(" and ")}`
+      : `${subject}: A Structured Review of the Evidence`,
+  ];
+
+  return Array.from(
+    new Set(titles.map((title) => title.trim()))
+  );
+};
+
+const buildEvidenceTable = (
+  studies: SynthesisStudy[]
+) => {
+  return buildClusters(studies)
+    .filter((cluster) => cluster.studies.length > 0)
+    .map((cluster) => ({
+      topic: cluster.key,
+      summary: buildClusterNarrative(cluster),
+      consistency: "Not assessed quantitatively",
+      evidenceBase: `${cluster.studies.length} included record${
+        cluster.studies.length === 1 ? "" : "s"
+      }`,
+    }));
 };
 
 export default function SynthesisSection({
@@ -288,57 +485,124 @@ export default function SynthesisSection({
   onNavigateToScreening,
 }: SynthesisSectionProps) {
   const [generating, setGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState<"prose" | "groups" | "table">("prose");
-  const [groupingMode, setGroupingMode] = useState<"category" | "intervention" | "design" | "outcome">("category");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  // Group characteristics dynamically
-  const getGroupedCharacteristics = () => {
-    const map = new Map<string, StudyCharacteristic[]>();
+  const [activeTab, setActiveTab] =
+    useState<"prose" | "groups" | "table">("prose");
+  const [groupingMode, setGroupingMode] = useState<
+    "category" | "intervention" | "design" | "outcome"
+  >("category");
+  const [errorMessage, setErrorMessage] =
+    useState<string | null>(null);
+  const [titleCopied, setTitleCopied] =
+    useState(false);
 
-    characteristics.forEach((c) => {
-      let groupKey = "Uncategorized evidence";
+  /*
+   * Evidence Lock:
+   * ALL final included records remain in the synthesis evidence base.
+   * Characteristics are supplementary and never determine inclusion.
+   */
+  const synthesisStudies = useMemo(
+    () =>
+      buildStudiesFromRecords(
+        includedRecords,
+        characteristics
+      ),
+    [includedRecords, characteristics]
+  );
+
+  const clusters = useMemo(
+    () => buildClusters(synthesisStudies),
+    [synthesisStudies]
+  );
+
+  const titleOptions = useMemo(
+    () =>
+      suggestReviewTitles(
+        protocol,
+        synthesisStudies,
+        synthesis.subtopics || []
+      ),
+    [protocol, synthesisStudies, synthesis.subtopics]
+  );
+
+  const suggestedTitle =
+    synthesis.suggestedTitle ||
+    titleOptions[0] ||
+    "";
+
+  const getGroupedCharacteristics = () => {
+    const map = new Map<string, SynthesisStudy[]>();
+
+    synthesisStudies.forEach((study) => {
+      let groupKey =
+        "Uncategorized evidence";
+
       if (groupingMode === "category") {
-        groupKey = c.category || "Uncategorized evidence";
-      } else if (groupingMode === "design") {
-        groupKey = c.studyDesign || "Study design details in supplied records";
-      } else if (groupingMode === "intervention") {
-        groupKey = c.interventionOrFocus ? c.interventionOrFocus.split(",")[0].trim() : "Focus described in supplied records";
-      } else if (groupingMode === "outcome") {
-        groupKey = c.primaryOutcome ? c.primaryOutcome.split("(")[0].trim() : "Outcome details in supplied records";
+        groupKey =
+          study.category ||
+          "Uncategorized evidence";
+      }
+
+      if (groupingMode === "design") {
+        groupKey =
+          study.studyDesign ||
+          "Study design details in supplied records";
+      }
+
+      if (groupingMode === "intervention") {
+        groupKey =
+          study.interventionOrFocus ||
+          "Focus described in supplied records";
+      }
+
+      if (groupingMode === "outcome") {
+        groupKey =
+          study.primaryOutcome ||
+          "Outcome details in supplied records";
       }
 
       if (!map.has(groupKey)) {
         map.set(groupKey, []);
       }
-      map.get(groupKey)!.push(c);
+
+      map.get(groupKey)!.push(study);
     });
 
-    return Array.from(map.entries()).map(([groupTitle, studies]) => ({
-      groupTitle,
-      studies,
-    }));
+    return Array.from(map.entries()).map(
+      ([groupTitle, studies]) => ({
+        groupTitle,
+        studies,
+      })
+    );
   };
 
-  // Conservative narrative fallback. It never manufactures quantitative results.
-  const runHeuristicSynthesis = () => {
-    if (includedRecords.length === 0 && characteristics.length === 0) return;
+  const groupedData = getGroupedCharacteristics();
 
-    const studies = getSynthesisStudies(includedRecords, characteristics);
-    const clusters = clusterStudies(studies);
-    const fallbackTopics = fallbackSubtopics(studies);
+  const runHeuristicSynthesis = () => {
+    if (synthesisStudies.length === 0) return;
+
+    const fallbackTopics =
+      fallbackSubtopics(synthesisStudies);
 
     const generated: SynthesisResult = {
-      suggestedTitle: suggestReviewTitle(studies, fallbackTopics),
+      suggestedTitle:
+        suggestReviewTitles(
+          protocol,
+          synthesisStudies,
+          fallbackTopics
+        )[0],
+
       subtopics: fallbackTopics,
-      keyFindingsTable: clusters.map((cluster) => ({
-        topic: cluster.key,
-        summary: buildThematicDiscussion(cluster),
-        consistency: "Not assessed quantitatively",
-        evidenceBase: `${cluster.studies.length} screened-in record${cluster.studies.length === 1 ? "" : "s"}`,
-      })),
+
+      keyFindingsTable:
+        buildEvidenceTable(synthesisStudies),
+
       forestPlotEstimates: [],
+
       pooledEffectEstimate: undefined,
-      heterogeneityDiscussion: "Differences across records are described through reported methods, contexts, outcomes, and recurring themes.",
+
+      heterogeneityDiscussion:
+        "Differences across records are described narratively according to their reported approaches, contexts, outcomes, and findings. Quantitative pooling is not performed.",
+
     };
 
     onUpdateSynthesis(generated);
@@ -346,54 +610,109 @@ export default function SynthesisSection({
   };
 
   const handleGenerateSynthesis = async () => {
-    if (includedRecords.length === 0 && characteristics.length === 0) return;
+    if (synthesisStudies.length === 0) return;
+
     setGenerating(true);
     setErrorMessage(null);
 
-    const studiesData = getSynthesisStudies(includedRecords, characteristics);
-    const clusters = clusterStudies(studiesData);
+    /*
+     * AI writing pass is intentionally capped.
+     * The evidence lock remains the complete includedRecords set.
+     */
+    const studiesForAI =
+      synthesisStudies.slice(0, AI_SYNTHESIS_LIMIT);
 
-    const prompt = `Act as a systematic review synthesis methodologist. Produce a narrative and thematic synthesis of the ${studiesData.length} screened-in records.
+    const aiClusters =
+      buildClusters(studiesForAI);
 
-Group studies using the following record-grounded cluster assignments. Use all clusters, and return at least ${MIN_SYNTHESIS_CLUSTERS} non-quantitative subtopics:
-${JSON.stringify(clusters.map((cluster, index) => ({
-  cluster: index + 1,
-  basis: cluster.key,
-  recordIds: cluster.studies.map((study) => study.recordId),
-})))}
+    const prompt = `
+Act as an expert systematic review synthesis methodologist.
 
-Within each category or thematic group, explicitly identify authors who share similarities in their methods, designs, or outcomes, and compare/contrast their empirical results.
+Prepare a conservative narrative and thematic synthesis based ONLY
+on the supplied included study records.
 
-Included Studies and Detailed Characteristics:
-${JSON.stringify(studiesData)}
+The complete evidence lock contains ${
+      synthesisStudies.length
+    } included records.
 
-STRICT WRITING RULES:
-1. Write in strictly third-person objective academic voice. NEVER use first-person pronouns (DO NOT use "we", "our", "us", "in our study", "we observed").
-2. DO NOT use dashes or hyphens as punctuation dividers. Use standard sentence structure with commas, semicolons, and parentheses.
-3. DO NOT mention "PRISMA Item", "PRISMA", "Item 20", etc.
-4. CITE EVERY INCLUDED STUDY EXPLICITLY in the narrative text using exactly "Author et al. (Year): finding". Put each study citation on its own paragraph. Never concatenate one citation directly after another, and never use a bare author name without its year.
-5. Return at least ${MIN_SYNTHESIS_CLUSTERS} structured subtopics, matching the supplied cluster assignments. Each subtopic must contain the citations for its assigned records.
-6. Use only supplied facts. Do not invent methods, sample sizes, settings, outcomes, comparisons, validation, reviewer activity, or findings.
-7. Do not calculate or report pooled effects, confidence intervals, p-values, weights, or statistical significance.
-8. Do not mention citation metadata, the application, extraction state, or system limitations. If a supplied record itself omits a relevant design, population, sample, comparator, or outcome detail, describe that only as "not reported in the supplied record" for that study. Do not make blanket claims about missing information across the review.
+The current writing pass contains ${
+      studiesForAI.length
+    } records.
 
-Generate a JSON object conforming strictly to:
+Do not invent information for records that are not supplied below.
+
+THEMATIC DOMAINS:
+${JSON.stringify(
+  aiClusters.map((cluster) => ({
+    domain: cluster.key,
+    recordIds: cluster.studies.map(
+      (study) => study.recordId
+    ),
+  })),
+  null,
+  2
+)}
+
+SUPPLIED RECORDS:
+${JSON.stringify(studiesForAI, null, 2)}
+
+WRITING RULES:
+
+1. Use objective third-person academic writing.
+
+2. Do not mention artificial intelligence, language models,
+   software, automation, screening technology, or this application.
+
+3. Do not mention PRISMA items.
+
+4. Do not invent sample sizes, populations, methods, datasets,
+   comparisons, outcomes, effect sizes, confidence intervals,
+   p-values, statistical significance, heterogeneity statistics,
+   risk of bias, GRADE ratings, or reviewer activity.
+
+5. Use only information explicitly supplied in the records.
+
+6. If a characteristic is absent, use:
+   "not reported in the supplied record."
+
+7. Distinguish between:
+   measured emissions,
+   calculated or estimated emissions,
+   proxy indicators,
+   model predictions,
+   simulations,
+   intended reductions,
+   and demonstrated outcomes.
+
+8. Do not treat model accuracy as evidence of real-world
+   decarbonization.
+
+9. Do not treat simulation results as real-world reductions.
+
+10. Do not perform quantitative pooling.
+
+11. Identify similarities and differences between studies only
+    where the supplied information supports that comparison.
+
+12. Cite studies using:
+    Author et al. (Year)
+
+13. Do not fabricate citations.
+
+14. Do not create numerical evidence counts.
+    Evidence counts will be calculated separately by the application.
+
+Return valid JSON only:
+
 {
   "subtopics": [
     {
-      "title": "Descriptive subtopic grounded in the supplied records",
-      "prose": "Evidence-grounded narrative citing the relevant supplied studies"
-    }
-  ],
-  "keyFindingsTable": [
-    {
-      "topic": "Synthesis Domain",
-      "summary": "Concise summary citing findings",
-      "consistency": "Describe cautiously or state not assessable",
-      "evidenceBase": "Number of records contributing to this theme"
+      "title": "Meaningful thematic domain",
+      "prose": "Evidence-grounded narrative"
     }
   ]
-}`;
+}
+`;
 
     try {
       const text = await callAI(
@@ -401,160 +720,427 @@ Generate a JSON object conforming strictly to:
         "You are an expert systematic review methodologist focused on transparent narrative and thematic synthesis.",
         aiConfig
       );
+
       const parsed = parseJSONLoose(text);
-      if (parsed && parsed.subtopics) {
-        const normalizedSubtopics = normalizeSubtopics(parsed.subtopics, studiesData);
-        onUpdateSynthesis({
-          ...synthesis,
-          suggestedTitle: suggestReviewTitle(studiesData, normalizedSubtopics),
-          subtopics: normalizedSubtopics,
-          keyFindingsTable: normalizedSubtopics.map((subtopic, index) => ({
-            topic: subtopic.title.replace(/^\d+\.\s*/, ""),
-            summary: subtopic.prose,
-            consistency: parsed.keyFindingsTable?.[index]?.consistency || "Not assessed quantitatively",
-            evidenceBase: `${clusters[index].studies.length} screened-in record${clusters[index].studies.length === 1 ? "" : "s"}`,
-          })),
-          forestPlotEstimates: [],
-          pooledEffectEstimate: undefined,
-          heterogeneityDiscussion: "Differences across records are described through reported methods, contexts, outcomes, and recurring themes.",
-        });
-      } else {
-        throw new Error("Could not parse AI response as valid synthesis object.");
+
+      if (!parsed || !Array.isArray(parsed.subtopics)) {
+        throw new Error(
+          "The synthesis response could not be parsed."
+        );
       }
-    } catch (e: any) {
-      console.warn("AI synthesis error:", e);
-      setErrorMessage(`AI Synthesis Notice: ${e.message || "Request failed"}. Automatic structured synthesis was applied as a fallback.`);
+
+      const normalizedSubtopics =
+        normalizeSubtopics(
+          parsed.subtopics,
+          synthesisStudies
+        );
+
+      onUpdateSynthesis({
+        ...synthesis,
+
+        suggestedTitle:
+          suggestReviewTitles(
+            protocol,
+            synthesisStudies,
+            normalizedSubtopics
+          )[0],
+
+        subtopics: normalizedSubtopics,
+
+        /*
+         * IMPORTANT:
+         * Counts come from the complete evidence lock,
+         * never from AI-generated text.
+         */
+        keyFindingsTable:
+          buildEvidenceTable(synthesisStudies),
+
+        forestPlotEstimates: [],
+
+        pooledEffectEstimate: undefined,
+
+        heterogeneityDiscussion:
+          "Differences across records are described narratively according to their reported approaches, contexts, outcomes, and findings. Quantitative pooling is not performed.",
+      });
+    } catch (error: any) {
+      console.warn(
+        "Narrative synthesis generation error:",
+        error
+      );
+
+      setErrorMessage(
+        `Automatic synthesis could not be completed. A conservative structured synthesis has been generated instead.`
+      );
+
       runHeuristicSynthesis();
     } finally {
       setGenerating(false);
     }
   };
 
-  const groupedData = getGroupedCharacteristics();
-  const titleOptions = synthesis.subtopics.length > 0
-    ? suggestReviewTitles(getSynthesisStudies(includedRecords, characteristics), synthesis.subtopics)
-    : [];
-  const suggestedTitle = synthesis.suggestedTitle || titleOptions[0] || "";
-  const [titleCopied, setTitleCopied] = useState(false);
-
   return (
-    <div id="synthesis-section-container" className="space-y-6">
-      {/* Error / Notice Alert */}
+    <div
+      id="synthesis-section-container"
+      className="space-y-6"
+    >
+      {/* =====================================================
+          SUGGESTED TITLE — INTENTIONALLY FIRST
+          ===================================================== */}
+      <div className="bg-emerald-50/70 border border-emerald-200 p-6 rounded-xl shadow-xs space-y-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <div className="font-mono text-[10px] text-emerald-700 uppercase tracking-wider font-bold">
+              Manuscript Development
+            </div>
+
+            <h2 className="text-xl font-bold text-emerald-950 mt-0.5">
+              Suggested Review Title
+            </h2>
+
+            <p className="text-xs text-emerald-800 mt-1 max-w-3xl">
+              A publication-oriented title is suggested from the
+              review topic and the evidence themes. The title can
+              be edited before being applied to the review protocol.
+            </p>
+          </div>
+
+          <span className="text-[10px] font-mono text-emerald-800 bg-white border border-emerald-200 px-2 py-1 rounded-md">
+            Editable
+          </span>
+        </div>
+
+        {titleOptions.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs text-emerald-800 font-medium">
+              Recommended starting titles
+            </p>
+
+            <div className="grid gap-2">
+              {titleOptions.map((title) => {
+                const selected =
+                  (synthesis.suggestedTitle ||
+                    suggestedTitle) === title;
+
+                return (
+                  <button
+                    key={title}
+                    type="button"
+                    onClick={() =>
+                      onUpdateSynthesis({
+                        ...synthesis,
+                        suggestedTitle: title,
+                      })
+                    }
+                    className={`w-full text-left px-4 py-3 text-sm rounded-lg border transition-colors cursor-pointer ${
+                      selected
+                        ? "border-emerald-500 bg-emerald-100 text-emerald-950 font-semibold"
+                        : "border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50"
+                    }`}
+                  >
+                    {selected && (
+                      <CheckCircle className="inline-block w-4 h-4 mr-2 align-text-bottom" />
+                    )}
+
+                    {title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="space-y-2">
+          <label className="text-[10px] uppercase tracking-wider font-mono font-bold text-emerald-800">
+            Working manuscript title
+          </label>
+
+          <input
+            type="text"
+            value={
+              synthesis.suggestedTitle ||
+              suggestedTitle
+            }
+            onChange={(event) =>
+              onUpdateSynthesis({
+                ...synthesis,
+                suggestedTitle:
+                  event.target.value,
+              })
+            }
+            placeholder="Enter or edit the review title"
+            className="w-full px-4 py-3 text-base font-semibold text-emerald-950 bg-white border border-emerald-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400"
+            aria-label="Suggested review title"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              const title = (
+                synthesis.suggestedTitle ||
+                suggestedTitle
+              ).trim();
+
+              if (!title) return;
+
+              onUpdateProtocol({
+                ...protocol,
+                title,
+              });
+            }}
+            disabled={
+              !(
+                synthesis.suggestedTitle ||
+                suggestedTitle
+              ).trim()
+            }
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-white bg-emerald-700 rounded-lg hover:bg-emerald-800 disabled:bg-emerald-300 cursor-pointer disabled:cursor-not-allowed"
+          >
+            <CheckCircle className="w-3.5 h-3.5" />
+            Use as review title
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const title = (
+                synthesis.suggestedTitle ||
+                suggestedTitle
+              ).trim();
+
+              if (!title) return;
+
+              navigator.clipboard.writeText(title);
+              setTitleCopied(true);
+
+              window.setTimeout(
+                () => setTitleCopied(false),
+                1800
+              );
+            }}
+            disabled={
+              !(
+                synthesis.suggestedTitle ||
+                suggestedTitle
+              ).trim()
+            }
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-semibold text-emerald-900 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-100 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+          >
+            <Copy className="w-3.5 h-3.5" />
+
+            {titleCopied
+              ? "Copied"
+              : "Copy title"}
+          </button>
+        </div>
+      </div>
+
+      {/* =====================================================
+          ERROR / NOTICE
+          ===================================================== */}
       {errorMessage && (
         <div className="p-3.5 bg-amber-50 border border-amber-300 text-amber-900 rounded-xl text-xs flex items-center justify-between font-mono">
           <div className="flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
             <span>{errorMessage}</span>
           </div>
-          <button onClick={() => setErrorMessage(null)} className="text-amber-700 hover:text-amber-900 font-bold">
+
+          <button
+            type="button"
+            onClick={() =>
+              setErrorMessage(null)
+            }
+            className="text-amber-700 hover:text-amber-900 font-bold"
+          >
             ✕
           </button>
         </div>
       )}
 
-      {/* Header Card */}
+      {/* =====================================================
+          HEADER
+          ===================================================== */}
       <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
               Results & Evidence Synthesis
             </div>
+
             <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
               Narrative & Thematic Synthesis
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
-              Group and summarize only findings supported by the supplied records and extracted characteristics.
+
+            <p className="text-xs text-slate-500 mt-1 max-w-3xl">
+              Synthesize only evidence supported by the final
+              included records. Quantitative pooling is not
+              performed unless appropriate data are available.
             </p>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <button
+              type="button"
               onClick={handleGenerateSynthesis}
-              disabled={generating || (includedRecords.length === 0 && characteristics.length === 0)}
+              disabled={
+                generating ||
+                synthesisStudies.length === 0
+              }
               className="flex items-center gap-1.5 px-4 py-2 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 rounded-lg shadow-xs transition-colors cursor-pointer"
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-200" />
-              {generating ? "Synthesizing Findings..." : "AI Synthesize Findings (Grouped Subtopics)"}
+
+              {generating
+                ? "Generating Synthesis..."
+                : "Generate Narrative Synthesis"}
             </button>
+
             <button
+              type="button"
               onClick={runHeuristicSynthesis}
-              disabled={includedRecords.length === 0 && characteristics.length === 0}
+              disabled={
+                synthesisStudies.length === 0
+              }
               className="flex items-center gap-1.5 px-3 py-2 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-indigo-600" />
-              Instant Narrative Synthesis
+              Instant Synthesis
             </button>
           </div>
         </div>
 
-        {/* Tab Navigation */}
+        {/* Evidence lock indicator */}
+        <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-slate-100">
+          <div className="text-xs font-mono text-slate-600">
+            <strong className="text-slate-900">
+              Evidence lock:
+            </strong>{" "}
+            {includedRecords.length} included record
+            {includedRecords.length === 1
+              ? ""
+              : "s"}
+          </div>
+
+          <div className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
+            Final included records only
+          </div>
+
+          {includedRecords.length > AI_SYNTHESIS_LIMIT && (
+            <div className="text-[10px] font-mono text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-md">
+              Narrative writing pass limited to{" "}
+              {AI_SYNTHESIS_LIMIT} records
+            </div>
+          )}
+        </div>
+
+        {/* Tab navigation */}
         <div className="flex items-center gap-2 pt-3 border-t border-slate-100 flex-wrap">
           {[
-            { key: "prose", label: "Narrative Synthesis by Subtopics" },
-            { key: "groups", label: "Findings Grouped by Study Characteristics" },
-            { key: "table", label: "Summary of Findings Matrix" },
-          ].map((t) => (
+            {
+              key: "prose",
+              label: "Narrative Synthesis by Subtopics",
+            },
+            {
+              key: "groups",
+              label:
+                "Findings Grouped by Study Characteristics",
+            },
+            {
+              key: "table",
+              label: "Summary of Findings Matrix",
+            },
+          ].map((tab) => (
             <button
-              key={t.key}
-              onClick={() => setActiveTab(t.key as any)}
+              key={tab.key}
+              type="button"
+              onClick={() =>
+                setActiveTab(tab.key as any)
+              }
               className={`px-3 py-1.5 text-xs font-mono rounded-lg transition-colors cursor-pointer ${
-                activeTab === t.key
+                activeTab === tab.key
                   ? "bg-slate-900 text-white font-semibold shadow-2xs"
                   : "bg-slate-100 text-slate-700 hover:bg-slate-200"
               }`}
             >
-              {t.label}
+              {tab.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* When no included records are found */}
-      {includedRecords.length === 0 && characteristics.length === 0 && (
+      {/* =====================================================
+          EMPTY STATE
+          ===================================================== */}
+      {includedRecords.length === 0 && (
         <div className="bg-amber-50 border border-amber-200 p-6 rounded-xl text-center space-y-3">
           <AlertCircle className="w-8 h-8 text-amber-600 mx-auto" />
-          <h3 className="text-sm font-bold text-amber-900">No Included Studies Available for Synthesis</h3>
+
+          <h3 className="text-sm font-bold text-amber-900">
+            No Included Studies Available for Synthesis
+          </h3>
+
           <p className="text-xs text-amber-700 max-w-md mx-auto">
-            Synthesis requires studies included during the Screening stage.
+            Synthesis requires records that have been
+            included during the Study Selection stage.
           </p>
+
           {onNavigateToScreening && (
             <button
+              type="button"
               onClick={onNavigateToScreening}
               className="px-4 py-2 text-xs font-mono font-semibold bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition-colors cursor-pointer"
             >
-              Go to Screening Stage
+              Go to Study Selection
             </button>
           )}
         </div>
       )}
 
-      {/* Tab 1: Thematic Subtopics Prose */}
+      {/* =====================================================
+          TAB 1: NARRATIVE
+          ===================================================== */}
       {activeTab === "prose" && (
         <div className="space-y-4">
-          {synthesis.subtopics && synthesis.subtopics.length > 0 ? (
-            synthesis.subtopics.map((st, i) => (
-              <div key={i} className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 font-mono">
-                    <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
-                    {st.title}
-                  </h3>
-                  <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
-                    Subtopic {i + 1}
-                  </span>
+          {synthesis.subtopics &&
+          synthesis.subtopics.length > 0 ? (
+            synthesis.subtopics.map(
+              (subtopic, index) => (
+                <div
+                  key={index}
+                  className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs space-y-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 font-mono">
+                      <span className="w-2.5 h-2.5 rounded-full bg-indigo-600" />
+
+                      {subtopic.title}
+                    </h3>
+
+                    <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
+                      Subtopic {index + 1}
+                    </span>
+                  </div>
+
+                  <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans whitespace-pre-line text-justify">
+                    {subtopic.prose}
+                  </p>
                 </div>
-                <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans whitespace-pre-line text-justify">
-                  {st.prose}
-                </p>
-              </div>
-            ))
+              )
+            )
           ) : (
             <div className="bg-white border border-slate-200 p-12 text-center rounded-xl space-y-4">
               <BookOpen className="w-10 h-10 text-slate-300 mx-auto" />
+
               <div className="space-y-1">
-                <h3 className="text-sm font-bold text-slate-800">Narrative Synthesis Not Yet Generated</h3>
+                <h3 className="text-sm font-bold text-slate-800">
+                  Narrative Synthesis Not Yet Generated
+                </h3>
+
                 <p className="text-xs text-slate-500">
-                   Click 'AI Synthesize Findings' or 'Instant Narrative Synthesis' above to generate a thematic synthesis.
+                  Generate the synthesis above to
+                  organize the included evidence into
+                  thematic domains.
                 </p>
               </div>
             </div>
@@ -565,225 +1151,254 @@ Generate a JSON object conforming strictly to:
               <h3 className="text-sm font-bold text-indigo-950 font-mono">
                 Patterns and Differences Across Records
               </h3>
+
               <p className="text-xs text-indigo-900 font-sans leading-relaxed text-justify">
                 {synthesis.heterogeneityDiscussion}
               </p>
             </div>
           )}
-
-          <div className="bg-emerald-50/70 border border-emerald-200 p-5 rounded-xl space-y-3">
-              <div className="flex items-center justify-between gap-3">
-                <h3 className="text-sm font-bold text-emerald-950 font-mono">
-                  Suggested review title
-                </h3>
-                <span className="text-[10px] font-mono text-emerald-800">
-                  Editable
-                </span>
-              </div>
-
-              {titleOptions.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-emerald-800">
-                    Choose a starting point, then edit it below if needed.
-                  </p>
-                  <div className="grid gap-2">
-                    {titleOptions.map((title) => {
-                      const selected = (synthesis.suggestedTitle ?? suggestedTitle) === title;
-                      return (
-                        <button
-                          key={title}
-                          type="button"
-                          onClick={() =>
-                            onUpdateSynthesis({
-                              ...synthesis,
-                              suggestedTitle: title,
-                            })
-                          }
-                          className={`w-full text-left px-3 py-2 text-xs rounded-lg border transition-colors cursor-pointer ${
-                            selected
-                              ? "border-emerald-500 bg-emerald-100 text-emerald-950 font-semibold"
-                              : "border-emerald-200 bg-white text-emerald-900 hover:bg-emerald-50"
-                          }`}
-                        >
-                          {title}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              <input
-                type="text"
-                value={synthesis.suggestedTitle ?? suggestedTitle}
-                onChange={(event) =>
-                  onUpdateSynthesis({
-                    ...synthesis,
-                    suggestedTitle: event.target.value,
-                  })
-                }
-                placeholder="Generate a synthesis or enter a suggested review title"
-                className="w-full px-3 py-2.5 text-sm font-semibold text-emerald-950 bg-white border border-emerald-300 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400/40 focus:border-emerald-400"
-                aria-label="Suggested review title"
-              />
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  onClick={() => {
-                    const title = (synthesis.suggestedTitle ?? suggestedTitle).trim();
-                    if (!title) return;
-                    onUpdateProtocol({ ...protocol, title });
-                  }}
-                  disabled={!(synthesis.suggestedTitle ?? suggestedTitle).trim()}
-                  className="px-3 py-1.5 text-[10px] font-mono font-semibold text-white bg-emerald-700 rounded-md hover:bg-emerald-800 disabled:bg-emerald-300 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  Use as review title
-                </button>
-                <button
-                  onClick={() => {
-                    const title = synthesis.suggestedTitle ?? suggestedTitle;
-                    if (!title) return;
-                    navigator.clipboard.writeText(title);
-                    setTitleCopied(true);
-                    window.setTimeout(() => setTitleCopied(false), 1800);
-                  }}
-                  disabled={!(synthesis.suggestedTitle ?? suggestedTitle).trim()}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 text-[10px] font-mono font-semibold text-emerald-900 bg-white border border-emerald-300 rounded-md hover:bg-emerald-100 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
-                >
-                  <Copy className="w-3 h-3" />
-                  {titleCopied ? "Copied" : "Copy title"}
-                </button>
-              </div>
-
-              <p className="text-xs text-emerald-800">
-                A generated suggestion appears after synthesis. You can edit it here, copy it, or apply it to the review protocol.
-              </p>
-            </div>
         </div>
       )}
 
-      {/* Tab 2: Findings Grouped by Study Characteristics */}
+      {/* =====================================================
+          TAB 2: GROUPS
+          ===================================================== */}
       {activeTab === "groups" && (
         <div className="space-y-6">
-          {/* Grouping Mode Controls */}
           <div className="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-center gap-2 text-xs font-mono text-slate-700">
               <Filter className="w-4 h-4 text-indigo-600" />
-              <span className="font-bold">Group Characteristics by:</span>
+
+              <span className="font-bold">
+                Group Characteristics by:
+              </span>
             </div>
+
             <div className="flex items-center gap-2 flex-wrap">
               {[
-                { id: "intervention", label: "Intervention / Technology" },
-                { id: "design", label: "Study Design" },
-                { id: "population", label: "Country & Population" },
-                { id: "outcome", label: "Outcome Measure" },
-              ].map((m) => (
+                {
+                  id: "category",
+                  label: "Evidence Category",
+                },
+                {
+                  id: "intervention",
+                  label:
+                    "Intervention / Technology",
+                },
+                {
+                  id: "design",
+                  label: "Study Design",
+                },
+                {
+                  id: "outcome",
+                  label: "Outcome Measure",
+                },
+              ].map((mode) => (
                 <button
-                  key={m.id}
-                  onClick={() => setGroupingMode(m.id as any)}
+                  key={mode.id}
+                  type="button"
+                  onClick={() =>
+                    setGroupingMode(
+                      mode.id as any
+                    )
+                  }
                   className={`px-3 py-1 text-xs font-mono rounded-lg transition-colors cursor-pointer ${
-                    groupingMode === m.id
+                    groupingMode === mode.id
                       ? "bg-indigo-600 text-white font-semibold shadow-xs"
                       : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                   }`}
                 >
-                  {m.label}
+                  {mode.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Grouped Cards */}
           {groupedData.length > 0 ? (
             <div className="space-y-4">
-              {groupedData.map((group, gIdx) => (
-                <div key={gIdx} className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs space-y-3">
-                  <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
-                    <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-mono font-bold flex items-center justify-center">
-                        {gIdx + 1}
-                      </span>
-                      <h4 className="text-sm font-bold text-slate-900 font-mono">
-                        {group.groupTitle}
-                      </h4>
-                    </div>
-                    <span className="text-xs font-mono text-slate-600 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full">
-                      {group.studies.length} {group.studies.length === 1 ? "Study" : "Studies"}
-                    </span>
-                  </div>
+              {groupedData.map(
+                (group, groupIndex) => (
+                  <div
+                    key={group.groupTitle}
+                    className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs"
+                  >
+                    <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex items-center justify-between flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-xs font-mono font-bold flex items-center justify-center">
+                          {groupIndex + 1}
+                        </span>
 
-                  <div className="p-5 space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {group.studies.map((study, sIdx) => (
-                        <div key={sIdx} className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-lg space-y-2 text-xs">
-                          <div className="flex items-center justify-between gap-1 flex-wrap">
-                            <span className="font-mono font-bold text-indigo-900 text-xs">
-                              {study.authorYear}
-                            </span>
-                            <span className="font-mono text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
-                              {study.country} · {study.sampleSize}
-                            </span>
-                          </div>
-                          <div className="space-y-1 text-slate-700">
-                            <p><strong>Design:</strong> {study.studyDesign}</p>
-                            <p><strong>Intervention / Model:</strong> {study.interventionOrFocus}</p>
-                            <p><strong>Primary Outcome:</strong> {study.primaryOutcome}</p>
-                            <p className="pt-1 text-slate-900 italic font-serif">"{study.keyFinding}"</p>
-                          </div>
-                        </div>
-                      ))}
+                        <h4 className="text-sm font-bold text-slate-900 font-mono">
+                          {group.groupTitle}
+                        </h4>
+                      </div>
+
+                      <span className="text-xs font-mono text-slate-600 bg-white border border-slate-200 px-2.5 py-0.5 rounded-full">
+                        {group.studies.length}{" "}
+                        {group.studies.length === 1
+                          ? "Study"
+                          : "Studies"}
+                      </span>
+                    </div>
+
+                    <div className="p-5">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {group.studies.map(
+                          (study) => (
+                            <div
+                              key={study.recordId}
+                              className="p-3.5 bg-slate-50/70 border border-slate-200 rounded-lg space-y-2 text-xs"
+                            >
+                              <div className="flex items-center justify-between gap-1 flex-wrap">
+                                <span className="font-mono font-bold text-indigo-900 text-xs">
+                                  {study.authorYear}
+                                </span>
+
+                                <span className="font-mono text-[10px] text-slate-500 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                                  {study.country} ·{" "}
+                                  {study.sampleSize}
+                                </span>
+                              </div>
+
+                              <div className="space-y-1 text-slate-700">
+                                <p>
+                                  <strong>
+                                    Design:
+                                  </strong>{" "}
+                                  {study.studyDesign}
+                                </p>
+
+                                <p>
+                                  <strong>
+                                    Intervention /
+                                    Model:
+                                  </strong>{" "}
+                                  {
+                                    study.interventionOrFocus
+                                  }
+                                </p>
+
+                                <p>
+                                  <strong>
+                                    Primary Outcome:
+                                  </strong>{" "}
+                                  {
+                                    study.primaryOutcome
+                                  }
+                                </p>
+
+                                <p className="pt-1 text-slate-900 italic font-serif">
+                                  "{study.keyFinding}"
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           ) : (
             <div className="p-10 text-center bg-white border border-slate-200 rounded-xl text-slate-500 text-xs font-mono">
-              No study characteristics extracted yet. Navigate to the Study Characteristics stage to extract study data.
+              No study characteristics are available.
             </div>
           )}
         </div>
       )}
 
-      {/* Tab 3: Key Findings Matrix */}
+      {/* =====================================================
+          TAB 3: SUMMARY MATRIX
+          ===================================================== */}
       {activeTab === "table" && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-xs">
           <table className="w-full text-left text-xs font-sans">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-700 font-mono text-[11px]">
               <tr>
-                <th className="py-3 px-4 font-bold">Thematic Domain / Metric</th>
-                <th className="py-3 px-4 font-bold">Summary of Synthesized Evidence</th>
-                <th className="py-3 px-4 font-bold">Consistency</th>
-                <th className="py-3 px-4 font-bold">Evidence Base</th>
+                <th className="py-3 px-4 font-bold">
+                  Thematic Domain
+                </th>
+
+                <th className="py-3 px-4 font-bold">
+                  Summary of Synthesized Evidence
+                </th>
+
+                <th className="py-3 px-4 font-bold">
+                  Consistency
+                </th>
+
+                <th className="py-3 px-4 font-bold">
+                  Evidence Base
+                </th>
               </tr>
             </thead>
+
             <tbody className="divide-y divide-slate-100">
-              {synthesis.keyFindingsTable && synthesis.keyFindingsTable.length > 0 ? (
-                synthesis.keyFindingsTable.map((row, idx) => (
-                  <tr key={idx} className="hover:bg-slate-50/70">
-                    <td className="py-3 px-4 font-mono font-bold text-slate-900 align-top max-w-[180px]">
-                      {row.topic}
-                    </td>
-                    <td className="py-3 px-4 text-slate-700 align-top leading-relaxed">
-                      {row.summary}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-indigo-700 align-top max-w-[160px]">
-                      {row.consistency}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-slate-500 align-top max-w-[160px]">
-                      {row.evidenceBase}
-                    </td>
-                  </tr>
-                ))
+              {synthesis.keyFindingsTable &&
+              synthesis.keyFindingsTable.length > 0 ? (
+                synthesis.keyFindingsTable.map(
+                  (row, index) => (
+                    <tr
+                      key={index}
+                      className="hover:bg-slate-50/70"
+                    >
+                      <td className="py-3 px-4 font-mono font-bold text-slate-900 align-top max-w-[220px]">
+                        {row.topic}
+                      </td>
+
+                      <td className="py-3 px-4 text-slate-700 align-top leading-relaxed">
+                        {row.summary}
+                      </td>
+
+                      <td className="py-3 px-4 font-mono text-indigo-700 align-top max-w-[160px]">
+                        {row.consistency}
+                      </td>
+
+                      <td className="py-3 px-4 font-mono text-slate-500 align-top max-w-[160px]">
+                        {row.evidenceBase}
+                      </td>
+                    </tr>
+                  )
+                )
               ) : (
                 <tr>
-                  <td colSpan={4} className="p-8 text-center text-xs font-mono text-slate-400">
-                    No summary table rows available. Click 'AI Synthesize Findings' above.
+                  <td
+                    colSpan={4}
+                    className="p-8 text-center text-xs font-mono text-slate-400"
+                  >
+                    No summary table rows available.
+                    Generate the synthesis above.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* =====================================================
+          FINAL EVIDENCE NOTE
+          ===================================================== */}
+      {includedRecords.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
+          <div className="flex items-start gap-2">
+            <CheckCircle className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
+
+            <div>
+              <p className="text-xs font-bold text-slate-800">
+                Evidence lock active
+              </p>
+
+              <p className="text-[11px] text-slate-600 leading-relaxed mt-1">
+                Only final included records are eligible to
+                contribute to the synthesis, evidence matrix,
+                discussion, and manuscript results. Missing
+                characteristics remain reported as not reported
+                rather than being inferred.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
