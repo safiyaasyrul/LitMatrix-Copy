@@ -311,7 +311,16 @@ WRITING RULES:
 
 14. Preserve important differences between studies rather than collapsing them into a single generalized conclusion.
 
-15. Cite studies using: Author et al. (Year)
+15. Cite studies where necessary to substantiate statements about the
+    included evidence.
+
+16. Do not prescribe, assume, or hard-code a citation style.
+
+17. Preserve the study identity information supplied with each record so that
+    citations can be formatted later according to the citation style selected
+    by the user.
+
+18. Do not fabricate citation information.
 
 16. Do not fabricate citations. Every cited study must correspond to a study in the supplied records.
 
