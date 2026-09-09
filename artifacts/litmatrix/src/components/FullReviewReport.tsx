@@ -6,9 +6,8 @@ import {
   StudyCharacteristic,
   SynthesisResult,
   DiscussionSections,
-  PrismaChecklistItem,
 } from "../types/slr";
-import { Download, Copy, Printer, Check, BookOpen, FileText, CheckCircle2, ShieldAlert, Sparkles, Layers, SlidersHorizontal, Quote } from "lucide-react";
+import { Download, Copy, Printer, Check, BookOpen, FileText } from "lucide-react";
 import PrismaDiagram from "./PrismaDiagram";
 
 interface FullReviewReportProps {
@@ -19,7 +18,7 @@ interface FullReviewReportProps {
   characteristics: StudyCharacteristic[];
   synthesis: SynthesisResult;
   discussion: DiscussionSections;
-  checklist: PrismaChecklistItem[];
+  checklist: any[];
   counts: any;
 }
 
@@ -30,34 +29,7 @@ interface LandscapeCount {
 
 interface EvidenceLandscape {
   yearCounts: LandscapeCount[];
-  themeCounts: LandscapeCount[];
 }
-
-const themeDefinitions = [
-  {
-    label: "Methods, modelling, and design",
-    terms: ["model", "algorithm", "simulation", "cfd", "neural", "machine learning", "optimization", "framework", "design"],
-  },
-  {
-    label: "Technologies, interventions, and decarbonization",
-    terms: ["fuel", "vessel", "propulsion", "energy", "technology", "retrofit", "renewable", "carbon", "decarbon", "emission"],
-  },
-  {
-    label: "Performance, efficiency, and reported outcomes",
-    terms: ["performance", "efficiency", "reduction", "cost", "accuracy", "outcome", "validation", "result", "impact"],
-  },
-];
-
-const classifyRecordTheme = (record: SLRRecord) => {
-  const searchableText = `${record.title} ${record.abstract || ""}`.toLowerCase();
-  const scores = themeDefinitions.map((theme) =>
-    theme.terms.reduce((score, term) => score + (searchableText.includes(term) ? 1 : 0), 0)
-  );
-  const highestScore = Math.max(...scores);
-  return highestScore > 0
-    ? themeDefinitions[scores.indexOf(highestScore)].label
-    : "Other reported themes";
-};
 
 const countLabels = (labels: string[]) =>
   Array.from(
@@ -69,13 +41,13 @@ const countLabels = (labels: string[]) =>
     .map(([label, count]) => ({ label, count }))
     .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
-const getEvidenceLandscape = (records: SLRRecord[]): EvidenceLandscape => {
-  return {
-    yearCounts: countLabels(records.map((record) => record.year?.trim() || "Undated record"))
-      .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true })),
-    themeCounts: countLabels(records.map(classifyRecordTheme)),
-  };
-};
+const getEvidenceLandscape = (records: SLRRecord[]): EvidenceLandscape => ({
+  yearCounts: countLabels(
+    records.map((record) => record.year?.trim() || "Undated record")
+  ).sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { numeric: true })
+  ),
+});
 
 const summarizeLandscape = (counts: LandscapeCount[], limit = 4) =>
   counts.slice(0, limit).map((item) => `${item.label} (${item.count})`).join(", ");
@@ -87,7 +59,7 @@ const getCharacteristicsLandscape = (records: SLRRecord[], characteristics: Stud
     yearCounts: getEvidenceLandscape(records).yearCounts,
     categoryCounts: hasExtractedCharacteristics
       ? countLabels(characteristics.map((item) => item.category?.trim() || item.interventionOrFocus?.trim() || unavailable))
-      : countLabels(records.map(classifyRecordTheme)),
+      : countLabels(records.map(() => unavailable)),
     contextCounts: hasExtractedCharacteristics
       ? countLabels(characteristics.map((item) => item.population?.trim() || unavailable))
       : countLabels(records.map(() => unavailable)),
@@ -123,7 +95,7 @@ export default function FullReviewReport({
   const evidenceLandscape = getEvidenceLandscape(includedRecords);
   const characteristicsLandscape = getCharacteristicsLandscape(includedRecords, characteristics);
   const recordGroundedRationale = includedRecords.length > 0
-    ? `This review examines ${manuscriptTitle} through ${includedRecords.length} included records. The record-level evidence is concentrated in ${summarizeLandscape(evidenceLandscape.themeCounts) || "the themes reported in the included literature"}, covering the methods, technologies, and outcomes described by those records.`
+    ? `This review examines ${manuscriptTitle} through ${includedRecords.length} included records. The descriptive evidence is summarized from the publication and study characteristics available for the included records.`
     : protocol.introductionRationale || `This review examines evidence relevant to ${manuscriptTitle}.`;
 
   const questions = protocol.primaryResearchQuestions || [
@@ -200,7 +172,6 @@ export default function FullReviewReport({
       "Narrative Synthesis",
       "Publication Trends",
       "Thematic Evidence Landscape",
-      ...evidenceLandscape.themeCounts.slice(0, 2).map((theme) => theme.label),
     ].filter(Boolean);
 
     return { bg, obj, meth, res, concl, keywords };
@@ -214,6 +185,132 @@ export default function FullReviewReport({
       table += `| ${item.label.replace(/\|/g, "/")} | ${item.count} |\n`;
     });
     return `${table}\n`;
+  };
+
+  const escapeHtml = (value: any) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const cleanAppendixText = (value: any, fallback = "Not reported") =>
+    typeof value === "string" && value.trim() ? value.trim() : fallback;
+
+  const getSearchStrategyValue = (strategy: any, keys: string[]) => {
+    for (const key of keys) {
+      const value = strategy?.[key];
+      if (typeof value === "string" && value.trim()) return value.trim();
+      if (Array.isArray(value) && value.length > 0) {
+        return value.map((item) => String(item)).join(", ");
+      }
+    }
+    return "";
+  };
+
+  const getEligibilityCriteria = () => ({
+    inclusion: Array.isArray(protocol.eligibilityCriteria?.inclusion)
+      ? protocol.eligibilityCriteria.inclusion.filter(Boolean)
+      : [],
+    exclusion: Array.isArray(protocol.eligibilityCriteria?.exclusion)
+      ? protocol.eligibilityCriteria.exclusion.filter(Boolean)
+      : [],
+  });
+
+  const getSearchStrategies = () =>
+    Array.isArray(protocol.searchStrategies) ? protocol.searchStrategies : [];
+
+  const generateAppendixMarkdown = () => {
+    const criteria = getEligibilityCriteria();
+    let appendix = `## Appendix A. Eligibility Criteria\n\n`;
+    appendix += `### A.1 Inclusion Criteria\n\n`;
+    if (criteria.inclusion.length) {
+      criteria.inclusion.forEach((item, index) => {
+        appendix += `${index + 1}. ${item}\n`;
+      });
+    } else {
+      appendix += `Not reported in the review protocol.\n`;
+    }
+
+    appendix += `\n### A.2 Exclusion Criteria\n\n`;
+    if (criteria.exclusion.length) {
+      criteria.exclusion.forEach((item, index) => {
+        appendix += `${index + 1}. ${item}\n`;
+      });
+    } else {
+      appendix += `Not reported in the review protocol.\n`;
+    }
+
+    appendix += `\n## Appendix B. Search Strategy and Search Strings\n\n`;
+    const strategies = getSearchStrategies();
+
+    if (!strategies.length) {
+      appendix += `No search strategy was recorded in the review protocol.\n`;
+      return appendix;
+    }
+
+    strategies.forEach((strategy: any, index: number) => {
+      const database = cleanAppendixText(strategy?.database, `Source ${index + 1}`);
+      const searchDate = getSearchStrategyValue(strategy, ["searchDate", "date", "searchedAt"]);
+      const fields = getSearchStrategyValue(strategy, ["fields", "searchFields", "field"]);
+      const searchString = getSearchStrategyValue(
+        strategy,
+        ["searchString", "query", "string", "searchQuery", "queryString"]
+      );
+      const filters = getSearchStrategyValue(strategy, ["filters", "filter", "limits", "limitations"]);
+
+      appendix += `### B.${index + 1} ${database}\n\n`;
+      appendix += `- Search date: ${searchDate || "Not reported"}\n`;
+      appendix += `- Fields searched: ${fields || "Not reported"}\n`;
+      appendix += `- Filters/limits: ${filters || "Not reported"}\n\n`;
+      appendix += `**Exact stored search string:**\n\n`;
+      appendix += "```text\n";
+      appendix += `${searchString || "Not reported in the stored search strategy"}\n`;
+      appendix += "```\n\n";
+    });
+
+    return appendix;
+  };
+
+  const generateAppendixHtml = () => {
+    const criteria = getEligibilityCriteria();
+    const strategies = getSearchStrategies();
+
+    const listHtml = (items: string[]) =>
+      items.length
+        ? `<ol>${items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ol>`
+        : `<p>Not reported in the review protocol.</p>`;
+
+    let html = `<h2>Appendix A. Eligibility Criteria</h2>`;
+    html += `<h3>A.1 Inclusion Criteria</h3>${listHtml(criteria.inclusion)}`;
+    html += `<h3>A.2 Exclusion Criteria</h3>${listHtml(criteria.exclusion)}`;
+    html += `<h2>Appendix B. Search Strategy and Search Strings</h2>`;
+
+    if (!strategies.length) {
+      html += `<p>No search strategy was recorded in the review protocol.</p>`;
+      return html;
+    }
+
+    strategies.forEach((strategy: any, index: number) => {
+      const database = cleanAppendixText(strategy?.database, `Source ${index + 1}`);
+      const searchDate = getSearchStrategyValue(strategy, ["searchDate", "date", "searchedAt"]);
+      const fields = getSearchStrategyValue(strategy, ["fields", "searchFields", "field"]);
+      const searchString = getSearchStrategyValue(
+        strategy,
+        ["searchString", "query", "string", "searchQuery", "queryString"]
+      );
+      const filters = getSearchStrategyValue(strategy, ["filters", "filter", "limits", "limitations"]);
+
+      html += `<h3>B.${index + 1} ${escapeHtml(database)}</h3>`;
+      html += `<p><strong>Search date:</strong> ${escapeHtml(searchDate || "Not reported")}<br>`;
+      html += `<strong>Fields searched:</strong> ${escapeHtml(fields || "Not reported")}<br>`;
+      html += `<strong>Filters/limits:</strong> ${escapeHtml(filters || "Not reported")}</p>`;
+      html += `<p><strong>Exact stored search string:</strong></p>`;
+      html += `<pre class="search-string">${escapeHtml(searchString || "Not reported in the stored search strategy")}</pre>`;
+    });
+
+    return html;
   };
 
   const generateFullMarkdown = () => {
@@ -260,12 +357,14 @@ export default function FullReviewReport({
     const searchDatabases = protocol.searchStrategies.map((s) => s.database).join(", ");
     md += `Comprehensive systematic search strategies were executed across major academic databases, including ${searchDatabases}. Queries combined Boolean operators, controlled vocabulary terms, and truncation tailored to each database search syntax.\n\n`;
 
-    md += `### 2.4 Selection Process, Reviewer Moderation, and Exclusion Rationales\n`;
-    md += `Screening decisions were aligned with predefined eligibility criteria, and included records were organized for narrative and thematic synthesis.\n\n`;
+    md += `### 2.4 Study Selection\n`;
+    md += `Records were screened against the predefined eligibility criteria using the available title, abstract, and bibliographic information. The final included set was used for the reported descriptive and narrative synthesis. No full-text retrieval or full-text eligibility assessment was performed.\n\n`;
 
     md += `## 3. Results\n\n`;
     md += `### 3.1 Study Selection and Flow of Evidence\n`;
-    md += `${counts.uploaded || counts.identifiedDb || 0} records were uploaded, including ${counts.duplicatesRemoved || 0} duplicates recorded as removed. After deduplication, ${counts.afterDedup || counts.screened || 0} records remained, with ${includedRecords.length} included and ${(counts.afterDedup || counts.screened || 0) - includedRecords.length} excluded. The results describe the records retained by the configured screening criteria.\n\n`;
+    const afterDedup = counts.afterDedup ?? counts.screened ?? screenedRecords.length;
+    const excludedCount = counts.screenedExcluded ?? Math.max(0, afterDedup - includedRecords.length);
+    md += `${counts.uploaded ?? counts.identifiedDb ?? 0} records were uploaded, including ${counts.duplicatesRemoved ?? 0} duplicates recorded as removed. After deduplication, ${afterDedup} records remained. Of these, ${includedRecords.length} were included and ${excludedCount} were excluded. No full-text retrieval or full-text eligibility assessment was performed in this workflow.\n\n`;
 
     md += `### 3.1 Screening Decision Audit Table (Table 1)\n\n`;
     md += `| Article Information (Title, Author & Journal) | Screening Status | Academic Screening Justification |\n`;
@@ -285,11 +384,10 @@ export default function FullReviewReport({
     md += markdownCountTable("Reported outcome types", characteristicsLandscape.outcomeCounts);
     md += markdownCountTable("Geographical context", characteristicsLandscape.geographyCounts);
 
-    md += `### 3.3 Evidence Landscape\n\n`;
-    md += `The main record-derived thematic categories were ${summarizeLandscape(evidenceLandscape.themeCounts) || "not specified in the supplied records"}.\n\n`;
-    md += markdownCountTable("Main thematic and intervention categories", evidenceLandscape.themeCounts);
+    md += `### 3.3 Descriptive Evidence Landscape\n\n`;
+    md += `The descriptive landscape is reported using characteristics directly available for the included records. No predefined keyword taxonomy was used to assign records to themes.\n\n`;
 
-    md += `### 3.4 Narrative and Thematic Synthesis\n\n`;
+    md += `### 3.3 Narrative and Thematic Synthesis\n\n`;
     synthesis.subtopics.forEach((sub) => {
       md += `#### ${sub.title}\n${sub.prose}\n\n`;
     });
@@ -304,7 +402,8 @@ export default function FullReviewReport({
     md += `### 4.3 Review Methodological Context\n${discussion.item23cLimitationsOfReviewProcess}\n\n`;
     md += `### 4.4 Practical Implications and Future Research Directions\n${discussion.item23dImplications}\n\n`;
 
-    md += `## References of Included Studies\n\n`;
+    md += generateAppendixMarkdown();
+    md += `\n## References of Included Studies\n\n`;
     includedRecords.forEach((r) => {
       const auth = (r.authors || []).join(", ") || "Unknown authors";
       md += `${auth} (${r.year || "n.d."}). ${r.title}. *${r.source || "Journal"}*${r.doi ? `, https://doi.org/${r.doi}` : ""}.\n\n`;
@@ -367,6 +466,7 @@ export default function FullReviewReport({
     td { padding: 7px 10px; border: 1px solid #e2e8f0; vertical-align: top; }
     tr:nth-child(even) { background-color: #f8fafc; }
     .table-caption { font-weight: 700; font-size: 11pt; color: #0f172a; margin-top: 20px; margin-bottom: 6px; }
+    .search-string { white-space: pre-wrap; word-break: break-word; background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; font-family: "Courier New", monospace; font-size: 9pt; }
   </style>
 </head>
 <body>
@@ -406,10 +506,10 @@ export default function FullReviewReport({
   <p>Records were eligible for inclusion if they satisfied predefined criteria encompassing ${protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded if they exhibited ${protocol.eligibilityCriteria.exclusion.join(", ")}. The planned synthesis grouping strategy follows ${protocol.eligibilityCriteria.groupingForSynthesis || "thematic and technological categorization"}.</p>
 
   <h3>2.3 Information Sources and Search Strategy</h3>
-  <p>Comprehensive search strategies were executed across major academic databases (${protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strings combined Boolean operators, controlled vocabularies, and field-specific filters.</p>
+  <p>Search strategies were conducted across the configured information sources (${protocol.searchStrategies.map((s) => s.database).join(", ")}). The exact stored search strings and available search metadata are reproduced in Appendix B.</p>
 
-  <h3>2.4 Selection Process</h3>
-  <p>Screening decisions were aligned with predefined eligibility criteria, and included records were organized for narrative and thematic synthesis.</p>
+  <h3>2.4 Study Selection</h3>
+  <p>Records were screened against the predefined eligibility criteria using the available title, abstract, and bibliographic information. The final included set was used for the reported descriptive and narrative synthesis. No full-text retrieval or full-text eligibility assessment was performed.</p>
 
   <h2>3. Results</h2>
 
@@ -471,6 +571,8 @@ export default function FullReviewReport({
   <h3>4.4 Practical Implications and Future Research Directions</h3>
   <p>${discussion.item23dImplications}</p>
 
+  ${generateAppendixHtml()}
+
   <h2>References of Included Studies</h2>
   ${includedRecords.map((r) => {
     const auth = (r.authors || []).join(", ") || "Unknown authors";
@@ -489,271 +591,7 @@ export default function FullReviewReport({
 
   return (
     <div id="full-review-report-container" className="space-y-6">
-      {/* Action Bar */}
-      <div className="bg-white border border-slate-200 p-6 rounded-xl shadow-xs flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="font-mono text-[10px] text-indigo-600 uppercase tracking-wider font-bold">
-            Consolidated SLR Manuscript
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900 mt-0.5">
-            Full Systematic Review Manuscript & Evidence Report
-          </h2>
-          <p className="text-xs text-slate-500 mt-1">
-             Structured systematic review manuscript with an academic abstract, categorized study characteristics, and evidence-based cross-author synthesis.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={handleCopy}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg shadow-2xs transition-colors cursor-pointer"
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copied!" : "Copy Markdown"}
-          </button>
-          <button
-            onClick={handleDownload}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-xs transition-colors cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            Download Markdown (.md)
-          </button>
-          <button
-            onClick={handleDownloadDoc}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-semibold text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-300 rounded-lg shadow-2xs transition-colors cursor-pointer"
-          >
-            <FileText className="w-3.5 h-3.5 text-indigo-600" />
-            Download Word (.doc)
-          </button>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-mono font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded-lg transition-colors cursor-pointer"
-          >
-            <Printer className="w-3.5 h-3.5" />
-            Print / PDF
-          </button>
-        </div>
-      </div>
-
-      {/* Formatted Manuscript Card */}
-      <article className="bg-white border border-slate-200 p-8 sm:p-12 rounded-xl shadow-xs font-sans space-y-8 max-w-4xl mx-auto print:border-none print:shadow-none print:p-0">
-        {/* Title Header */}
-        <header className="border-b border-slate-200 pb-6 space-y-2">
-          <div className="font-mono text-[10px] text-indigo-600 uppercase font-bold tracking-wider">
-            Systematic Literature Review Manuscript
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
-            {manuscriptTitle}
-          </h1>
-          <div className="text-xs font-mono text-slate-500 pt-1 space-y-1">
-            <div>Methodology: <span className="font-semibold text-slate-800">{protocol.reviewType}</span></div>
-          </div>
-        </header>
-
-        {/* Structured Academic Abstract */}
-        <section className="bg-slate-50/80 border border-slate-200 p-6 sm:p-8 rounded-xl space-y-4">
-          <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-            <h2 className="text-base font-bold text-slate-900 font-mono flex items-center gap-2 uppercase tracking-wide">
-              <BookOpen className="w-4 h-4 text-indigo-600" />
-              Structured Academic Abstract
-            </h2>
-            <span className="text-[10px] font-mono text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded">
-              Publication Ready
-            </span>
-          </div>
-
-          <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Background:</strong>
-              {abstract.bg}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Objectives:</strong>
-              {abstract.obj}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Methods:</strong>
-              {abstract.meth}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Results:</strong>
-              {abstract.res}
-            </p>
-            <p>
-              <strong className="font-mono font-bold text-slate-900 uppercase text-[11px] mr-1.5">Discussion & Conclusion:</strong>
-              {abstract.concl}
-            </p>
-            <div className="pt-2 border-t border-slate-200 text-xs font-mono text-slate-600">
-              <strong className="text-slate-900 mr-1.5 font-bold">Keywords:</strong>
-              <span className="text-slate-700 italic">{abstract.keywords.join(", ")}</span>
-            </div>
-          </div>
-        </section>
-
-        {/* Section 1: Introduction & Objectives */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
-            1. Introduction and Academic Rationale
-          </h2>
-          
-          <div className="space-y-2">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">1.1 Scientific Rationale and Motivation for Conducting the Review</h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-              {recordGroundedRationale}
-            </p>
-            {protocol.backgroundContext && includedRecords.length === 0 && (
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-                In theoretical and domain context, {protocol.backgroundContext}
-              </p>
-            )}
-            {protocol.knowledgeGap && includedRecords.length === 0 && (
-              <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-                Regarding the existing literature gap, {protocol.knowledgeGap}
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2 pt-2">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">1.2 Review Objectives and Research Questions</h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed font-sans text-justify">
-              The overarching objective of this investigation is {objectives.map((obj) => `to ${obj.toLowerCase().replace(/^to\s+/, "")}`).join(", as well as ")}. In addressing this mandate, the review investigates three core research questions: {questions.map((q, i) => `Research question ${i + 1} addresses ${q.replace(/^RQ\d+:\s*/, "")}`).join(". Furthermore, ")}.
-            </p>
-          </div>
-        </section>
-
-        {/* Section 2: Methods (PICOC in statement paragraph, no bullet points) */}
-        <section className="space-y-4">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
-            2. Methods
-          </h2>
-          <div className="space-y-3 text-xs sm:text-sm text-slate-700 leading-relaxed">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.1 Study Formulation and Scope Definition</h3>
-            <p className="text-justify bg-indigo-50/40 p-4 rounded-xl border border-indigo-100">
-              {getFrameworkNarrative()}
-            </p>
-
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.2 Eligibility Criteria</h3>
-            <p className="text-justify">
-              Records were eligible for inclusion if they satisfied predefined criteria encompassing {protocol.eligibilityCriteria.inclusion.join(", ")}. Records were excluded if they exhibited {protocol.eligibilityCriteria.exclusion.join(", ")}. Synthesis grouping was structured around {protocol.eligibilityCriteria.groupingForSynthesis || "thematic technological categories"}.
-            </p>
-
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.3 Information Sources and Search Strategy</h3>
-            <p className="text-justify">
-              Systematic search strings were executed across major academic databases ({protocol.searchStrategies.map((s) => s.database).join(", ")}). Search strategies combined controlled vocabulary terms, Boolean logic, and field constraints.
-            </p>
-
-            <h3 className="font-bold text-slate-900 text-sm font-mono">2.4 Selection Process and Evidence Status</h3>
-            <p className="text-justify">
-              Screening decisions were aligned with predefined eligibility criteria, and included records were organized for narrative and thematic synthesis.
-            </p>
-
-          </div>
-        </section>
-
-        {/* Section 3: Results */}
-        <section className="space-y-6">
-          <h2 className="text-xl font-bold text-slate-900 border-b border-slate-100 pb-2">
-            3. Results
-          </h2>
-
-          <div className="space-y-3">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.1 Study Selection and Flow of Records</h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              Uploaded records: {counts.uploaded || counts.identifiedDb || 0}. After deduplication: {counts.afterDedup || counts.screened || 0}. Included: {includedRecords.length}. Excluded: {(counts.afterDedup || counts.screened || 0) - includedRecords.length}. The results describe the records retained by the configured screening criteria.
-            </p>
-
-            <div className="pt-2">
-              <PrismaDiagram counts={counts} />
-            </div>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.2 Characteristics of Included Studies</h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              {includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across publication year, study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.
-            </p>
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-              {[
-                ["Publication year distribution", characteristicsLandscape.yearCounts],
-                ["Study and intervention categories", characteristicsLandscape.categoryCounts],
-                ["Contexts", characteristicsLandscape.contextCounts],
-                ["Methodological approaches", characteristicsLandscape.methodologyCounts],
-                ["Reported outcome types", characteristicsLandscape.outcomeCounts],
-                ["Geographical context", characteristicsLandscape.geographyCounts],
-              ].map(([label, values]) => (
-                <div key={label as string} className="border border-slate-200 rounded-lg overflow-hidden">
-                  <div className="bg-slate-50 px-3 py-2 text-[10px] font-mono font-bold text-slate-800">{label as string}</div>
-                  <div className="divide-y divide-slate-100">
-                    {(values as LandscapeCount[]).map((item) => (
-                      <div key={item.label} className="flex items-center justify-between gap-2 px-3 py-2 text-[11px]">
-                        <span className="text-slate-700">{item.label}</span>
-                        <span className="font-mono font-semibold text-slate-900">{item.count}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Table 1: Characteristics Grouped by Category */}
-          <div className="space-y-2 pt-2">
-            <div className="flex items-center justify-between">
-              <div className="text-xs font-mono font-bold text-slate-900">
-              Screening Decision Audit Table
-              </div>
-              <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
-                {includedRecords.length} Included Records
-              </span>
-            </div>
-
-            <div className="overflow-x-auto border border-slate-200 rounded-lg">
-              <table className="w-full text-left text-[11px] font-sans">
-                <thead className="bg-slate-50 border-b border-slate-200 font-mono text-[10px]">
-                  <tr>
-                    <th className="p-2.5 font-bold">Article Information (Title, Author &amp; Journal)</th>
-                    <th className="p-2.5 font-bold">Screening Status</th>
-                    <th className="p-2.5 font-bold">Academic Screening Justification</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {screenedRecords.map((record) => {
-                    return (
-                      <tr key={record.id} className="hover:bg-slate-50/50">
-                        <td className="p-2.5 text-slate-900">
-                          <div className="font-semibold">{getArticleRecord(record)}</div>
-                        </td>
-                        <td className="p-2.5 whitespace-nowrap">{getScreeningStatus(record)}</td>
-                        <td className="p-2.5 text-slate-700">
-                          {screening[record.id]?.reason || "No screening justification was supplied for this record."}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="space-y-3 pt-2">
-            <h3 className="font-bold text-slate-900 text-sm font-mono">3.3 Evidence Landscape</h3>
-            <p className="text-xs sm:text-sm text-slate-700 leading-relaxed text-justify">
-              The main record-derived thematic categories were {summarizeLandscape(evidenceLandscape.themeCounts) || "not specified in the supplied records"}.
-            </p>
-            <div className="border border-slate-200 rounded-lg overflow-hidden max-w-xl">
-              <div className="bg-slate-50 px-3 py-2 text-[10px] font-mono font-bold text-slate-800">Main thematic and intervention categories</div>
-              <div className="divide-y divide-slate-100">
-                {evidenceLandscape.themeCounts.map((item) => (
-                  <div key={item.label} className="flex items-center justify-between gap-2 px-3 py-2 text-[11px]">
-                    <span className="text-slate-700">{item.label}</span>
-                    <span className="font-mono font-semibold text-slate-900">{item.count}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-           {/* Narrative Synthesis with Cross-Author Similarities */}
+{/* Narrative Synthesis with Cross-Author Similarities */}
           <div className="space-y-3 pt-4">
               <h3 className="font-bold text-slate-900 text-sm font-mono">3.4 Narrative and Thematic Synthesis</h3>
             {synthesis.subtopics.map((st, i) => (
