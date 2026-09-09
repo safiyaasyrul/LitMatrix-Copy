@@ -56,7 +56,6 @@ const getCharacteristicsLandscape = (records: SLRRecord[], characteristics: Stud
   const hasExtractedCharacteristics = characteristics.length > 0;
   const unavailable = "Not reported in supplied records";
   return {
-    yearCounts: getEvidenceLandscape(records).yearCounts,
     categoryCounts: hasExtractedCharacteristics
       ? countLabels(characteristics.map((item) => item.category?.trim() || item.interventionOrFocus?.trim() || unavailable))
       : countLabels(records.map(() => unavailable)),
@@ -157,24 +156,81 @@ export default function FullReviewReport({
       ? "Excluded"
       : "Excluded";
 
-  // Structured Abstract generator
+  // Structured abstract: one publication-style paragraph, maximum 300 words.
+  // Content is grounded in protocol, screening counts, and available record characteristics.
   const getAbstractContent = () => {
-    const bg = recordGroundedRationale;
-    const obj = `This systematic review aimed to ${objectives.map((o) => o.toLowerCase().replace(/^to\s+/, "")).join(", and to ")}, addressing three principal research questions: ${questions.map((q, i) => `RQ${i + 1} (${q.replace(/^RQ\d+:\s*/, "")})`).join(", ")}.`;
-    const searchDbs = protocol.searchStrategies.map((s) => s.database).join(", ") || "major electronic bibliographic databases";
-    const meth = `The review draws on records from ${searchDbs}. Screening decisions follow predefined eligibility criteria, and the included evidence is organized for narrative and thematic synthesis.`;
-    
-    const res = `${includedRecords.length} records were retained for synthesis from ${counts.afterDedup || counts.screened || includedRecords.length} records after deduplication. Publication years were distributed as follows: ${summarizeLandscape(evidenceLandscape.yearCounts) || "no publication-year pattern was available"}. The descriptive evidence landscape was organized by study categories, contexts, methodological approaches, and reported outcome types.`;
-    const concl = `The included literature presents a narrative and thematic evidence base organized around the reported methods, technologies, and outcomes. Interpretation is anchored to the findings and publication characteristics of the included records.`;
-    const keywords = [
-      protocol.reviewType || "Systematic Literature Review",
-      "Evidence Synthesis",
-      "Narrative Synthesis",
-      "Publication Trends",
-      "Thematic Evidence Landscape",
-    ].filter(Boolean);
+    const bg = cleanText(recordGroundedRationale);
+    const obj = `This systematic review aimed to ${objectives
+      .map((o) => o.toLowerCase().replace(/^to\s+/, ""))
+      .join(", and to ")}, addressing ${questions.length} principal research questions.`;
 
-    return { bg, obj, meth, res, concl, keywords };
+    const searchDbs = protocol.searchStrategies
+      .map((s) => s.database)
+      .filter(Boolean)
+      .join(", ");
+
+    const meth = `Searches were conducted across ${searchDbs || "the configured information sources"} using predefined eligibility criteria. Records were screened using available title, abstract, and bibliographic information, and the included evidence was synthesized narratively and thematically.`;
+
+    const res = `${includedRecords.length} records were retained for synthesis from ${counts.afterDedup ?? counts.screened ?? includedRecords.length} records after deduplication. Available study characteristics were summarized by study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.`;
+
+    const concl = `The findings provide a record-grounded evidence base for interpreting patterns, similarities, differences, and evidence gaps within the review scope.`;
+
+    // Keywords are generated from the actual study protocol and included evidence,
+    // not generic manuscript labels.
+    const deriveKeywords = () => {
+      const candidates = [
+        protocol.title,
+        protocol.objectivesPICO?.population,
+        protocol.objectivesPICO?.intervention,
+        protocol.objectivesPICO?.outcomes,
+        protocol.objectivesPICOC?.population,
+        protocol.objectivesPICOC?.intervention,
+        protocol.objectivesPICOC?.outcomes,
+        protocol.objectivesPICOC?.context,
+        ...characteristics.map((c) => c.category),
+        ...characteristics.map((c) => c.interventionOrFocus),
+        ...characteristics.map((c) => c.primaryOutcome),
+      ];
+
+      const stop = new Set([
+        "systematic literature review",
+        "systematic review",
+        "not reported",
+        "not reported in the supplied record",
+        "the defined population or unit of analysis",
+        "the intervention, method, policy, technology, or exposure of interest",
+      ]);
+
+      const terms: string[] = [];
+      candidates.forEach((value) => {
+        if (typeof value !== "string") return;
+        value
+          .split(/[;,|/]+/)
+          .map((v) => v.replace(/\s+/g, " ").trim())
+          .filter((v) => v.length >= 3 && v.length <= 80)
+          .forEach((term) => {
+            const normalized = term.toLowerCase();
+            if (!stop.has(normalized) && !terms.some((x) => x.toLowerCase() === normalized)) {
+              terms.push(term);
+            }
+          });
+      });
+
+      // Prefer study-specific protocol terms, with a small number of
+      // evidence-derived terms as fallback.
+      return terms.slice(0, 6);
+    };
+
+    const keywords = deriveKeywords();
+
+    const abstractParagraph = `${bg} ${obj} ${meth} ${res} ${concl}`;
+    const abstractWords = abstractParagraph.split(/\s+/).filter(Boolean);
+    const boundedParagraph =
+      abstractWords.length <= 300
+        ? abstractParagraph
+        : abstractWords.slice(0, 300).join(" ").replace(/[,:;.]?$/, ".") ;
+
+    return { bg: boundedParagraph, obj: "", meth: "", res: "", concl: "", keywords };
   };
 
   const abstract = getAbstractContent();
@@ -319,11 +375,7 @@ export default function FullReviewReport({
     md += `\n---\n\n`;
 
     md += `## Abstract\n\n`;
-    md += `**Background:** ${abstract.bg}\n\n`;
-    md += `**Objectives:** ${abstract.obj}\n\n`;
-    md += `**Methods:** ${abstract.meth}\n\n`;
-    md += `**Results:** ${abstract.res}\n\n`;
-    md += `**Discussion and Conclusion:** ${abstract.concl}\n\n`;
+    md += `${abstract.bg}\n\n`;
     md += `**Keywords:** ${abstract.keywords.join(", ")}\n\n`;
     md += `---\n\n`;
 
@@ -376,8 +428,7 @@ export default function FullReviewReport({
     md += `\n`;
 
     md += `### 3.2 Characteristics of Included Studies\n\n`;
-    md += `${includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across publication year, study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.\n\n`;
-    md += markdownCountTable("Publication year distribution", characteristicsLandscape.yearCounts);
+    md += `${includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.\n\n`;
     md += markdownCountTable("Study and intervention categories", characteristicsLandscape.categoryCounts);
     md += markdownCountTable("Contexts", characteristicsLandscape.contextCounts);
     md += markdownCountTable("Methodological approaches", characteristicsLandscape.methodologyCounts);
@@ -478,11 +529,7 @@ export default function FullReviewReport({
 
   <div class="abstract-box">
     <h2 style="margin-top: 0; border-bottom: none; font-size: 13pt;">Abstract</h2>
-    <p><strong>Background:</strong> ${abstract.bg}</p>
-    <p><strong>Objectives:</strong> ${abstract.obj}</p>
-    <p><strong>Methods:</strong> ${abstract.meth}</p>
-    <p><strong>Results:</strong> ${abstract.res}</p>
-    <p><strong>Discussion and Conclusion:</strong> ${abstract.concl}</p>
+    <p>${abstract.bg}</p>
     <p><strong>Keywords:</strong> <em>${abstract.keywords.join(", ")}</em></p>
   </div>
 
@@ -540,8 +587,7 @@ export default function FullReviewReport({
   </table>
 
   <h3>3.2 Characteristics of Included Studies</h3>
-  <p>${includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across publication year, study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.</p>
-  ${htmlCountTable("Publication year distribution", characteristicsLandscape.yearCounts)}
+  <p>${includedRecords.length} included studies contributed to the descriptive results. The available characteristics are summarized across study or intervention category, context, methodological approach, reported outcome type, and geographical context where reported.</p>
   ${htmlCountTable("Study and intervention categories", characteristicsLandscape.categoryCounts)}
   ${htmlCountTable("Contexts", characteristicsLandscape.contextCounts)}
   ${htmlCountTable("Methodological approaches", characteristicsLandscape.methodologyCounts)}
